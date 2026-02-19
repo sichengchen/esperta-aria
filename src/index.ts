@@ -9,6 +9,7 @@ import { MemoryManager } from "./memory/index.js";
 import { getBuiltinTools } from "./tools/index.js";
 import { createRememberTool } from "./tools/remember.js";
 import { App } from "./tui/index.js";
+import { TelegramTransport } from "./telegram/index.js";
 import { join } from "node:path";
 
 async function main() {
@@ -41,8 +42,23 @@ async function main() {
     systemPrompt,
   });
 
-  // Render TUI
-  render(React.createElement(App, { agent, router }));
+  // Start Telegram bot if token is available
+  const telegramTokenVar = saConfig.runtime.telegramBotTokenEnvVar;
+  const telegramToken = process.env[telegramTokenVar];
+  if (telegramToken) {
+    const telegram = new TelegramTransport({
+      botToken: telegramToken,
+      agent,
+    });
+    telegram.start().catch((err) => {
+      console.error("Telegram bot failed to start:", err);
+    });
+  }
+
+  // Render TUI (unless --telegram-only flag)
+  if (!process.argv.includes("--telegram-only")) {
+    render(React.createElement(App, { agent, router }));
+  }
 }
 
 main().catch((err) => {
