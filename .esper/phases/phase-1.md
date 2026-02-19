@@ -40,3 +40,4 @@ Deliver a working personal AI agent that can be configured via an onboarding wiz
 ## Shipped Plans
 - #1 — Project scaffolding: Run `bun init` to create `package.json` and `tsconfig.json`. Files: package.json, tsconfig.json, .gitignore, .env.example, src/index.ts
 - #2 — Model router with PI-mono integration: Define a `ModelConfig` type and implement `ModelRouter` class wrapping PI-mono. Files: types.ts, router.ts, index.ts, router.test.ts
+- #5 — Identity & configuration system: Define the config directory structure with `~/.sa/`. Files: types.ts, manager.ts, defaults.ts, index.ts, config.test.ts
