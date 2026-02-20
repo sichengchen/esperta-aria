@@ -3,7 +3,57 @@ import {
   formatToolResult,
   splitMessage,
   escapeMarkdown,
+  isMessageAllowed,
+  validatePairingCode,
 } from "../src/telegram/index.js";
+
+describe("Telegram pairing", () => {
+  describe("isMessageAllowed", () => {
+    test("allows all senders when no chat ID is configured", () => {
+      expect(isMessageAllowed(undefined, 12345)).toBe(true);
+      expect(isMessageAllowed(undefined, 99999)).toBe(true);
+    });
+
+    test("allows the paired chat ID", () => {
+      expect(isMessageAllowed(42, 42)).toBe(true);
+    });
+
+    test("blocks senders that are not the paired chat", () => {
+      expect(isMessageAllowed(42, 99)).toBe(false);
+    });
+  });
+
+  describe("validatePairingCode", () => {
+    test("accepts correct code", () => {
+      expect(validatePairingCode("ABC123", "ABC123")).toBe(true);
+    });
+
+    test("is case-insensitive", () => {
+      expect(validatePairingCode("abc123", "ABC123")).toBe(true);
+      expect(validatePairingCode("ABC123", "abc123")).toBe(true);
+    });
+
+    test("trims whitespace from user input", () => {
+      expect(validatePairingCode("  ABC123  ", "ABC123")).toBe(true);
+    });
+
+    test("rejects wrong code", () => {
+      expect(validatePairingCode("WRONG1", "ABC123")).toBe(false);
+    });
+
+    test("rejects when expected code is missing", () => {
+      expect(validatePairingCode("ABC123", undefined)).toBe(false);
+    });
+
+    test("rejects when user input is missing", () => {
+      expect(validatePairingCode(undefined, "ABC123")).toBe(false);
+    });
+
+    test("rejects when both are missing", () => {
+      expect(validatePairingCode(undefined, undefined)).toBe(false);
+    });
+  });
+});
 
 describe("Telegram formatter", () => {
   describe("escapeMarkdown", () => {
