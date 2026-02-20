@@ -3,6 +3,7 @@
 import React from "react";
 import { render } from "ink";
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { ConfigManager } from "./config/index.js";
@@ -13,7 +14,7 @@ import { getBuiltinTools } from "./tools/index.js";
 import { createRememberTool } from "./tools/remember.js";
 import { App } from "./tui/index.js";
 import { TelegramTransport } from "./telegram/index.js";
-import { Wizard } from "./wizard/index.js";
+import { Wizard, type WizardData } from "./wizard/index.js";
 
 const saHome = process.env.SA_HOME ?? join(homedir(), ".sa");
 const forceSetup = process.argv.includes("--setup");
@@ -79,9 +80,37 @@ async function main() {
   const isFirstRun = !existsSync(join(saHome, "config.json"));
 
   if (isFirstRun || forceSetup) {
+    let existingConfig: WizardData | undefined;
+    if (forceSetup && !isFirstRun) {
+      try {
+        const config = new ConfigManager(saHome);
+        const saConfig = await config.load();
+        const secrets = await config.loadSecrets();
+        const modelsRaw = JSON.parse(
+          await readFile(config.getModelsPath(), "utf8")
+        );
+        const defaultModel = modelsRaw.models?.[0];
+        existingConfig = {
+          name: saConfig.identity.name,
+          personality: saConfig.identity.personality,
+          provider: defaultModel?.provider ?? "anthropic",
+          model: defaultModel?.model ?? "",
+          apiKeyEnvVar: defaultModel?.apiKeyEnvVar ?? "ANTHROPIC_API_KEY",
+          baseUrl: defaultModel?.baseUrl,
+          apiKey:
+            secrets?.apiKeys?.[defaultModel?.apiKeyEnvVar ?? ""] ?? "",
+          botToken: secrets?.botToken ?? "",
+          pairingCode: secrets?.pairingCode,
+        };
+      } catch {
+        // If loading fails, start fresh (e.g. corrupted config)
+      }
+    }
+
     const { unmount, waitUntilExit } = render(
       React.createElement(Wizard, {
         homeDir: saHome,
+        existingConfig,
         onComplete: () => {
           unmount();
           launchApp();
