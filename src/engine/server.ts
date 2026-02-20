@@ -1,0 +1,73 @@
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { applyWSSHandler } from "@trpc/server/adapters/ws";
+import { WebSocketServer } from "ws";
+import { appRouter } from "./router.js";
+import { createContext, type EngineContext } from "./context.js";
+
+const DEFAULT_PORT = 7420;
+
+export interface EngineServerOptions {
+  port?: number;
+  hostname?: string;
+}
+
+export interface EngineServer {
+  port: number;
+  stop: () => void;
+}
+
+/** Start the Engine's HTTP + WebSocket server */
+export function startServer(options: EngineServerOptions = {}): EngineServer {
+  const port = options.port ?? DEFAULT_PORT;
+  const hostname = options.hostname ?? "127.0.0.1";
+
+  // HTTP server via Bun.serve (fetch adapter)
+  const httpServer = Bun.serve({
+    port,
+    hostname,
+    fetch(req) {
+      const url = new URL(req.url);
+
+      // Health endpoint (non-tRPC, for simple curl checks)
+      if (url.pathname === "/health") {
+        return new Response(JSON.stringify({ status: "ok" }), {
+          headers: { "content-type": "application/json" },
+        });
+      }
+
+      // tRPC handler
+      if (url.pathname.startsWith("/trpc")) {
+        return fetchRequestHandler({
+          endpoint: "/trpc",
+          req,
+          router: appRouter,
+          createContext,
+        });
+      }
+
+      return new Response("Not Found", { status: 404 });
+    },
+  });
+
+  // WebSocket server for tRPC subscriptions (separate port)
+  const wss = new WebSocketServer({ port: port + 1, host: hostname });
+  const wssHandler = applyWSSHandler<typeof appRouter>({
+    wss,
+    router: appRouter,
+    createContext() {
+      return createContext();
+    },
+  });
+
+  console.log(`SA Engine listening on http://${hostname}:${port}`);
+  console.log(`SA Engine WS on ws://${hostname}:${port + 1}`);
+
+  return {
+    port,
+    stop() {
+      httpServer.stop(true);
+      wssHandler.broadcastReconnectNotification();
+      wss.close();
+    },
+  };
+}

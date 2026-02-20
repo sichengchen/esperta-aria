@@ -7,18 +7,25 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
+    "engine:dev": "bun run src/engine/index.ts",
     "test": "bun test",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.53.0",
+    "@trpc/client": "^11.10.0",
+    "@trpc/server": "^11.10.0",
     "grammy": "^1.40.0",
     "ink": "^6.8.0",
-    "react": "^19.2.4"
+    "react": "^19.2.4",
+    "superjson": "^2.2.6",
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
     "bun-types": "^1.3.9",
