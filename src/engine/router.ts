@@ -42,6 +42,7 @@ export function createAppRouter(runtime: EngineRuntime) {
           uptime: process.uptime(),
           sessions: runtime.sessions.listSessions().length,
           model: runtime.router.getActiveModelName(),
+          agentName: runtime.agentName,
         };
       }),
     }),

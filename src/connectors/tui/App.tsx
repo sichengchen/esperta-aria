@@ -22,6 +22,7 @@ export function App({ client }: AppProps) {
   const [modelName, setModelName] = useState("unknown");
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [models, setModels] = useState<string[]>([]);
+  const [agentName, setAgentName] = useState("SA");
 
   // Connect to Engine on mount
   useEffect(() => {
@@ -30,6 +31,7 @@ export function App({ client }: AppProps) {
         const ping = await client.health.ping.query();
         setConnected(true);
         setModelName(ping.model);
+        setAgentName(ping.agentName);
 
         const modelList = await client.model.list.query();
         setModels(modelList);
@@ -204,7 +206,7 @@ export function App({ client }: AppProps) {
         isStreaming={isStreaming}
         connected={connected}
       />
-      <ChatView messages={messages} streamingText={streamingText} />
+      <ChatView messages={messages} streamingText={streamingText} agentName={agentName} />
       {showModelPicker ? (
         <ModelPicker
           models={models}

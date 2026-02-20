@@ -46,6 +46,7 @@ export interface EngineRuntime {
   clawhub: ClawHubClient;
   installer: SkillInstaller;
   scheduler: Scheduler;
+  agentName: string;
   /** Create a new Agent instance for a session (each session gets its own Agent) */
   createAgent(onToolApproval?: ToolApprovalCallback): Agent;
 }
@@ -116,6 +117,7 @@ export async function createRuntime(): Promise<EngineRuntime> {
     clawhub,
     installer,
     scheduler,
+    agentName: saConfig.identity.name,
     createAgent(onToolApproval?: ToolApprovalCallback): Agent {
       return new Agent({
         router,

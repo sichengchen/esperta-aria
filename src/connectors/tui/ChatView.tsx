@@ -10,20 +10,21 @@ export interface ChatMessage {
 interface ChatViewProps {
   messages: ChatMessage[];
   streamingText: string;
+  agentName: string;
 }
 
-export function ChatView({ messages, streamingText }: ChatViewProps) {
+export function ChatView({ messages, streamingText, agentName }: ChatViewProps) {
   return (
     <Box flexDirection="column" flexGrow={1}>
       {messages.map((msg, i) => (
         <Box key={i} marginBottom={1}>
-          <MessageBlock message={msg} />
+          <MessageBlock message={msg} agentName={agentName} />
         </Box>
       ))}
       {streamingText && (
         <Box marginBottom={1}>
           <Text color="green" bold>
-            {"SA: "}
+            {`${agentName}: `}
           </Text>
           <Text>{streamingText}</Text>
           <Text color="yellow">{"▊"}</Text>
@@ -33,7 +34,7 @@ export function ChatView({ messages, streamingText }: ChatViewProps) {
   );
 }
 
-function MessageBlock({ message }: { message: ChatMessage }) {
+function MessageBlock({ message, agentName }: { message: ChatMessage; agentName: string }) {
   switch (message.role) {
     case "user":
       return (
@@ -48,7 +49,7 @@ function MessageBlock({ message }: { message: ChatMessage }) {
       return (
         <Box>
           <Text color="green" bold>
-            {"SA: "}
+            {`${agentName}: `}
           </Text>
           <Text>{message.content}</Text>
         </Box>
