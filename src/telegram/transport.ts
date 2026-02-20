@@ -50,8 +50,13 @@ export class TelegramTransport {
     const parts = ctx.message?.text?.split(" ") ?? [];
     const supplied = parts[1];
 
+    if (!supplied) {
+      await ctx.reply("Usage: /pair <code>\nEnter the pairing code shown during setup.");
+      return;
+    }
+
     if (!validatePairingCode(supplied, this.pairingCode)) {
-      await ctx.reply("❌ Invalid pairing code.");
+      await ctx.reply("❌ Invalid pairing code. Check the code shown during setup and try again.");
       return;
     }
 
