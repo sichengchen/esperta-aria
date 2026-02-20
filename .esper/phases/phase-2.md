@@ -85,3 +85,4 @@ The Agent Skills spec (agentskills.io) is an open standard by Anthropic adopted 
 - #024 — Telegram Connector: Grammy-based tRPC client with /pair, /new, /status, /model and inline keyboard tool approval. Files: connectors/telegram/client.ts, transport.ts, formatter.ts, index.ts
 - #025 — Discord Connector: discord.js-based tRPC client with /new, /status, /model and button tool approval. Files: connectors/discord/client.ts, transport.ts, formatter.ts, index.ts
 - #026 — Skills system core: Create skill type definitions, SKILL.md scanner/parser, SkillRegistry, and XML prompt generation following agentskills.io spec. Files: types.ts, loader.ts, registry.ts, prompt.ts, index.ts, read-skill.ts, runtime.ts, router.ts, skills.test.ts
+- #028 — ClawHub client integration: ClawHub API client with vector search, skill download/install, and local registry tracking. Files: client.ts, installer.ts, types.ts, index.ts, clawhub-search.ts, runtime.ts, router.ts, clawhub.test.ts
