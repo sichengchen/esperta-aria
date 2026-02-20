@@ -1,14 +1,14 @@
 ---
-id: 028
+id: 28
 title: ClawHub client integration
-status: pending
+status: done
 type: feature
 priority: 2
 phase: phase-2
 branch: feature/phase-2
 created: 2026-02-19
+shipped_at: 2026-02-20
 ---
-
 # ClawHub client integration
 
 ## Context
@@ -56,3 +56,15 @@ ClawHub API features:
 - Run: Start Engine, chat "find a skill for git commit messages", verify search results are shown
 - Expected: Search returns relevant skills, install downloads and extracts to `~/.sa/skills/`
 - Edge cases: Network failure, malformed skill zip, name collision, skill update (overwrite)
+
+## Progress
+- Created src/clawhub/types.ts with ClawHubSkill, ClawHubSkillDetail, ClawHubPage, InstalledSkillEntry
+- Created src/clawhub/client.ts with search, getSkill, listPopular, download methods and ClawHubError
+- Created src/clawhub/installer.ts with install, uninstall, listInstalled and local .registry.json tracking
+- Created src/clawhub/index.ts barrel export
+- Created src/tools/clawhub-search.ts for agent to search ClawHub registry
+- Updated src/engine/runtime.ts to initialize ClawHubClient, SkillInstaller, and clawhub_search tool
+- Updated src/engine/router.ts with skill.search and skill.install tRPC procedures
+- Created tests/clawhub.test.ts — 11 tests with mock HTTP server covering client, installer, error handling
+- Modified: src/clawhub/{types,client,installer,index}.ts, src/tools/clawhub-search.ts, src/engine/{runtime,router}.ts, tests/clawhub.test.ts
+- Verification: 147 tests pass, typecheck clean, lint clean
