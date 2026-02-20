@@ -95,14 +95,49 @@ export class TelegramConnector {
       }
     });
 
-    // /model command — show current model
+    // /model command — list models with option to switch
     this.bot.command("model", async (ctx) => {
       if (!this.isAllowed(ctx.message!.chat.id)) return;
       try {
-        const ping = await this.client.health.ping.query();
-        await ctx.reply(`Current model: ${ping.model}`);
+        const [activeRes, models] = await Promise.all([
+          this.client.model.active.query(),
+          this.client.model.list.query(),
+        ]);
+        const keyboard = new InlineKeyboard();
+        for (const m of models) {
+          const label = m.name === activeRes.name ? `✓ ${m.name}` : m.name;
+          keyboard.text(label, `model:${m.name}`).row();
+        }
+        await ctx.reply(`Current model: ${activeRes.name}\n\nSwitch to:`, {
+          reply_markup: keyboard,
+        });
       } catch {
         await ctx.reply("Engine unreachable.");
+      }
+    });
+
+    // /provider command — list configured providers
+    this.bot.command("provider", async (ctx) => {
+      if (!this.isAllowed(ctx.message!.chat.id)) return;
+      try {
+        const providers = await this.client.provider.list.query();
+        const lines = providers.map((p) => `• ${p.id} (${p.type}) — ${p.apiKeyEnvVar}`);
+        await ctx.reply(`Providers:\n${lines.join("\n")}`);
+      } catch {
+        await ctx.reply("Engine unreachable.");
+      }
+    });
+
+    // Model switch callback queries
+    this.bot.callbackQuery(/^model:(.+)$/, async (ctx) => {
+      const name = ctx.match![1]!;
+      try {
+        await this.client.model.switch.mutate({ name });
+        await ctx.answerCallbackQuery({ text: `Switched to ${name}` });
+        await ctx.editMessageText(`Switched to model: ${name}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await ctx.answerCallbackQuery({ text: `Error: ${msg}` });
       }
     });
 
