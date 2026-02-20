@@ -244,7 +244,7 @@ ${recurringContext}
       return (
         <Box padding={1}>
           <Text bold color="green">
-            Setup complete! Launching SA...
+            Setup complete! Run `sa` to start.
           </Text>
         </Box>
       );

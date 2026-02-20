@@ -108,6 +108,7 @@ async function main() {
   if (!subcommand) {
     if (!isConfigured()) {
       await runOnboarding();
+      return;
     }
     await openTui();
     return;
