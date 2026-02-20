@@ -12,3 +12,8 @@ export { bashTool } from "./bash.js";
 export function getBuiltinTools(): ToolImpl[] {
   return [readTool, writeTool, editTool, bashTool];
 }
+
+export function formatToolsSection(tools: ToolImpl[]): string {
+  const lines = tools.map((t) => `- ${t.name}: ${t.description}`);
+  return `## Available Tools\n${lines.join("\n")}`;
+}
