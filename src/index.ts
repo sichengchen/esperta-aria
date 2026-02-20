@@ -57,6 +57,12 @@ async function launchApp() {
     const telegram = new TelegramTransport({
       botToken: telegramToken,
       agent,
+      allowedChatId: secrets?.pairedChatId,
+      pairingCode: secrets?.pairingCode,
+      onPaired: async (chatId) => {
+        const current = (await config.loadSecrets()) ?? { apiKeys: {} };
+        await config.saveSecrets({ ...current, pairedChatId: chatId });
+      },
     });
     telegram.start().catch((err) => {
       console.error("Telegram bot failed to start:", err);
