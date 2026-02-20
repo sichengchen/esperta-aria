@@ -7,11 +7,13 @@ import { Welcome } from "./steps/Welcome.js";
 import { Identity } from "./steps/Identity.js";
 import { ModelSetup, type ModelSetupData } from "./steps/ModelSetup.js";
 import { TelegramSetup } from "./steps/TelegramSetup.js";
+import { DiscordSetup, type DiscordSetupData } from "./steps/DiscordSetup.js";
+import { SkillSetup, type SkillSetupData } from "./steps/SkillSetup.js";
 import { UserProfile, type UserProfileData } from "./steps/UserProfile.js";
 import { Confirm, type WizardData } from "./steps/Confirm.js";
 import { saveSecrets } from "../config/secrets.js";
 
-type Step = "welcome" | "identity" | "profile" | "model" | "telegram" | "confirm" | "done";
+type Step = "welcome" | "identity" | "profile" | "model" | "telegram" | "discord" | "skills" | "confirm" | "done";
 
 interface WizardProps {
   homeDir: string;
@@ -37,6 +39,9 @@ export function Wizard({ homeDir, onComplete, existingConfig }: WizardProps) {
           apiKey: "",
           botToken: "",
           baseUrl: undefined,
+          discordToken: "",
+          discordGuildId: "",
+          installSkills: false,
         }
   );
 
@@ -111,11 +116,13 @@ ${recurringContext}
       // Write empty MEMORY.md
       await writeFile(join(homeDir, "memory", "MEMORY.md"), "");
 
-      // Persist secrets (API key + bot token + pairing code) in encrypted file
+      // Persist secrets (API key + bot tokens + pairing code) in encrypted file
       await saveSecrets(homeDir, {
         apiKeys: data.apiKey ? { [data.apiKeyEnvVar]: data.apiKey } : {},
         botToken: data.botToken || undefined,
         pairingCode: data.pairingCode,
+        discordToken: data.discordToken || undefined,
+        discordGuildId: data.discordGuildId || undefined,
       });
 
       setStep("done");
@@ -195,9 +202,34 @@ ${recurringContext}
           }
           onNext={({ botToken, pairingCode }) => {
             setData((d) => ({ ...d, botToken, pairingCode }));
-            setStep("confirm");
+            setStep("discord");
           }}
           onBack={() => setStep("model")}
+        />
+      );
+    case "discord":
+      return (
+        <DiscordSetup
+          currentValues={
+            existingConfig
+              ? { discordToken: data.discordToken ?? "", discordGuildId: data.discordGuildId ?? "" }
+              : undefined
+          }
+          onNext={(discordData: DiscordSetupData) => {
+            setData((d) => ({ ...d, ...discordData }));
+            setStep("skills");
+          }}
+          onBack={() => setStep("telegram")}
+        />
+      );
+    case "skills":
+      return (
+        <SkillSetup
+          onNext={(skillData: SkillSetupData) => {
+            setData((d) => ({ ...d, ...skillData }));
+            setStep("confirm");
+          }}
+          onBack={() => setStep("discord")}
         />
       );
     case "confirm":
@@ -205,7 +237,7 @@ ${recurringContext}
         <Confirm
           data={data}
           onConfirm={handleConfirm}
-          onBack={() => setStep("telegram")}
+          onBack={() => setStep("skills")}
         />
       );
     case "done":

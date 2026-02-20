@@ -15,6 +15,9 @@ export interface WizardData {
   botToken: string;
   baseUrl?: string;
   pairingCode?: string;
+  discordToken?: string;
+  discordGuildId?: string;
+  installSkills?: boolean;
 }
 
 interface ConfirmProps {
@@ -60,6 +63,13 @@ export function Confirm({ data, onConfirm, onBack }: ConfirmProps) {
       <Text />
       <Text bold>Telegram:</Text>
       <Text> {data.botToken ? "Configured" : "Skipped"}</Text>
+      <Text />
+      <Text bold>Discord:</Text>
+      <Text> {data.discordToken ? "Configured" : "Skipped"}</Text>
+      {data.discordGuildId && <Text> Guild: {data.discordGuildId}</Text>}
+      <Text />
+      <Text bold>Skills:</Text>
+      <Text> {data.installSkills ? "Will browse after setup" : "Skipped"}</Text>
       <Text />
       <Text dimColor>Enter to save | Esc to go back</Text>
     </Box>
