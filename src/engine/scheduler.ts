@@ -18,7 +18,7 @@ interface RegisteredTask extends ScheduledTask {
   lastRun: number;
 }
 
-/** Parse a cron field value (supports *, numbers, and */N step) */
+/** Parse a cron field value (supports wildcards, numbers, and step syntax) */
 function matchesCronField(field: string, value: number): boolean {
   if (field === "*") return true;
 
