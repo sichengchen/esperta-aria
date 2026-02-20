@@ -25,7 +25,7 @@ export function ModelPicker({
       return;
     }
     if (key.return) {
-      onSelect(models[selectedIndex].name);
+      if (models.length > 0) onSelect(models[selectedIndex].name);
       return;
     }
     if (key.upArrow) {
@@ -46,6 +46,9 @@ export function ModelPicker({
       <Text bold color="cyan">
         Switch Model (↑↓ to navigate, Enter to select, Esc to cancel)
       </Text>
+      {models.length === 0 && (
+        <Text color="yellow">No models configured. Run the setup wizard to add models.</Text>
+      )}
       {models.map((m, i) => (
         <Box key={m.name}>
           <Text color={i === selectedIndex ? "cyan" : undefined}>

@@ -34,9 +34,6 @@ export function App({ client }: AppProps) {
         setModelName(ping.model);
         setAgentName(ping.agentName);
 
-        const modelList = await client.model.list.query();
-        setModels(modelList);
-
         const session = await client.session.create.mutate({
           connectorType: "tui",
           connectorId: `tui-${Date.now()}`,
@@ -49,6 +46,11 @@ export function App({ client }: AppProps) {
           { role: "error", content: `Failed to connect to Engine: ${msg}` },
         ]);
       }
+      // Fetch models separately so failure doesn't block session creation
+      try {
+        const modelList = await client.model.list.query();
+        setModels(modelList);
+      } catch {}
     }
     connect();
   }, [client]);
@@ -103,6 +105,10 @@ export function App({ client }: AppProps) {
 
       // Handle /model command — open model picker to switch
       if (text === "/model") {
+        try {
+          const freshModels = await client.model.list.query();
+          setModels(freshModels);
+        } catch {}
         setShowModelPicker(true);
         return;
       }
@@ -111,9 +117,8 @@ export function App({ client }: AppProps) {
       if (text === "/models") {
         try {
           const modelList = await client.model.list.query();
-          const active = await client.model.active.query();
           const lines = modelList.map((m: ModelConfig) => {
-            const marker = m.name === active.name ? "●" : "○";
+            const marker = m.name === modelName ? "●" : "○";
             const extras: string[] = [];
             if (m.temperature !== undefined) extras.push(`temp=${m.temperature}`);
             if (m.maxTokens !== undefined) extras.push(`max=${m.maxTokens}`);
