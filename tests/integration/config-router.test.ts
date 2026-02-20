@@ -64,10 +64,10 @@ describe("Config + Router integration", () => {
     expect(cfg.temperature).toBe(0.3);
   });
 
-  test("Identity loads from custom identity.md", async () => {
+  test("Identity loads from custom IDENTITY.md", async () => {
     await mkdir(testHome, { recursive: true });
     await writeFile(
-      join(testHome, "identity.md"),
+      join(testHome, "IDENTITY.md"),
       "# TestBot\n\n## Personality\nTest personality.\n\n## System Prompt\nYou are TestBot.\n"
     );
 

@@ -31,7 +31,7 @@ export class ConfigManager {
   }
 
   private async loadIdentity(): Promise<Identity> {
-    const identityPath = join(this.homeDir, "identity.md");
+    const identityPath = join(this.homeDir, "IDENTITY.md");
     let md: string;
     if (existsSync(identityPath)) {
       md = await readFile(identityPath, "utf-8");

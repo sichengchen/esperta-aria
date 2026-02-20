@@ -40,9 +40,9 @@ export function Wizard({ homeDir, onComplete, existingConfig }: WizardProps) {
       await mkdir(homeDir, { recursive: true });
       await mkdir(join(homeDir, "memory", "topics"), { recursive: true });
 
-      // Write identity.md
+      // Write IDENTITY.md
       const identityMd = `# ${data.name}\n\n## Personality\n${data.personality}\n\n## System Prompt\nYou are ${data.name}, a personal AI agent assistant. You help with tasks, answer questions, and use tools when needed. Keep responses concise and actionable.\n`;
-      await writeFile(join(homeDir, "identity.md"), identityMd);
+      await writeFile(join(homeDir, "IDENTITY.md"), identityMd);
 
       // Write USER.md template (only if it doesn't exist — don't overwrite user edits)
       const userProfilePath = join(homeDir, "USER.md");

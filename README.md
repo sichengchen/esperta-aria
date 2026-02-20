@@ -40,7 +40,7 @@ Config lives in `~/.sa/` by default. Override with the `SA_HOME` environment var
 
 ```
 ~/.sa/
-  identity.md    # agent name, personality, system prompt
+  IDENTITY.md    # agent name, personality, system prompt
   config.json    # runtime settings (active model, memory, telegram)
   models.json    # model configurations
   memory/        # persistent memory entries

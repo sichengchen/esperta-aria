@@ -18,13 +18,13 @@ Set these in your shell or in a `.env` file at the project root (see `.env.examp
 
 ```
 ~/.sa/
-  identity.md    # agent identity and personality
+  IDENTITY.md    # agent identity and personality
   config.json    # runtime settings
   models.json    # model configurations
   memory/        # persistent memory (one file per key)
 ```
 
-## identity.md
+## IDENTITY.md
 
 Defines who the agent is. Edited manually or via the onboarding wizard.
 

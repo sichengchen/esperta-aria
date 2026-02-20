@@ -26,14 +26,14 @@ describe("ConfigManager", () => {
       expect(config.identity.personality).toContain("helpful");
       expect(config.identity.systemPrompt).toContain("personal AI agent");
       expect(config.runtime.activeModel).toBe("sonnet");
-      expect(existsSync(join(emptyDir, "identity.md"))).toBe(true);
+      expect(existsSync(join(emptyDir, "IDENTITY.md"))).toBe(true);
       expect(existsSync(join(emptyDir, "config.json"))).toBe(true);
       expect(existsSync(join(emptyDir, "models.json"))).toBe(true);
     });
 
-    test("loads existing identity.md", async () => {
+    test("loads existing IDENTITY.md", async () => {
       await writeFile(
-        join(testHome, "identity.md"),
+        join(testHome, "IDENTITY.md"),
         `# MyBot\n\n## Personality\nSnarky and witty.\n\n## System Prompt\nYou are MyBot.\n`
       );
       const mgr = new ConfigManager(testHome);

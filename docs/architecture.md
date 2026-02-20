@@ -6,7 +6,7 @@ SA is a single-process agent with loosely coupled subsystems. All subsystems liv
 
 | Subsystem  | Path              | Responsibility                                              |
 |------------|-------------------|-------------------------------------------------------------|
-| **config** | `src/config/`     | Loads and writes `identity.md`, `config.json`, `models.json` from `SA_HOME` |
+| **config** | `src/config/`     | Loads and writes `IDENTITY.md`, `config.json`, `models.json` from `SA_HOME` |
 | **router** | `src/router/`     | Wraps `@mariozechner/pi-ai` to manage multiple model configs and switch between them |
 | **agent**  | `src/agent/`      | Conversation loop: sends messages to the router, dispatches tool calls, streams events |
 | **tools**  | `src/tools/`      | Built-in tool implementations (read, write, edit, bash, remember) |
@@ -22,7 +22,7 @@ bun run dev
     │
     ├─ ~/.sa/config.json missing? ──► Wizard (identity, model, Telegram setup)
     │                                      │
-    │                                      ▼ writes identity.md, config.json, models.json
+    │                                      ▼ writes IDENTITY.md, config.json, models.json
     │
     └─ Config exists ──► ConfigManager.load()
                              │
@@ -59,6 +59,6 @@ AgentEvents stream to transport (TUI or Telegram)
 
 - **Single process** — all subsystems run in one Bun process. No inter-process communication.
 - **Transport abstraction** — TUI and Telegram both consume the same `AgentEvent` stream from the agent; neither knows about the other.
-- **Configuration as files** — `identity.md`, `config.json`, and `models.json` are the source of truth. No database.
+- **Configuration as files** — `IDENTITY.md`, `config.json`, and `models.json` are the source of truth. No database.
 - **Memory in system prompt** — long-term memory is injected into the system prompt on startup, not retrieved dynamically at query time.
 - **Provider abstraction via pi-ai** — `@mariozechner/pi-ai` normalises API differences across Anthropic, OpenAI, Google, etc.; the router builds on top of it.
