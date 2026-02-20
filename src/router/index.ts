@@ -1,2 +1,2 @@
 export { ModelRouter } from "./router.js";
-export type { ModelConfig, ModelsFile } from "./types.js";
+export type { ModelConfig, ModelsFile, ProviderConfig } from "./types.js";
