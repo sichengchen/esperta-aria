@@ -1,14 +1,14 @@
 ---
-id: 029
+id: 29
 title: Cron & heartbeat scheduler
-status: pending
+status: done
 type: feature
 priority: 3
 phase: phase-2
 branch: feature/phase-2
 created: 2026-02-19
+shipped_at: 2026-02-20
 ---
-
 # Cron & heartbeat scheduler
 
 ## Context
@@ -53,3 +53,14 @@ Since the Engine runs as a persistent background daemon, it's the natural place 
 - Run: Start Engine, verify heartbeat file is updated every 5 minutes
 - Expected: Tasks run on schedule, user-defined prompts trigger agent responses
 - Edge cases: Task throws error (don't crash scheduler), system clock change, Engine restart (tasks re-register)
+
+## Progress
+- Created src/engine/scheduler.ts with Scheduler class, matchesCron parser, and heartbeat built-in task
+- Cron parser supports wildcards, step syntax (*/N), comma-separated values, and all 5 fields
+- Built-in heartbeat task writes JSON with timestamp, PID, and memory usage to engine.heartbeat
+- Updated src/engine/runtime.ts to start scheduler on boot with heartbeat task
+- Updated src/engine/router.ts with cron.list, cron.add, cron.remove tRPC procedures
+- Skipped config/types.ts modification — user-defined cron tasks added via tRPC API instead
+- Created tests/scheduler.test.ts — 16 tests covering cron matching, task management, error handling, heartbeat
+- Modified: src/engine/scheduler.ts, runtime.ts, router.ts, tests/scheduler.test.ts
+- Verification: 163 tests pass, typecheck clean, lint clean
