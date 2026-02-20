@@ -80,3 +80,4 @@ The Agent Skills spec (agentskills.io) is an open standard by Anthropic adopted 
 - #019 — Connector interface & session management: Define Connector interface and implement SessionManager with tRPC client factory. Files: connector.ts, types.ts, client.ts, sessions.ts, router.ts, sessions.test.ts
 - #020 — Agent runtime migration to Engine: Move Agent, Router, Memory, Tools into Engine process with per-session agents and tool approval flow. Files: runtime.ts, router.ts, server.ts, index.ts, agent.ts, types.ts
 - #021 — Engine daemon mode: CLI daemon management (start/stop/status/logs/restart) with PID file and discovery URL. Files: cli/index.ts, cli/engine.ts, server.ts, index.ts, package.json
+- #022 — Device-flow authentication: AuthManager with master token, pairing codes, and session token validation. Files: auth.ts, router.ts, runtime.ts, server.ts, context.ts, client.ts, auth.test.ts
