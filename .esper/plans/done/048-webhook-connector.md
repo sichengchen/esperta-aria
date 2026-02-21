@@ -1,12 +1,13 @@
 ---
 id: 48
 title: Webhook connector
-status: active
+status: done
 type: feature
 priority: 2
 phase: phase-3
 branch: feature/phase-3
 created: 2026-02-21
+shipped_at: 2026-02-21
 ---
 # Webhook connector
 
