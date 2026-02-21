@@ -136,7 +136,8 @@ export class DiscordConnector {
         const sessionId = await this.ensureSession();
         let sentMsg: Message | null = null;
         let fullText = "";
-        let lastEditTime = 0;
+        let lastEditTime = Date.now();
+        let editLock = Promise.resolve();
 
         this.client.chat.stream.subscribe(
           { sessionId, message: text },
@@ -146,14 +147,17 @@ export class DiscordConnector {
                 case "text_delta":
                   fullText += event.delta;
                   if (Date.now() - lastEditTime > EDIT_THROTTLE_MS && fullText.length > 0) {
-                    try {
-                      if (!sentMsg) {
-                        sentMsg = await message.reply(fullText.slice(0, 2000));
-                      } else {
-                        await sentMsg.edit(fullText.slice(0, 2000));
+                    editLock = editLock.then(async () => {
+                      try {
+                        if (!sentMsg) {
+                          sentMsg = await message.reply(fullText.slice(0, 2000));
+                        } else {
+                          await sentMsg.edit(fullText.slice(0, 2000));
+                        }
+                      } finally {
+                        lastEditTime = Date.now();
                       }
-                      lastEditTime = Date.now();
-                    } catch {}
+                    });
                   }
                   break;
 
@@ -183,17 +187,19 @@ export class DiscordConnector {
 
                 case "done":
                   if (fullText) {
-                    const chunks = splitMessage(fullText);
-                    try {
-                      if (!sentMsg) {
-                        sentMsg = await message.reply(chunks[0]!);
-                      } else {
-                        await sentMsg.edit(chunks[0]!);
+                    editLock = editLock.then(async () => {
+                      const chunks = splitMessage(fullText);
+                      try {
+                        if (!sentMsg) {
+                          sentMsg = await message.reply(chunks[0]!);
+                        } else {
+                          await sentMsg.edit(chunks[0]!);
+                        }
+                      } catch {}
+                      for (let i = 1; i < chunks.length; i++) {
+                        await message.channel.send(chunks[i]!);
                       }
-                    } catch {}
-                    for (let i = 1; i < chunks.length; i++) {
-                      await message.channel.send(chunks[i]!);
-                    }
+                    });
                   }
                   break;
 
