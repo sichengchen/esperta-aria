@@ -49,7 +49,7 @@ const formula = `class Sa < Formula
   url "https://github.com/${SA_REPO}/releases/download/v${version}/sa-darwin"
   sha256 "${sha}"
 
-  depends_on "bun"
+  depends_on "oven-sh/bun/bun"
 
   def install
     bin.install "sa-darwin" => "sa"
