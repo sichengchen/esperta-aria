@@ -1,12 +1,13 @@
 ---
 id: 39
 title: fix: create missing shell scripts for apple-calendar bundled skill
-status: active
+status: done
 type: fix
 priority: 1
 phase: phase-2
 branch: fix/apple-calendar-scripts
 created: 2026-02-20
+shipped_at: 2026-02-21
 ---
 # fix: create missing shell scripts for apple-calendar bundled skill
 
