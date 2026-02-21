@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { ConfigManager } from "../../src/config/index.js";
-import { ModelRouter } from "../../src/router/index.js";
+import { ConfigManager } from "../../src/engine/config/index.js";
+import { ModelRouter } from "../../src/engine/router/index.js";
 import { rm, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -16,44 +16,48 @@ afterEach(async () => {
 });
 
 describe("Config + Router integration", () => {
-  test("ConfigManager creates defaults, Router loads them", async () => {
+  test("ConfigManager creates defaults, Router loads from config data", async () => {
     const config = new ConfigManager(testHome);
     const saConfig = await config.load();
 
-    // Config creates default models.json
-    const router = await ModelRouter.load(config.getModelsPath());
+    const router = ModelRouter.fromConfig({
+      providers: saConfig.providers,
+      models: saConfig.models,
+      defaultModel: saConfig.defaultModel,
+    });
     expect(router.listModels()).toContain("sonnet");
     expect(router.getActiveModelName()).toBe("sonnet");
   });
 
-  test("Custom config with multiple models supports switching", async () => {
-    // Create custom config
+  test("Custom v3 config with multiple models supports switching", async () => {
     await mkdir(testHome, { recursive: true });
-    const models = {
-      default: "fast",
-      models: [
-        {
-          name: "fast",
-          provider: "anthropic",
-          model: "claude-sonnet-4-5-20250514",
-          apiKeyEnvVar: "ANTHROPIC_API_KEY",
-          temperature: 0.5,
-        },
-        {
-          name: "smart",
-          provider: "openai",
-          model: "gpt-4o",
-          apiKeyEnvVar: "OPENAI_API_KEY",
-          temperature: 0.3,
-        },
+    const v3Config = {
+      version: 3,
+      runtime: {
+        activeModel: "fast",
+        telegramBotTokenEnvVar: "TELEGRAM_BOT_TOKEN",
+        memory: { enabled: true, directory: "memory" },
+      },
+      providers: [
+        { id: "anthropic", type: "anthropic", apiKeyEnvVar: "ANTHROPIC_API_KEY" },
+        { id: "openai", type: "openai", apiKeyEnvVar: "OPENAI_API_KEY" },
       ],
+      models: [
+        { name: "fast", provider: "anthropic", model: "claude-sonnet-4-5-20250514", temperature: 0.5 },
+        { name: "smart", provider: "openai", model: "gpt-4o", temperature: 0.3 },
+      ],
+      defaultModel: "fast",
     };
-    await writeFile(join(testHome, "models.json"), JSON.stringify(models));
+    await writeFile(join(testHome, "config.json"), JSON.stringify(v3Config));
 
     const config = new ConfigManager(testHome);
-    await config.load();
+    const saConfig = await config.load();
 
-    const router = await ModelRouter.load(config.getModelsPath());
+    const router = ModelRouter.fromConfig({
+      providers: saConfig.providers,
+      models: saConfig.models,
+      defaultModel: saConfig.defaultModel,
+    });
     expect(router.getActiveModelName()).toBe("fast");
 
     router.switchModel("smart");
@@ -62,6 +66,9 @@ describe("Config + Router integration", () => {
     const cfg = router.getConfig();
     expect(cfg.provider).toBe("openai");
     expect(cfg.temperature).toBe(0.3);
+
+    const provider = router.getProvider("openai");
+    expect(provider.apiKeyEnvVar).toBe("OPENAI_API_KEY");
   });
 
   test("Identity loads from custom IDENTITY.md", async () => {

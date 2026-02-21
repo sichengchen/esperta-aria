@@ -1,10 +1,10 @@
 import { describe, test, expect, afterEach } from "bun:test";
-import { ConfigManager } from "../../src/config/index.js";
-import { ModelRouter } from "../../src/router/index.js";
-import { Agent } from "../../src/agent/index.js";
-import { MemoryManager } from "../../src/memory/index.js";
-import { getBuiltinTools } from "../../src/tools/index.js";
-import { createRememberTool } from "../../src/tools/remember.js";
+import { ConfigManager } from "../../src/engine/config/index.js";
+import { ModelRouter } from "../../src/engine/router/index.js";
+import { Agent } from "../../src/engine/agent/index.js";
+import { MemoryManager } from "../../src/engine/memory/index.js";
+import { getBuiltinTools } from "../../src/engine/tools/index.js";
+import { createRememberTool } from "../../src/engine/tools/remember.js";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -29,8 +29,12 @@ describe("E2E smoke test", () => {
 
     const memoryContext = await memory.loadContext();
 
-    // 3. Router loads from generated models.json
-    const router = await ModelRouter.load(config.getModelsPath());
+    // 3. Router loads from config data (v3 merged schema)
+    const router = ModelRouter.fromConfig({
+      providers: saConfig.providers,
+      models: saConfig.models,
+      defaultModel: saConfig.defaultModel,
+    });
     expect(router.listModels().length).toBeGreaterThan(0);
 
     // 4. Agent initializes with all components
@@ -45,12 +49,13 @@ describe("E2E smoke test", () => {
 
     // 5. Verify tool definitions are available for LLM
     // (We can't call agent.chat() without a real LLM, but we can verify the setup is correct)
-    expect(tools).toHaveLength(5); // read, write, edit, bash, remember
+    expect(tools).toHaveLength(6); // read, write, edit, bash, clawhub_search, remember
     expect(tools.map((t) => t.name)).toEqual([
       "read",
       "write",
       "edit",
       "bash",
+      "clawhub_search",
       "remember",
     ]);
   });

@@ -1,9 +1,9 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { readTool } from "../src/tools/read.js";
-import { writeTool } from "../src/tools/write.js";
-import { editTool } from "../src/tools/edit.js";
-import { bashTool } from "../src/tools/bash.js";
-import { getBuiltinTools } from "../src/tools/index.js";
+import { readTool } from "../src/engine/tools/read.js";
+import { writeTool } from "../src/engine/tools/write.js";
+import { editTool } from "../src/engine/tools/edit.js";
+import { bashTool } from "../src/engine/tools/bash.js";
+import { getBuiltinTools } from "../src/engine/tools/index.js";
 import { writeFile, rm, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -170,13 +170,14 @@ describe("Bash tool", () => {
 });
 
 describe("getBuiltinTools", () => {
-  test("returns all 4 tools", () => {
+  test("returns all 5 builtin tools", () => {
     const tools = getBuiltinTools();
-    expect(tools).toHaveLength(4);
+    expect(tools).toHaveLength(5);
     const names = tools.map((t) => t.name);
     expect(names).toContain("read");
     expect(names).toContain("write");
     expect(names).toContain("edit");
     expect(names).toContain("bash");
+    expect(names).toContain("clawhub_search");
   });
 });
