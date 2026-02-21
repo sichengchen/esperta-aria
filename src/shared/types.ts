@@ -7,6 +7,7 @@ export type EngineEvent =
   | { type: "tool_start"; name: string; id: string }
   | { type: "tool_end"; name: string; id: string; content: string; isError: boolean }
   | { type: "tool_approval_request"; name: string; id: string; args: Record<string, unknown> }
+  | { type: "reaction"; emoji: string }
   | { type: "done"; stopReason: string }
   | { type: "error"; message: string };
 

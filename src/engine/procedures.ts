@@ -117,13 +117,19 @@ export function createAppRouter(runtime: EngineRuntime) {
                   yield { type: "tool_start", name: event.name, id: event.id };
                   break;
                 case "tool_end":
-                  yield {
-                    type: "tool_end",
-                    name: event.name,
-                    id: event.id,
-                    content: event.result.content,
-                    isError: event.result.isError ?? false,
-                  };
+                  // Intercept reaction tool — emit a reaction event for connectors
+                  if (event.name === "reaction" && event.result.content.startsWith("__reaction__:")) {
+                    const emoji = event.result.content.slice("__reaction__:".length);
+                    yield { type: "reaction", emoji };
+                  } else {
+                    yield {
+                      type: "tool_end",
+                      name: event.name,
+                      id: event.id,
+                      content: event.result.content,
+                      isError: event.result.isError ?? false,
+                    };
+                  }
                   break;
                 case "tool_approval_request":
                   yield {
@@ -206,13 +212,18 @@ export function createAppRouter(runtime: EngineRuntime) {
                   yield { type: "tool_start", name: event.name, id: event.id };
                   break;
                 case "tool_end":
-                  yield {
-                    type: "tool_end",
-                    name: event.name,
-                    id: event.id,
-                    content: event.result.content,
-                    isError: event.result.isError ?? false,
-                  };
+                  if (event.name === "reaction" && event.result.content.startsWith("__reaction__:")) {
+                    const emoji = event.result.content.slice("__reaction__:".length);
+                    yield { type: "reaction", emoji };
+                  } else {
+                    yield {
+                      type: "tool_end",
+                      name: event.name,
+                      id: event.id,
+                      content: event.result.content,
+                      isError: event.result.isError ?? false,
+                    };
+                  }
                   break;
                 case "tool_approval_request":
                   yield {
