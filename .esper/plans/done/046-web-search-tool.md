@@ -1,14 +1,14 @@
 ---
-id: 046
+id: 46
 title: web_search built-in tool
-status: pending
+status: done
 type: feature
 priority: 2
 phase: phase-3
 branch: feature/phase-3
 created: 2026-02-21
+shipped_at: 2026-02-21
 ---
-
 # web_search built-in tool
 
 ## Context
@@ -42,3 +42,10 @@ SA lacks web search capability. Adding a `web_search` tool backed by Brave Searc
 - Run: `bun test`
 - Expected: Tool searches with available backend and returns structured results
 - Edge cases: No API key configured (clear error message), rate limiting, empty results, Perplexity response format differences
+
+## Progress
+- Created web-search.ts with Brave + Perplexity backends, auto-selection, structured results
+- Registered webSearchTool in getBuiltinTools (9 builtin tools)
+- Updated test expectations
+- Modified: src/engine/tools/web-search.ts, src/engine/tools/index.ts
+- Verification: typecheck passed, lint passed, 201 tests passed
