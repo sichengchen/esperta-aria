@@ -5,7 +5,7 @@ import { scanSkillDirectory, loadSkillContent } from "./loader.js";
 import type { SkillMetadata, LoadedSkill } from "./types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLED_SKILLS_DIR = join(__dirname, "bundled");
+export const BUNDLED_SKILLS_DIR = join(__dirname, "bundled");
 
 /** Central registry for discovered and activated skills */
 export class SkillRegistry {

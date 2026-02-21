@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { Box, Text } from "ink";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, cp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Welcome } from "./steps/Welcome.js";
@@ -12,6 +12,7 @@ import { SkillSetup, type SkillSetupData } from "./steps/SkillSetup.js";
 import { UserProfile, type UserProfileData } from "./steps/UserProfile.js";
 import { Confirm, type WizardData } from "./steps/Confirm.js";
 import { saveSecrets } from "../../engine/config/secrets.js";
+import { BUNDLED_SKILLS_DIR } from "../../engine/skills/registry.js";
 
 type Step = "welcome" | "identity" | "profile" | "model" | "telegram" | "discord" | "skills" | "confirm" | "done";
 
@@ -127,6 +128,17 @@ ${recurringContext}
         discordToken: data.discordToken || undefined,
         discordGuildId: data.discordGuildId || undefined,
       });
+
+      // Copy selected bundled skills into ~/.sa/skills/
+      if (data.selectedSkills && data.selectedSkills.length > 0) {
+        const skillsDir = join(homeDir, "skills");
+        await mkdir(skillsDir, { recursive: true });
+        for (const name of data.selectedSkills) {
+          const src = join(BUNDLED_SKILLS_DIR, name);
+          const dest = join(skillsDir, name);
+          await cp(src, dest, { recursive: true });
+        }
+      }
 
       setStep("done");
       // Brief delay then transition to main app
