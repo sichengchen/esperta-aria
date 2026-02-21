@@ -8,9 +8,9 @@ Yet another personal AI assistant.
 brew install sichengchen/tap/sa
 ```
 
-Requires [Bun](https://bun.sh). Update with `brew upgrade sa`.
+Update with `brew upgrade sa`.
 
-### Engine as a service
+### Service
 
 ```bash
 brew services start sa     # start engine, auto-start on login
