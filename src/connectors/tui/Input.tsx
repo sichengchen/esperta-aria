@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 
-const SLASH_COMMANDS = ["/new", "/status", "/model", "/models", "/provider"];
+const SLASH_COMMANDS = ["/new", "/status", "/model", "/models", "/provider", "/sessions", "/switch"];
 
 interface InputProps {
   onSubmit: (text: string) => void;
