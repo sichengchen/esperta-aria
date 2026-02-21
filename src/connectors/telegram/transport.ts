@@ -156,6 +156,13 @@ export class TelegramConnector {
       await ctx.editMessageReplyMarkup({ reply_markup: undefined });
     });
 
+    this.bot.callbackQuery(/^always:(.+)$/, async (ctx) => {
+      const toolCallId = ctx.match![1]!;
+      await this.client.tool.acceptForSession.mutate({ toolCallId });
+      await ctx.answerCallbackQuery({ text: "Always allowed for this session" });
+      await ctx.editMessageReplyMarkup({ reply_markup: undefined });
+    });
+
     // Message handler
     this.bot.on("message:text", async (ctx) => {
       if (!this.isAllowed(ctx.message.chat.id)) return;
@@ -204,7 +211,9 @@ export class TelegramConnector {
                 case "tool_approval_request": {
                   const keyboard = new InlineKeyboard()
                     .text("Approve", `approve:${event.id}`)
-                    .text("Reject", `reject:${event.id}`);
+                    .text("Reject", `reject:${event.id}`)
+                    .row()
+                    .text(`Always allow ${event.name}`, `always:${event.id}`);
                   await ctx.reply(
                     `Tool: ${event.name}\nApprove execution?`,
                     { reply_markup: keyboard },
