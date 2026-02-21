@@ -8,6 +8,7 @@ phase: phase-2
 branch: fix/model-router-persistence
 created: 2026-02-20
 shipped_at: 2026-02-21
+pr: https://github.com/sichengchen/sa/pull/6
 ---
 # fix: model router changes not persisted to config.json
 
