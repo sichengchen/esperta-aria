@@ -1,7 +1,7 @@
 ---
 phase: 004-dx-distribution
 title: "DX & Distribution"
-status: active
+status: completed
 ---
 
 # Phase 4: DX & Distribution
@@ -26,14 +26,14 @@ Make SA installable, updatable, and release-ready. Introduce calendar versioning
 - Web UI or native apps
 
 ## Acceptance Criteria
-- [ ] `package.json` uses CalVer (e.g., `2026.2.0`) with `bun run version:bump` script
-- [ ] GitHub Actions workflow runs lint, typecheck, test, and build on every PR
-- [ ] Merging a version tag triggers a GitHub Release with the built binary attached
-- [ ] A Homebrew tap repo exists with a working formula
-- [ ] `brew install <tap>/sa` installs SA and the `sa` command works
-- [ ] `brew upgrade sa` updates to the latest release
-- [ ] tsconfig path aliases (`@sa/engine/*`, `@sa/shared/*`, etc.) replace all 37 cross-boundary relative imports
-- [ ] `bun run typecheck`, `bun run lint`, and `bun test` all pass
+- [x] `package.json` uses CalVer (e.g., `2026.2.0`) with `bun run version:bump` script
+- [x] GitHub Actions workflow runs lint, typecheck, test, and build on every PR
+- [x] Merging a version tag triggers a GitHub Release with the built binary attached
+- [x] A Homebrew tap repo exists with a working formula
+- [x] `brew install <tap>/sa` installs SA and the `sa` command works
+- [x] `brew upgrade sa` updates to the latest release
+- [x] tsconfig path aliases (`@sa/engine/*`, `@sa/shared/*`, etc.) replace all 37 cross-boundary relative imports
+- [x] `bun run typecheck`, `bun run lint`, and `bun test` all pass
 
 ## Phase Notes
 Phase 3 shipped all 9 plans (042–050) covering connectors, tools, and media. SA is feature-rich but only installable via git clone + bun install. The build already produces a single 7.1 MB executable (`dist/index.js` with `#!/usr/bin/env bun` shebang), but there's no versioning, no CI, and no distribution channel. Plan 051 (tsconfig path aliases) was deferred from Phase 3 and is carried into this phase as a DX improvement.
