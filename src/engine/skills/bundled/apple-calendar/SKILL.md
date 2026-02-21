@@ -1,6 +1,6 @@
 ---
 name: apple-calendar
-description: Apple Calendar.app integration for macOS. CRUD operations for events, search, and multi-calendar support.
+description: Manage macOS Calendar.app events via AppleScript. Use when: creating, viewing, editing, or deleting calendar events, or searching by date range. NOT for: Google Calendar, Outlook, or non-macOS systems.
 ---
 # Apple Calendar
 

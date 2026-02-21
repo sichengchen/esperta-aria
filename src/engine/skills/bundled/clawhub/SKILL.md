@@ -1,6 +1,6 @@
 ---
 name: clawhub
-description: Search, install, and update agent skills from the ClawHub registry (clawhub.ai).
+description: Search, install, and update agent skills from ClawHub (clawhub.ai). Use when: the user wants to find new skills, install a skill from the registry, or update installed skills. NOT for: managing bundled skills or creating new skills (use skill-creator instead).
 ---
 # ClawHub Skill Manager
 

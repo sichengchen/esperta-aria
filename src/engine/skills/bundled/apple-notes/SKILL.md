@@ -1,6 +1,6 @@
 ---
 name: apple-notes
-description: Manage Apple Notes via the `memo` CLI on macOS (create, view, edit, delete, search, move, and export notes). Use when a user asks to add a note, list notes, search notes, or manage note folders.
+description: Manage Apple Notes via the `memo` CLI on macOS (create, view, edit, delete, search, move, and export notes). Use when: the user asks to add a note, list notes, search notes, or manage note folders. NOT for: non-macOS systems, Notion, Obsidian, or other note apps.
 homepage: https://github.com/antoniorodr/memo
 metadata: {"clawdbot":{"emoji":"📝","os":["darwin"],"requires":{"bins":["memo"]},"install":[{"id":"brew","kind":"brew","formula":"antoniorodr/memo/memo","bins":["memo"],"label":"Install memo via Homebrew"}]}}
 ---

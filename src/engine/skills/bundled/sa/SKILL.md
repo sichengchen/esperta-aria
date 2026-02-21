@@ -1,6 +1,6 @@
 ---
 name: sa
-description: Knowledge about the SA (Sasa) project itself — architecture, configuration, commands, and common tasks.
+description: Knowledge about SA's own architecture, configuration, commands, and common tasks. Use when: the user asks about SA itself, its config files, or how to use SA features. NOT for: general programming questions unrelated to SA.
 ---
 # SA (Sasa)
 

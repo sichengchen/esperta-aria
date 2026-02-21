@@ -1,6 +1,6 @@
 ---
 name: homeassistant-skill
-description: Control Home Assistant devices and automations via REST API. 25 entity domains including lights, climate, locks, presence, weather, calendars, notifications, scripts, and more. Use when the user asks about their smart home, devices, or automations.
+description: Control Home Assistant devices and automations via REST API. 25 entity domains including lights, climate, locks, presence, weather, calendars, notifications, scripts, and more. Use when: the user asks about their smart home, devices, or automations. NOT for: devices not connected to Home Assistant.
 license: MIT
 homepage: https://github.com/anotb/homeassistant-skill
 compatibility: Requires curl and jq. Network access to Home Assistant instance.

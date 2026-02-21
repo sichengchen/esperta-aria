@@ -1,6 +1,6 @@
 ---
 name: skill-creator
-description: Create new agent skills. Use when the user wants to build, scaffold, or define a new skill.
+description: Create new agent skills. Use when: the user wants to build, scaffold, or define a new skill. NOT for: installing existing skills (use clawhub) or editing already-created skills.
 ---
 # Skill Creator
 

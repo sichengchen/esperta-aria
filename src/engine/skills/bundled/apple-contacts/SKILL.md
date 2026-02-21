@@ -1,6 +1,6 @@
 ---
 name: apple-contacts
-description: Look up contacts from macOS Contacts.app. Use when resolving phone numbers to names, finding contact info, or searching the address book.
+description: Look up contacts from macOS Contacts.app. Use when: resolving phone numbers to names, finding contact info, or searching the address book. NOT for: non-macOS systems or third-party contact apps.
 metadata: {"clawdbot":{"emoji":"👤","os":["darwin"]}}
 ---
 

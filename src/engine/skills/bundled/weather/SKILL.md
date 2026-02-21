@@ -1,6 +1,6 @@
 ---
 name: weather
-description: Get current weather and forecasts (no API key required).
+description: Get current weather and forecasts via wttr.in and Open-Meteo (no API key needed). Use when: checking weather, forecasts, or temperature for a location. NOT for: historical weather data or climate analysis.
 ---
 # Weather
 

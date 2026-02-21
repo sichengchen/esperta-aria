@@ -1,6 +1,6 @@
 ---
 name: pinchtab
-description: Control a headless or headed Chrome browser via Pinchtab's HTTP API for web automation, scraping, form filling, navigation, and multi-tab workflows.
+description: Browser automation via Pinchtab's HTTP API: navigate, click, fill forms, scrape, manage tabs. Use when: web scraping, form automation, or any task requiring a browser. NOT for: simple HTTP requests (use bash+curl instead) or tasks that don't need a browser.
 homepage: https://pinchtab.com
 ---
 
