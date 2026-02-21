@@ -103,6 +103,9 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
     const existing = isConfigured() ? await loadExistingConfig() : undefined;
     await runOnboarding(existing);
   },
+  __engine: async () => {
+    await import("@sa/engine/index.js");
+  },
   help: async () => {
     console.log("SA — Personal AI Agent Assistant\n");
     console.log("Usage: sa [command]\n");

@@ -41,10 +41,9 @@ async function start(): Promise<void> {
   // Clean up stale files from a previous crashed run
   await cleanStaleFiles();
 
-  const engineScript = join(import.meta.dir, "..", "engine", "index.ts");
   const logFd = openSync(LOG_FILE, "a");
 
-  const child = spawn("bun", ["run", engineScript], {
+  const child = spawn(process.execPath, [process.argv[1], "__engine"], {
     detached: true,
     stdio: ["ignore", logFd, logFd],
     env: { ...process.env, SA_HOME: saHome },
