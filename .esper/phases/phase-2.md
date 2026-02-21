@@ -1,7 +1,7 @@
 ---
 phase: phase-2
 title: Engine Architecture, Skills & Multi-Transport
-status: active
+status: completed
 ---
 
 # Phase 2: Engine Architecture, Skills & Multi-Transport
@@ -57,18 +57,18 @@ Split SA into a persistent background Engine (backend daemon) and thin Connector
 - MCP server support (may come later)
 
 ## Acceptance Criteria
-- [ ] Engine runs as a background daemon (`sa engine start/stop/status`)
-- [ ] Connectors authenticate with Engine via device-flow pairing
-- [ ] TUI Connector connects to Engine via tRPC, same chat experience as Phase 1
-- [ ] Telegram Connector connects to Engine via tRPC
-- [ ] Discord Connector connects to Engine via tRPC and handles chat
-- [ ] Tools execute in Engine; approval requests are sent to the active Connector
-- [ ] Skills can be defined, loaded, and activated per agentskills.io spec
-- [ ] Skill creator skill scaffolds a new SKILL.md interactively
-- [ ] Skills can be searched and installed from ClawHub
-- [ ] Cron scheduler runs periodic tasks in the Engine
-- [ ] Wizard supports Discord setup and skill configuration
-- [ ] All core subsystems have passing tests
+- [x] Engine runs as a background daemon (`sa engine start/stop/status`)
+- [x] Connectors authenticate with Engine via device-flow pairing
+- [x] TUI Connector connects to Engine via tRPC, same chat experience as Phase 1
+- [x] Telegram Connector connects to Engine via tRPC
+- [x] Discord Connector connects to Engine via tRPC and handles chat
+- [x] Tools execute in Engine; approval requests are sent to the active Connector
+- [x] Skills can be defined, loaded, and activated per agentskills.io spec
+- [x] Skill creator skill scaffolds a new SKILL.md interactively
+- [x] Skills can be searched and installed from ClawHub
+- [x] Cron scheduler runs periodic tasks in the Engine
+- [x] Wizard supports Discord setup and skill configuration
+- [x] All core subsystems have passing tests
 
 ## Phase Notes
 Phase 1 shipped a working monolith with TUI + Telegram (17 plans, 76 tests). The Telegram transport is tightly coupled to the Agent class — Phase 2 must refactor this into a Connector interface. The existing `src/telegram/transport.ts` directly imports `Agent` and calls `agent.chat()`, which needs to go through tRPC.
