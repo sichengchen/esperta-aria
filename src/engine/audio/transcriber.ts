@@ -127,7 +127,7 @@ async function transcribeWithOpenAI(audio: Buffer, format: string): Promise<stri
   if (!apiKey) throw new Error("OPENAI_API_KEY not set — cannot use cloud transcription");
 
   const formData = new FormData();
-  const blob = new Blob([audio], { type: `audio/${format}` });
+  const blob = new Blob([new Uint8Array(audio)], { type: `audio/${format}` });
   formData.append("file", blob, `audio.${format}`);
   formData.append("model", "whisper-1");
 

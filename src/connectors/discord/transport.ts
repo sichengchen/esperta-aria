@@ -64,6 +64,9 @@ export class DiscordConnector {
   }
 
   private async handleAudioMessage(message: Message, audioUrl: string, filename: string): Promise<void> {
+    if (!message.channel.isSendable()) return;
+    const channel = message.channel;
+
     try {
       const sessionId = await this.ensureSession();
 
@@ -83,7 +86,7 @@ export class DiscordConnector {
       const { handleTextDelta, handleDone, handleError } = createStreamHandler<Message>({
         send: (content) => message.reply(content),
         edit: (msg, content) => msg.edit(content).then(() => {}),
-        sendExtra: (content) => message.channel.send(content).then(() => {}),
+        sendExtra: (content) => channel.send(content).then(() => {}),
         format: (text) => text.slice(0, 2000),
         split: (text) => splitMessage(text),
         sendError: (msg) => message.reply(`Error: ${msg}`).then(() => {}),
@@ -109,7 +112,7 @@ export class DiscordConnector {
 
               case "tool_end": {
                 const toolMsg = formatToolResult(event.name, event.content);
-                await message.channel.send(toolMsg);
+                await channel.send(toolMsg);
                 break;
               }
 
@@ -128,7 +131,7 @@ export class DiscordConnector {
                     .setLabel(`Always allow ${event.name}`)
                     .setStyle(ButtonStyle.Primary),
                 );
-                await message.channel.send({
+                await channel.send({
                   content: `Tool: **${event.name}** — Approve execution?`,
                   components: [row],
                 });
