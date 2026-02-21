@@ -1,14 +1,15 @@
 ---
-id: 039
-title: "fix: create missing shell scripts for apple-calendar bundled skill"
-status: pending
+id: 39
+title: fix: create missing shell scripts for apple-calendar bundled skill
+status: done
 type: fix
 priority: 1
 phase: phase-2
 branch: fix/apple-calendar-scripts
 created: 2026-02-20
+shipped_at: 2026-02-21
+pr: https://github.com/sichengchen/sa/pull/4
 ---
-
 # fix: create missing shell scripts for apple-calendar bundled skill
 
 ## Context
@@ -49,6 +50,7 @@ Additionally, the `1password` skill references `references/get-started.md` and `
 - `src/engine/skills/bundled/apple-calendar/scripts/cal-search.sh` (create)
 - `src/engine/skills/bundled/1password/references/get-started.md` (create)
 - `src/engine/skills/bundled/1password/references/cli-examples.md` (create)
+- `src/engine/skills/registry.ts` (modify — interpolate `{baseDir}`)
 
 ## Verification
 
@@ -56,3 +58,9 @@ Additionally, the `1password` skill references `references/get-started.md` and `
 - Expected: lists calendars from Calendar.app (pipe-delimited)
 - Run: `scripts/cal-events.sh 7` — should list upcoming events
 - Regression check: `bun run typecheck` still passes; other skills unaffected
+
+## Progress
+- Milestones: 4 commits
+- Modified: 7x apple-calendar scripts, 2x 1password references, registry.ts ({baseDir} interpolation)
+- Verification: cal-list.sh returns 19 calendars; bun run typecheck passes
+- Verification: not yet run — run /esper:finish to verify and archive
