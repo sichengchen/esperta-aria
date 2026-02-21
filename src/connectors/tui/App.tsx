@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Box, useApp, useInput } from "ink";
+import { Box, useApp, useInput, useStdout } from "ink";
 import { ChatView, type ChatMessage } from "./ChatView.js";
 import { Input } from "./Input.js";
 import { StatusBar } from "./StatusBar.js";
@@ -24,6 +24,12 @@ export function App({ client }: AppProps) {
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [agentName, setAgentName] = useState("SA");
+  const [scrollOffset, setScrollOffset] = useState(0);
+
+  const { stdout } = useStdout();
+  const terminalRows = stdout?.rows ?? 24;
+  // StatusBar: 3 lines (border + content + border), Input: 3 lines
+  const chatHeight = Math.max(3, terminalRows - 6);
 
   // Connect to Engine on mount
   useEffect(() => {
@@ -55,6 +61,11 @@ export function App({ client }: AppProps) {
     connect();
   }, [client]);
 
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    setScrollOffset(0);
+  }, [messages.length]);
+
   useInput((_input, key) => {
     if (key.ctrl && _input === "c") {
       exit();
@@ -62,6 +73,12 @@ export function App({ client }: AppProps) {
     }
     if (key.ctrl && _input === "m" && !isStreaming) {
       setShowModelPicker((v) => !v);
+    }
+    if (key.upArrow) {
+      setScrollOffset((v) => Math.min(v + 1, Math.max(0, messages.length - 1)));
+    }
+    if (key.downArrow) {
+      setScrollOffset((v) => Math.max(0, v - 1));
     }
   });
 
@@ -264,11 +281,17 @@ export function App({ client }: AppProps) {
 
   return (
     <Box flexDirection="column" height="100%">
-      <ChatView messages={messages} streamingText={streamingText} agentName={agentName} />
       <StatusBar
         modelName={modelName}
         isStreaming={isStreaming}
         connected={connected}
+      />
+      <ChatView
+        messages={messages}
+        streamingText={streamingText}
+        agentName={agentName}
+        height={chatHeight}
+        scrollOffset={scrollOffset}
       />
       {showModelPicker ? (
         <ModelPicker

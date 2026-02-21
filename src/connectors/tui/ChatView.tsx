@@ -12,17 +12,26 @@ interface ChatViewProps {
   messages: ChatMessage[];
   streamingText: string;
   agentName: string;
+  height: number;
+  scrollOffset: number;
 }
 
-export function ChatView({ messages, streamingText, agentName }: ChatViewProps) {
+export function ChatView({ messages, streamingText, agentName, height, scrollOffset }: ChatViewProps) {
+  // Each message ≈ 2 rows (content + marginBottom), reserve 1 row for scroll indicator
+  const maxVisible = Math.max(1, Math.floor((height - 1) / 2));
+  const endIdx = messages.length - scrollOffset;
+  const startIdx = Math.max(0, endIdx - maxVisible);
+  const visibleMessages = messages.slice(startIdx, endIdx);
+  const showStreaming = streamingText && scrollOffset === 0;
+
   return (
-    <Box flexDirection="column" flexGrow={1}>
-      {messages.map((msg, i) => (
-        <Box key={i} marginBottom={1}>
+    <Box flexDirection="column" height={height}>
+      {visibleMessages.map((msg, i) => (
+        <Box key={startIdx + i} marginBottom={1}>
           <MessageBlock message={msg} agentName={agentName} />
         </Box>
       ))}
-      {streamingText && (
+      {showStreaming && (
         <Box marginBottom={1}>
           <Text color="green" bold>
             {`${agentName}: `}
@@ -30,6 +39,9 @@ export function ChatView({ messages, streamingText, agentName }: ChatViewProps) 
           <MarkdownText>{streamingText}</MarkdownText>
           <Text color="yellow">{"▊"}</Text>
         </Box>
+      )}
+      {scrollOffset > 0 && (
+        <Text dimColor>{"↓ " + scrollOffset + " newer message" + (scrollOffset > 1 ? "s" : "") + " below"}</Text>
       )}
     </Box>
   );
