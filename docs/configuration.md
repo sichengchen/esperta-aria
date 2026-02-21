@@ -1,58 +1,135 @@
 # Configuration
 
-SA stores all configuration in a directory on your machine. By default this is `~/.sa/`. You can override the location with the `SA_HOME` environment variable.
+SA stores config in a local directory (default: `~/.sa/`). Override with `SA_HOME`.
 
 ## Environment variables
 
-Set these in your shell or in a `.env` file at the project root (see `.env.example`).
+You can set values in your shell or a project `.env` file.
 
-| Variable             | Required | Description                            |
-|----------------------|----------|----------------------------------------|
-| `ANTHROPIC_API_KEY`  | If using Anthropic | Anthropic API key            |
-| `OPENAI_API_KEY`     | If using OpenAI    | OpenAI API key               |
-| `GOOGLE_AI_API_KEY`  | If using Google    | Google AI API key            |
-| `TELEGRAM_BOT_TOKEN` | No       | Telegram bot token (enables bot)       |
-| `DISCORD_TOKEN`      | No       | Discord bot token (enables bot)        |
-| `DISCORD_GUILD_ID`   | No       | Discord guild (server) ID              |
-| `SA_HOME`            | No       | Override config directory location     |
-| `SA_ENGINE_PORT`     | No       | Override Engine HTTP port (default: 7420) |
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | If using Anthropic | Provider API key |
+| `OPENAI_API_KEY` | If using OpenAI | Provider API key |
+| `GOOGLE_AI_API_KEY` | If using Google | Provider API key |
+| `OPENROUTER_API_KEY` | If using OpenRouter | Provider API key |
+| `TELEGRAM_BOT_TOKEN` | Optional | Telegram bot token (enables Telegram connector) |
+| `DISCORD_TOKEN` | Optional | Discord bot token (enables Discord connector) |
+| `DISCORD_GUILD_ID` | Optional | Restrict Discord bot to a guild |
+| `SA_HOME` | Optional | Override config directory |
+| `SA_ENGINE_PORT` | Optional | Override Engine HTTP port (default `7420`; WS uses `+1`) |
 
-API keys can also be stored in `secrets.enc` via the setup wizard instead of environment variables.
+API keys are resolved as: environment variable first, then `secrets.enc`.
 
 ## Config directory layout
 
-```
+```text
 ~/.sa/
-  IDENTITY.md      # agent identity and personality
-  USER.md          # user profile (name, timezone, preferences)
-  config.json      # runtime settings
-  models.json      # model configurations
-  secrets.enc      # encrypted API keys and bot tokens
-  memory/          # persistent memory (one file per key)
-  skills/          # installed skills (one directory per skill)
-  engine.url       # Engine HTTP URL (written at startup, cleaned on shutdown)
-  engine.pid       # Engine process ID
-  engine.token     # Engine master auth token (mode 0600)
-  engine.log       # Engine stdout/stderr log
+  IDENTITY.md        # agent name/personality/system prompt
+  USER.md            # user profile and preferences
+  config.json        # v3 config (runtime + providers + models)
+  secrets.enc        # encrypted secrets payload
+  .salt              # salt used for encryption key derivation
+  memory/            # memory files
+    MEMORY.md
+    topics/
+  skills/            # local + ClawHub-installed skills
+  engine.url         # daemon discovery URL
+  engine.pid         # daemon PID
+  engine.token       # daemon auth token
+  engine.log         # daemon logs
+  engine.heartbeat   # heartbeat metadata from scheduler
 ```
 
-## IDENTITY.md
+## `config.json` (v3)
 
-Defines who the agent is. Edited manually or via the onboarding wizard.
+Single source of truth for runtime, providers, and models.
+
+```json
+{
+  "version": 3,
+  "runtime": {
+    "activeModel": "sonnet",
+    "telegramBotTokenEnvVar": "TELEGRAM_BOT_TOKEN",
+    "memory": {
+      "enabled": true,
+      "directory": "memory"
+    }
+  },
+  "providers": [
+    {
+      "id": "anthropic",
+      "type": "anthropic",
+      "apiKeyEnvVar": "ANTHROPIC_API_KEY"
+    }
+  ],
+  "models": [
+    {
+      "name": "sonnet",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250514",
+      "temperature": 0.7,
+      "maxTokens": 8192
+    }
+  ],
+  "defaultModel": "sonnet"
+}
+```
+
+### Runtime fields
+
+| Field | Type | Description |
+|---|---|---|
+| `runtime.activeModel` | string | Last active model name persisted by runtime updates |
+| `runtime.telegramBotTokenEnvVar` | string | Legacy runtime field for Telegram env-var name |
+| `runtime.memory.enabled` | boolean | Enable/disable memory subsystem |
+| `runtime.memory.directory` | string | Memory directory path relative to `SA_HOME` |
+
+### Provider fields (`providers[]`)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | Yes | Unique provider ID referenced by models |
+| `type` | string | Yes | Provider type (`anthropic`, `openai`, `google`, `openrouter`, `openai-compat`, etc.) |
+| `apiKeyEnvVar` | string | Yes | Env var used to resolve API key |
+| `baseUrl` | string | No | Custom endpoint (commonly with `openai-compat`) |
+
+### Model fields (`models[]`)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Display name used by UI/API |
+| `provider` | string | Yes | Provider ID (must exist in `providers[]`) |
+| `model` | string | Yes | Provider model ID |
+| `temperature` | number | No | Sampling temperature |
+| `maxTokens` | number | No | Max output tokens |
+
+### Top-level model selector
+
+| Field | Type | Description |
+|---|---|---|
+| `defaultModel` | string | Model used as initial router model at startup |
+
+### Migration note
+
+Legacy setups with `models.json` are auto-migrated into `config.json` (v3). `models.json` is removed after migration.
+
+## `IDENTITY.md`
+
+Defines agent identity and base system prompt.
 
 ```markdown
 # Agent Name
 
 ## Personality
-A short description of how the agent should behave and communicate.
+How the agent should behave.
 
 ## System Prompt
-The literal text injected as the system prompt for every conversation.
+Literal prompt text injected into every session.
 ```
 
-## USER.md
+## `USER.md`
 
-User profile for personalisation. Created by the wizard, editable manually.
+Optional user profile loaded into the system prompt.
 
 ```markdown
 # User Profile
@@ -60,70 +137,16 @@ User profile for personalisation. Created by the wizard, editable manually.
 Name: Alice
 Timezone: America/Los_Angeles
 
-A short bio or description.
+Short profile text.
 
 ## Preferences
 
-Communication style: casual
+Communication style: concise
 ```
 
-## config.json
+## `secrets.enc`
 
-Runtime settings. Edited manually or updated by the agent at runtime.
-
-```json
-{
-  "activeModel": "sonnet",
-  "telegramBotTokenEnvVar": "TELEGRAM_BOT_TOKEN",
-  "memory": {
-    "enabled": true,
-    "directory": "memory"
-  }
-}
-```
-
-| Field                    | Type    | Description                                                  |
-|--------------------------|---------|--------------------------------------------------------------|
-| `activeModel`            | string  | Name of the active model config (must match a name in `models.json`) |
-| `telegramBotTokenEnvVar` | string | Name of the env var that holds the Telegram bot token        |
-| `memory.enabled`         | boolean | Whether long-term memory is active                           |
-| `memory.directory`       | string  | Path to the memory directory, relative to `SA_HOME`          |
-
-## models.json
-
-Defines available LLM model configurations. You can add as many as you like and switch between them at runtime.
-
-```json
-{
-  "default": "sonnet",
-  "models": [
-    {
-      "name": "sonnet",
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250514",
-      "apiKeyEnvVar": "ANTHROPIC_API_KEY",
-      "temperature": 0.7,
-      "maxTokens": 8192
-    }
-  ]
-}
-```
-
-| Field         | Type   | Required | Description                                                 |
-|---------------|--------|----------|-------------------------------------------------------------|
-| `name`        | string | Yes      | Unique display name used to refer to this config            |
-| `provider`    | string | Yes      | LLM provider: `"anthropic"`, `"openai"`, `"google"`, etc.  |
-| `model`       | string | Yes      | Provider-specific model ID                                  |
-| `apiKeyEnvVar`| string | Yes      | Name of the env var that holds the API key for this provider|
-| `baseUrl`     | string | No       | Custom API base URL (for proxies or self-hosted models)     |
-| `temperature` | number | No       | Sampling temperature (0–2)                                  |
-| `maxTokens`   | number | No       | Maximum output tokens per response                          |
-
-The `default` field at the top level sets which model is used on startup if `config.json` doesn't specify one.
-
-## secrets.enc
-
-Encrypted file holding sensitive values so they don't need to be in environment variables. Created by the setup wizard.
+Encrypted JSON payload (AES-256-GCM). Key is derived locally from hostname + `.salt`.
 
 ```json
 {
@@ -133,30 +156,20 @@ Encrypted file holding sensitive values so they don't need to be in environment 
   "botToken": "123456:ABC...",
   "pairedChatId": 12345678,
   "pairingCode": "A1B2C3",
-  "discordToken": "MTIz...",
-  "discordGuildId": "123456789"
+  "discordToken": "...",
+  "discordGuildId": "..."
 }
 ```
 
-| Field           | Description                                              |
-|-----------------|----------------------------------------------------------|
-| `apiKeys`       | Map of env var name to raw API key                       |
-| `botToken`      | Telegram bot token                                       |
-| `pairedChatId`  | Telegram chat ID of the paired user                      |
-| `pairingCode`   | One-time pairing code for Telegram                       |
-| `discordToken`  | Discord bot token                                        |
-| `discordGuildId`| Discord guild (server) ID                                |
-
 ## Skills directory
 
-Skills are installed under `~/.sa/skills/`. Each skill lives in its own directory containing a `SKILL.md` file with YAML frontmatter:
+User and ClawHub skills live under `~/.sa/skills/`:
 
-```
+```text
 ~/.sa/skills/
-  code-review/
+  some-skill/
     SKILL.md
-  writing-assistant/
-    SKILL.md
+  .registry.json   # ClawHub install metadata
 ```
 
-See the [agentskills.io](https://agentskills.io) spec for the `SKILL.md` format. Skills can also be installed from ClawHub ([clawhub.ai](https://clawhub.ai)) via the agent's `clawhub_search` tool or the `skill.install` RPC.
+Bundled skills ship in `src/engine/skills/bundled/` and are loaded alongside user skills.
