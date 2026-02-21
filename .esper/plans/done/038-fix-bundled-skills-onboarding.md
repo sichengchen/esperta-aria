@@ -8,6 +8,7 @@ phase: phase-2
 branch: fix/bundled-skills-onboarding
 created: 2026-02-20
 shipped_at: 2026-02-21
+pr: https://github.com/sichengchen/sa/pull/3
 ---
 # fix: copy selected bundled skills to ~/.sa/skills/ during onboarding
 
