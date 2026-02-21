@@ -29,6 +29,8 @@ export class DiscordConnector {
   private client: EngineClient;
   private options: DiscordConnectorOptions;
   private sessionId: string | null = null;
+  /** Track last user message for emoji reactions */
+  private lastUserMessage: Message | null = null;
 
   constructor(client: EngineClient, options: DiscordConnectorOptions) {
     this.client = client;
@@ -235,6 +237,9 @@ export class DiscordConnector {
         return;
       }
 
+      // Track last user message for reactions
+      this.lastUserMessage = message;
+
       // Regular chat
       try {
         const sessionId = await this.ensureSession();
@@ -284,6 +289,16 @@ export class DiscordConnector {
                   });
                   break;
                 }
+
+                case "reaction":
+                  if (this.lastUserMessage) {
+                    try {
+                      await this.lastUserMessage.react(event.emoji);
+                    } catch {
+                      // Discord may reject unsupported emoji — silently ignore
+                    }
+                  }
+                  break;
 
                 case "done":
                   handleDone();

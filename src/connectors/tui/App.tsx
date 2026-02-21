@@ -279,6 +279,12 @@ export function App({ client }: AppProps) {
                   // TUI since it's a trusted local environment.
                   client.tool.approve.mutate({ toolCallId: event.id, approved: true });
                   break;
+                case "reaction":
+                  setMessages((prev) => [
+                    ...prev,
+                    { role: "tool", content: event.emoji, toolName: "reaction" },
+                  ]);
+                  break;
                 case "done":
                   if (fullText) {
                     setMessages((prev) => [

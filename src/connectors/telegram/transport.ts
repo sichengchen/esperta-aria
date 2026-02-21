@@ -22,6 +22,9 @@ export class TelegramConnector {
   private pairingCode?: string;
   private onPaired?: (chatId: number) => Promise<void>;
   private sessionId: string | null = null;
+  /** Track last user message for emoji reactions */
+  private lastUserMessageId: number | null = null;
+  private lastUserChatId: number | null = null;
 
   constructor(client: EngineClient, options: TelegramConnectorOptions) {
     this.bot = new Bot(options.botToken);
@@ -171,6 +174,10 @@ export class TelegramConnector {
       // Skip commands already handled above
       if (userText.startsWith("/")) return;
 
+      // Track last user message for reactions
+      this.lastUserMessageId = ctx.message.message_id;
+      this.lastUserChatId = ctx.message.chat.id;
+
       await ctx.api.sendChatAction(ctx.message.chat.id, "typing");
 
       try {
@@ -220,6 +227,18 @@ export class TelegramConnector {
                   );
                   break;
                 }
+
+                case "reaction":
+                  if (this.lastUserMessageId && this.lastUserChatId) {
+                    try {
+                      await ctx.api.setMessageReaction(this.lastUserChatId, this.lastUserMessageId, [
+                        { type: "emoji", emoji: event.emoji as any },
+                      ]);
+                    } catch {
+                      // Telegram may reject unsupported emoji — silently ignore
+                    }
+                  }
+                  break;
 
                 case "done":
                   handleDone();
