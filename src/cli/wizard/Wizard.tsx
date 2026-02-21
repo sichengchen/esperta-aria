@@ -106,7 +106,7 @@ ${recurringContext}
             provider: data.providerId,
             model: data.model,
             temperature: 0.7,
-            maxTokens: 8192,
+            maxTokens: data.maxTokens ?? 8192,
           },
         ],
         defaultModel: "default",

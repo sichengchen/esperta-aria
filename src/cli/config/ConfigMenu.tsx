@@ -75,6 +75,7 @@ export function ConfigApp({ homeDir, onExit }: ConfigAppProps) {
       return (
         <ModelManager
           config={config}
+          homeDir={homeDir}
           onSave={saveConfig}
           onBack={() => setScreen("menu")}
         />

@@ -23,6 +23,8 @@ export interface WizardData {
   discordToken?: string;
   discordGuildId?: string;
   selectedSkills?: string[];
+  /** Max output tokens from PI-mono model metadata */
+  maxTokens?: number;
 }
 
 interface ConfirmProps {

@@ -1,18 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
 import type { SAConfigFile } from "../../engine/config/index.js";
 import type { ModelConfig } from "../../engine/router/index.js";
+import { loadSecrets } from "../../engine/config/secrets.js";
+import { fetchModelList, lookupModelMeta } from "../shared/fetch-models.js";
 
-type Substep = "list" | "add-provider" | "add-fields" | "set-default" | "confirm-remove";
-type AddField = "name" | "model" | "temperature" | "maxTokens";
+type Substep = "list" | "add-provider" | "fetching" | "select-model" | "add-fields" | "set-default" | "confirm-remove";
+type AddField = "name" | "temperature" | "maxTokens";
+
+const VISIBLE_MODELS = 8;
 
 interface ModelManagerProps {
   config: SAConfigFile;
+  homeDir: string;
   onSave: (config: SAConfigFile) => Promise<void>;
   onBack: () => void;
 }
 
-export function ModelManager({ config, onSave, onBack }: ModelManagerProps) {
+export function ModelManager({ config, homeDir, onSave, onBack }: ModelManagerProps) {
   const [substep, setSubstep] = useState<Substep>("list");
   const [selected, setSelected] = useState(0);
   const [removeTarget, setRemoveTarget] = useState<string>("");
@@ -25,6 +30,13 @@ export function ModelManager({ config, onSave, onBack }: ModelManagerProps) {
   const [newTemp, setNewTemp] = useState("0.7");
   const [newMaxTokens, setNewMaxTokens] = useState("8192");
 
+  // Fetched model list state
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [selectedModelIdx, setSelectedModelIdx] = useState(0);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [manualModel, setManualModel] = useState("");
+
   const models = config.models;
   // List items: models + set default + add
   const listItems = [
@@ -32,6 +44,55 @@ export function ModelManager({ config, onSave, onBack }: ModelManagerProps) {
     "Set default model",
     "+ Add new model",
   ];
+
+  // Trigger model fetch when entering "fetching" substep
+  useEffect(() => {
+    if (substep !== "fetching") return;
+    const provider = config.providers[providerIdx];
+    if (!provider) { setSubstep("add-provider"); return; }
+
+    (async () => {
+      try {
+        // Resolve API key: env var first, then secrets
+        let apiKey = process.env[provider.apiKeyEnvVar] ?? "";
+        if (!apiKey) {
+          const secrets = await loadSecrets(homeDir);
+          apiKey = secrets?.apiKeys[provider.apiKeyEnvVar] ?? "";
+        }
+        if (!apiKey) {
+          setFetchedModels([]);
+          setFetchError(`No API key found for ${provider.apiKeyEnvVar}`);
+          setSubstep("select-model");
+          return;
+        }
+        const modelList = await fetchModelList(
+          provider.type as "anthropic" | "openai" | "google" | "openrouter" | "openai-compat",
+          apiKey,
+          provider.baseUrl ?? "",
+        );
+        setFetchedModels(modelList);
+        setFetchError(null);
+      } catch (err: unknown) {
+        setFetchedModels([]);
+        setFetchError(err instanceof Error ? err.message : String(err));
+      }
+      setSelectedModelIdx(0);
+      setScrollOffset(0);
+      setManualModel("");
+      setSubstep("select-model");
+    })();
+  }, [substep]);
+
+  function selectModel(modelId: string) {
+    setNewModel(modelId);
+    const provider = config.providers[providerIdx];
+    const meta = lookupModelMeta(provider.type, modelId);
+    setNewName("");
+    setNewTemp("0.7");
+    setNewMaxTokens(meta ? String(meta.maxTokens) : "8192");
+    setAddField("name");
+    setSubstep("add-fields");
+  }
 
   useInput((input, key) => {
     // --- LIST ---
@@ -85,30 +146,68 @@ export function ModelManager({ config, onSave, onBack }: ModelManagerProps) {
       if (key.upArrow) { setProviderIdx((i) => Math.max(0, i - 1)); return; }
       if (key.downArrow) { setProviderIdx((i) => Math.min(config.providers.length - 1, i + 1)); return; }
       if (key.return) {
-        setNewName("");
-        setNewModel("");
-        setNewTemp("0.7");
-        setNewMaxTokens("8192");
-        setAddField("name");
-        setSubstep("add-fields");
+        setFetchedModels([]);
+        setFetchError(null);
+        setSubstep("fetching");
+      }
+      return;
+    }
+
+    // --- FETCHING --- (no keyboard input during fetch)
+    if (substep === "fetching") return;
+
+    // --- SELECT MODEL ---
+    if (substep === "select-model") {
+      if (key.escape) { setSubstep("add-provider"); return; }
+
+      if (fetchedModels.length > 0) {
+        if (key.upArrow) {
+          setSelectedModelIdx((i) => {
+            const next = Math.max(0, i - 1);
+            setScrollOffset((off) => Math.min(off, next));
+            return next;
+          });
+          return;
+        }
+        if (key.downArrow) {
+          setSelectedModelIdx((i) => {
+            const next = Math.min(fetchedModels.length - 1, i + 1);
+            setScrollOffset((off) =>
+              next >= off + VISIBLE_MODELS ? next - VISIBLE_MODELS + 1 : off,
+            );
+            return next;
+          });
+          return;
+        }
+        if (key.return) {
+          selectModel(fetchedModels[selectedModelIdx]);
+          return;
+        }
+      } else {
+        // Manual entry fallback
+        if (key.return) {
+          if (manualModel.trim()) selectModel(manualModel.trim());
+          return;
+        }
+        if (key.backspace || key.delete) { setManualModel((v) => v.slice(0, -1)); return; }
+        if (input && !key.ctrl && !key.meta) { setManualModel((v) => v + input); }
       }
       return;
     }
 
     // --- ADD FIELDS ---
     if (substep === "add-fields") {
-      if (key.escape) { setSubstep("add-provider"); return; }
+      if (key.escape) { setSubstep("select-model"); return; }
       if (key.return) {
-        if (addField === "name") { setAddField("model"); return; }
-        if (addField === "model") { setAddField("temperature"); return; }
+        if (addField === "name") { setAddField("temperature"); return; }
         if (addField === "temperature") { setAddField("maxTokens"); return; }
         // Save
-        if (!newName.trim() || !newModel.trim()) return;
+        if (!newName.trim()) return;
         if (models.some((m) => m.name === newName.trim())) return;
         const newModelConfig: ModelConfig = {
           name: newName.trim(),
           provider: config.providers[providerIdx].id,
-          model: newModel.trim(),
+          model: newModel,
           temperature: parseFloat(newTemp) || 0.7,
           maxTokens: parseInt(newMaxTokens) || 8192,
         };
@@ -122,7 +221,6 @@ export function ModelManager({ config, onSave, onBack }: ModelManagerProps) {
 
       if (key.backspace || key.delete) {
         if (addField === "name") setNewName((v) => v.slice(0, -1));
-        else if (addField === "model") setNewModel((v) => v.slice(0, -1));
         else if (addField === "temperature") setNewTemp((v) => v.slice(0, -1));
         else setNewMaxTokens((v) => v.slice(0, -1));
         return;
@@ -130,7 +228,6 @@ export function ModelManager({ config, onSave, onBack }: ModelManagerProps) {
 
       if (input && !key.ctrl && !key.meta) {
         if (addField === "name") setNewName((v) => v + input);
-        else if (addField === "model") setNewModel((v) => v + input);
         else if (addField === "temperature") setNewTemp((v) => v + input);
         else setNewMaxTokens((v) => v + input);
       }
@@ -199,19 +296,67 @@ export function ModelManager({ config, onSave, onBack }: ModelManagerProps) {
         </>
       )}
 
+      {substep === "fetching" && (
+        <Text>Fetching available models from {config.providers[providerIdx]?.id}...</Text>
+      )}
+
+      {substep === "select-model" && (
+        <>
+          {fetchedModels.length > 0 ? (
+            <>
+              <Text>
+                Choose a model ({fetchedModels.length} available from {config.providers[providerIdx]?.id}):
+              </Text>
+              {fetchedModels.slice(scrollOffset, scrollOffset + VISIBLE_MODELS).map((m, i) => {
+                const absIdx = scrollOffset + i;
+                return (
+                  <Box key={m}>
+                    <Text
+                      color={absIdx === selectedModelIdx ? "cyan" : undefined}
+                      bold={absIdx === selectedModelIdx}
+                    >
+                      {absIdx === selectedModelIdx ? "● " : "○ "}
+                      {m}
+                    </Text>
+                  </Box>
+                );
+              })}
+              {fetchedModels.length > VISIBLE_MODELS && (
+                <Text dimColor>
+                  {scrollOffset > 0 ? "↑ " : "  "}
+                  {selectedModelIdx + 1}/{fetchedModels.length}
+                  {scrollOffset + VISIBLE_MODELS < fetchedModels.length ? " ↓" : "  "}
+                </Text>
+              )}
+              <Text />
+              <Text dimColor>↑↓ navigate | Enter select | Esc back</Text>
+            </>
+          ) : (
+            <>
+              {fetchError && (
+                <Text dimColor>Could not fetch models: {fetchError}</Text>
+              )}
+              <Text>Enter model ID manually:</Text>
+              <Box>
+                <Text color="blue">Model: </Text>
+                <Text>{manualModel}</Text>
+                <Text color="blue">▊</Text>
+              </Box>
+              <Text />
+              <Text dimColor>Enter to confirm | Esc back</Text>
+            </>
+          )}
+        </>
+      )}
+
       {substep === "add-fields" && (
         <>
-          <Text bold>New model (provider: {config.providers[providerIdx].id})</Text>
+          <Text bold>New model (provider: {config.providers[providerIdx]?.id}, model: {newModel})</Text>
           <Text />
           <Box>
             <Text color={addField === "name" ? "blue" : "white"} bold={addField === "name"}>Name: </Text>
             <Text>{newName}</Text>
             {addField === "name" && <Text color="blue">▊</Text>}
-          </Box>
-          <Box>
-            <Text color={addField === "model" ? "blue" : "white"} bold={addField === "model"}>Model ID: </Text>
-            <Text>{newModel}</Text>
-            {addField === "model" && <Text color="blue">▊</Text>}
           </Box>
           <Box>
             <Text color={addField === "temperature" ? "blue" : "white"} bold={addField === "temperature"}>Temperature: </Text>

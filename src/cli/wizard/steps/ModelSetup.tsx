@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
+import { fetchModelList, lookupModelMeta } from "../../shared/fetch-models.js";
 
 type ProviderType = "anthropic" | "openai" | "google" | "openrouter" | "openai-compat";
 type Substep = "keep-or-change" | "provider" | "credentials" | "fetching" | "model";
@@ -26,61 +27,14 @@ export interface ModelSetupData {
   apiKeyEnvVar: string;
   apiKey: string;
   baseUrl?: string;
+  /** Max output tokens from PI-mono model metadata (if available) */
+  maxTokens?: number;
 }
 
 interface ModelSetupProps {
   onNext: (data: ModelSetupData) => void;
   onBack: () => void;
   currentValues?: ModelSetupData;
-}
-
-async function fetchModelList(
-  providerType: ProviderType,
-  apiKey: string,
-  baseUrl: string
-): Promise<string[]> {
-  if (providerType === "anthropic") {
-    const res = await fetch("https://api.anthropic.com/v1/models", {
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as { data: { id: string }[] };
-    return json.data.map((m) => m.id).sort();
-  }
-  if (providerType === "openai") {
-    const res = await fetch("https://api.openai.com/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as { data: { id: string }[] };
-    return json.data.map((m) => m.id).sort();
-  }
-  if (providerType === "google") {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-    );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as { models: { name: string }[] };
-    return json.models
-      .map((m) => m.name.replace(/^models\//, ""))
-      .sort();
-  }
-  if (providerType === "openrouter") {
-    const res = await fetch("https://openrouter.ai/api/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as { data: { id: string }[] };
-    return json.data.map((m) => m.id).sort();
-  }
-  // openai-compat
-  const url = baseUrl.replace(/\/$/, "");
-  const res = await fetch(`${url}/models`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = (await res.json()) as { data: { id: string }[] };
-  return json.data.map((m) => m.id).sort();
 }
 
 export function ModelSetup({ onNext, onBack, currentValues }: ModelSetupProps) {
@@ -128,6 +82,7 @@ export function ModelSetup({ onNext, onBack, currentValues }: ModelSetupProps) {
     const finalEnvVar = isCompat
       ? `${customName.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_API_KEY`
       : providerOption.apiKeyEnvVar;
+    const meta = lookupModelMeta(finalProviderType, chosenModel);
     onNext({
       providerId: finalProviderId,
       providerType: finalProviderType,
@@ -136,6 +91,7 @@ export function ModelSetup({ onNext, onBack, currentValues }: ModelSetupProps) {
       apiKeyEnvVar: finalEnvVar,
       apiKey,
       baseUrl: isCompat ? baseUrl : undefined,
+      maxTokens: meta?.maxTokens,
     });
   }
 
