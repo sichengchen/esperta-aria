@@ -157,7 +157,7 @@ export function createAppRouter(runtime: EngineRuntime) {
       create: publicProcedure
         .input(
           z.object({
-            connectorType: z.enum(["tui", "telegram", "discord"]),
+            connectorType: z.enum(["tui", "telegram", "discord", "webhook"]),
             connectorId: z.string(),
           }),
         )
@@ -342,7 +342,7 @@ export function createAppRouter(runtime: EngineRuntime) {
           z.object({
             credential: z.string(),
             connectorId: z.string(),
-            connectorType: z.enum(["tui", "telegram", "discord"]),
+            connectorType: z.enum(["tui", "telegram", "discord", "webhook"]),
           }),
         )
         .mutation(({ input }) => {

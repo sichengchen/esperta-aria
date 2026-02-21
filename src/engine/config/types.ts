@@ -19,6 +19,12 @@ export interface RuntimeConfig {
   };
   /** Per-connector tool approval mode (default: "never" for tui, "ask" for IM connectors) */
   toolApproval?: ToolApprovalConfig;
+  /** Webhook connector configuration */
+  webhook?: {
+    enabled: boolean;
+    /** Shared secret for authenticating webhook requests */
+    secret?: string;
+  };
 }
 
 /** On-disk config.json schema (v3 — merged models + runtime) */

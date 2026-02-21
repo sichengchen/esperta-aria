@@ -20,7 +20,7 @@ export interface Session {
 }
 
 /** Connector types supported by the Engine */
-export type ConnectorType = "tui" | "telegram" | "discord";
+export type ConnectorType = "tui" | "telegram" | "discord" | "webhook";
 
 /** Tool approval mode per connector */
 export type ToolApprovalMode = "always" | "never" | "ask";

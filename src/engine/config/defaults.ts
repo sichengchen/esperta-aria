@@ -23,6 +23,10 @@ export const DEFAULT_CONFIG: SAConfigFile = {
       tui: "never",
       telegram: "ask",
       discord: "ask",
+      webhook: "never",
+    },
+    webhook: {
+      enabled: false,
     },
   },
   providers: [

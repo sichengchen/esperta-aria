@@ -28,6 +28,8 @@ const MENU_ITEMS = [
   { key: "tui-approval", label: "TUI tool approval" },
   { key: "telegram-approval", label: "Telegram tool approval" },
   { key: "discord-approval", label: "Discord tool approval" },
+  { key: "webhook-enabled", label: "Webhook connector" },
+  { key: "webhook-approval", label: "Webhook tool approval" },
 ] as const;
 
 function getApprovalMode(config: SAConfigFile, connector: ConnectorType): ToolApprovalMode {
@@ -73,7 +75,7 @@ export function ConnectorSettings({ config, homeDir, onSave, onBack }: Connector
         } else if (item.key === "discord-guild") {
           setEditValue(secrets?.discordGuildId ?? "");
           setSubstep("edit-discord-guild");
-        } else if (item.key === "tui-approval" || item.key === "telegram-approval" || item.key === "discord-approval") {
+        } else if (item.key === "tui-approval" || item.key === "telegram-approval" || item.key === "discord-approval" || item.key === "webhook-approval") {
           const connector = item.key.replace("-approval", "") as ConnectorType;
           const current = getApprovalMode(config, connector);
           const next = cycleApprovalMode(current);
@@ -84,6 +86,20 @@ export function ConnectorSettings({ config, homeDir, onSave, onBack }: Connector
               toolApproval: {
                 ...config.runtime.toolApproval,
                 [connector]: next,
+              },
+            },
+          };
+          setSaved(true);
+          onSave(updated).then(() => setSaved(false));
+        } else if (item.key === "webhook-enabled") {
+          const current = config.runtime.webhook?.enabled ?? false;
+          const updated: SAConfigFile = {
+            ...config,
+            runtime: {
+              ...config.runtime,
+              webhook: {
+                ...config.runtime.webhook,
+                enabled: !current,
               },
             },
           };
@@ -145,6 +161,8 @@ export function ConnectorSettings({ config, homeDir, onSave, onBack }: Connector
             else if (item.key === "tui-approval") detail = ` ${APPROVAL_LABELS[getApprovalMode(config, "tui")]}`;
             else if (item.key === "telegram-approval") detail = ` ${APPROVAL_LABELS[getApprovalMode(config, "telegram")]}`;
             else if (item.key === "discord-approval") detail = ` ${APPROVAL_LABELS[getApprovalMode(config, "discord")]}`;
+            else if (item.key === "webhook-enabled") detail = ` ${config.runtime.webhook?.enabled ? "enabled" : "disabled"}`;
+            else if (item.key === "webhook-approval") detail = ` ${APPROVAL_LABELS[getApprovalMode(config, "webhook")]}`;
             return (
               <Text key={item.key}>
                 {i === selected ? <Text color="green">{"● "}</Text> : <Text>{"○ "}</Text>}
