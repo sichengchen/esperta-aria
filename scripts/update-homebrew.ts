@@ -55,6 +55,15 @@ const formula = `class Sa < Formula
     bin.install "sa-darwin" => "sa"
   end
 
+  service do
+    run [opt_bin/"sa", "__engine"]
+    keep_alive true
+    working_dir Dir.home
+    log_path var/"log/sa/engine.log"
+    error_log_path var/"log/sa/engine.log"
+    environment_variables SA_HOME: "\#{Dir.home}/.sa"
+  end
+
   test do
     assert_match version.to_s, shell_output("\#{bin}/sa --version 2>&1", 1)
   end
