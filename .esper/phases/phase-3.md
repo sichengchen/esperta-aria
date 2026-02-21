@@ -49,3 +49,4 @@ Phase 2 shipped a solid Engine + Connector architecture with tRPC, device-flow a
 
 ## Shipped Plans
 - #042 — Configurable tool approval for IM connectors: Add per-connector toolApproval setting (always/never/ask) with session-level overrides. Files: types.ts, defaults.ts, procedures.ts, types.ts, transport.ts, transport.ts, App.tsx, ConnectorSettings.tsx
+- #043 — Advanced exec tool to replace bash: Create exec tool with workdir, env, background, yieldMs, timeout plus exec_status/exec_kill companion tools. Files: exec.ts, exec-background.ts, index.ts
