@@ -8,6 +8,7 @@ phase: phase-3
 branch: feature/phase-3
 created: 2026-02-21
 shipped_at: 2026-02-21
+pr: https://github.com/sichengchen/sa/pull/7
 ---
 # Audio transcription for IM connectors
 
