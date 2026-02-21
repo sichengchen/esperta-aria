@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Updates the Homebrew tap formula with the current version and checksums.
+ * Updates the Homebrew tap formula with the current version and checksum.
  *
- * Reads checksums from local artifact files (downloaded by the release workflow),
+ * Reads the checksum from the local artifact file (downloaded by the release workflow),
  * clones the tap repo, updates the formula, commits, and pushes.
  *
  * Requires:
@@ -25,21 +25,15 @@ const pkgPath = resolve(import.meta.dir, "..", "package.json");
 const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 const version = pkg.version as string;
 
-// Read checksums from local artifact files
-function readChecksum(filename: string): string {
-  const content = readFileSync(
-    resolve(import.meta.dir, "..", "artifacts", filename),
-    "utf-8",
-  );
-  return content.trim().split(/\s+/)[0];
-}
-
-const armSha = readChecksum("sa-darwin-arm64.sha256");
-const intelSha = readChecksum("sa-darwin-x86_64.sha256");
+// Read checksum from local artifact file
+const checksumContent = readFileSync(
+  resolve(import.meta.dir, "..", "artifacts", "sa-darwin.sha256"),
+  "utf-8",
+);
+const sha = checksumContent.trim().split(/\s+/)[0];
 
 console.log(`Version: ${version}`);
-console.log(`ARM64 SHA256: ${armSha}`);
-console.log(`x86_64 SHA256: ${intelSha}`);
+console.log(`SHA256: ${sha}`);
 
 // Generate formula content
 const formula = `class Sa < Formula
@@ -48,21 +42,13 @@ const formula = `class Sa < Formula
   version "${version}"
   license "MIT"
 
-  on_arm do
-    url "https://github.com/${SA_REPO}/releases/download/v${version}/sa-darwin-arm64"
-    sha256 "${armSha}"
-  end
-
-  on_intel do
-    url "https://github.com/${SA_REPO}/releases/download/v${version}/sa-darwin-x86_64"
-    sha256 "${intelSha}"
-  end
+  url "https://github.com/${SA_REPO}/releases/download/v${version}/sa-darwin"
+  sha256 "${sha}"
 
   depends_on "bun"
 
   def install
-    binary = Dir["sa-darwin-*"].first
-    bin.install binary => "sa"
+    bin.install "sa-darwin" => "sa"
   end
 
   test do
