@@ -40,3 +40,4 @@ Phase 3 shipped all 9 plans (042–050) covering connectors, tools, and media. S
 
 ## Shipped Plans
 - #052 — CalVer versioning, GitHub Actions CI/CD, and Homebrew tap distribution: Switch to CalVer (YYYY.M.patch), add CI/CD workflows, Homebrew tap, and version bump scripts. Files: package.json, scripts/version.ts, scripts/update-homebrew.ts, ci.yml, release.yml
+- #051 — Add tsconfig path aliases for cross-boundary imports: Add @sa/* path aliases to tsconfig.json and replace all cross-boundary relative imports. Files: tsconfig.json, 24 source files across cli/, connectors/, engine/, shared/
