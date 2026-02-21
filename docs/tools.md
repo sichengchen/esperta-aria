@@ -1,79 +1,96 @@
 # Built-in Tools
 
-SA provides the agent with seven built-in tools. The agent decides when and how to use them based on the conversation.
+SA currently exposes nine runtime tools to the agent.
 
-## read
+| Tool | Purpose |
+|---|---|
+| `read` | Read file contents |
+| `write` | Create/overwrite files |
+| `edit` | Exact single-occurrence string replacement |
+| `bash` | Execute shell commands |
+| `clawhub_search` | Search ClawHub skills |
+| `remember` | Save memory entry by key |
+| `read_skill` | Load + activate a skill by name |
+| `clawhub_install` | Install a skill from ClawHub |
+| `clawhub_update` | Update one/all installed ClawHub skills |
 
-Read the contents of a file.
+## `read`
 
-| Parameter   | Type   | Required | Description                              |
-|-------------|--------|----------|------------------------------------------|
-| `file_path` | string | Yes      | Absolute path to the file                |
-| `offset`    | number | No       | Line number to start reading from (1-based) |
-| `limit`     | number | No       | Maximum number of lines to return        |
+Read file contents as text.
 
-Returns the file contents as text. If `offset` and `limit` are omitted, the entire file is returned.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `file_path` | string | Yes | Absolute file path |
+| `offset` | number | No | Start line (1-based, default `1`) |
+| `limit` | number | No | Max lines to return |
 
-## write
+## `write`
 
-Write content to a file, creating it (and any parent directories) if it doesn't exist.
+Write full content to a file (creates parent directories, overwrites existing file).
 
-| Parameter   | Type   | Required | Description                |
-|-------------|--------|----------|----------------------------|
-| `file_path` | string | Yes      | Absolute path to write to  |
-| `content`   | string | Yes      | Content to write            |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `file_path` | string | Yes | Absolute file path |
+| `content` | string | Yes | Full file content |
 
-Overwrites the file if it already exists.
+## `edit`
 
-## edit
+Exact string replacement. `old_string` must appear exactly once.
 
-Perform an exact string replacement in a file. The `old_string` must appear exactly once — if it appears zero or more than once, the tool returns an error.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `file_path` | string | Yes | Absolute file path |
+| `old_string` | string | Yes | Exact string to replace |
+| `new_string` | string | Yes | Replacement string |
 
-| Parameter    | Type   | Required | Description                          |
-|--------------|--------|----------|--------------------------------------|
-| `file_path`  | string | Yes      | Absolute path to the file            |
-| `old_string` | string | Yes      | The exact string to find and replace |
-| `new_string` | string | Yes      | The replacement string               |
+## `bash`
 
-## bash
+Run shell command (`sh -c`). Returns stdout/stderr and marks non-zero exits as errors.
 
-Execute a shell command and return its stdout and stderr.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `command` | string | Yes | Shell command |
+| `cwd` | string | No | Working directory |
+| `timeout` | number | No | Timeout in ms (default `30000`) |
 
-| Parameter | Type   | Required | Description                                    |
-|-----------|--------|----------|------------------------------------------------|
-| `command` | string | Yes      | Shell command to run (via `sh -c`)             |
-| `cwd`     | string | No       | Working directory for the command              |
-| `timeout` | number | No       | Timeout in milliseconds (default: 30000)       |
+## `clawhub_search`
 
-Returns stdout and stderr combined. If the command exits non-zero, `isError` is set and the exit code is included in the output.
+Search ClawHub (`clawhub.ai`) for skills.
 
-## remember
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | Yes | Search query |
 
-Save a piece of information to long-term memory. Memory entries persist across sessions and are automatically included in the system prompt on the next startup.
+## `remember`
 
-| Parameter | Type   | Required | Description                                                   |
-|-----------|--------|----------|---------------------------------------------------------------|
-| `key`     | string | Yes      | Short descriptive key (e.g. `"user-preferences"`)             |
-| `content` | string | Yes      | The content to remember                                        |
+Save a memory topic entry under the configured memory directory.
 
-Memory is stored as individual files under `~/.sa/memory/` (or the configured `memory.directory`). Saving to an existing key overwrites the previous value.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `key` | string | Yes | Memory key (sanitized to filename-safe form) |
+| `content` | string | Yes | Content to save |
 
-## read_skill
+## `read_skill`
 
-Read and activate a skill's full instructions. Available when the Engine is running with skills loaded.
+Load and activate a skill from the discovered skill list.
 
-| Parameter | Type   | Required | Description                                     |
-|-----------|--------|----------|-------------------------------------------------|
-| `name`    | string | Yes      | The name of the skill (from the available skills list) |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Skill name from `<available_skills>` |
 
-Returns the skill's full Markdown content and marks it as active (injected into the agent's context). If the skill is not found, returns an error.
+## `clawhub_install`
 
-## clawhub_search
+Install a skill by ClawHub slug.
 
-Search the ClawHub skill registry ([clawhub.ai](https://clawhub.ai)) for agent skills.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `slug` | string | Yes | Skill slug (example: `steipete/apple-notes`) |
+| `version` | string | No | Specific version (defaults to latest) |
 
-| Parameter | Type   | Required | Description                                     |
-|-----------|--------|----------|-------------------------------------------------|
-| `query`   | string | Yes      | Search query describing the kind of skill to find |
+## `clawhub_update`
 
-Returns a list of matching skills with name, slug, description, version, download count, and tags. Use this when the user wants to find, browse, or install a skill from the registry.
+Update installed ClawHub skills.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `slug` | string | No | Skill slug to update; omit to check all installed skills |
