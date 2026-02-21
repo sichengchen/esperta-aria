@@ -11,6 +11,8 @@ import type { Session } from "../../shared/types.js";
 
 type EngineClient = ReturnType<typeof createTuiClient>;
 
+const TUI_COMMANDS = ["/new", "/status", "/model", "/models", "/provider", "/sessions", "/switch"];
+
 interface AppProps {
   client: EngineClient;
 }
@@ -415,7 +417,7 @@ export function App({ client }: AppProps) {
         scrollOffset={scrollOffset}
       />
       {pickerOverlay ?? (
-        <Input onSubmit={handleSubmit} disabled={isStreaming || !connected} />
+        <Input onSubmit={handleSubmit} disabled={isStreaming || !connected} commands={TUI_COMMANDS} />
       )}
     </Box>
   );
