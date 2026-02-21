@@ -1,14 +1,14 @@
 ---
-id: 042
+id: 42
 title: Configurable tool approval for IM connectors
-status: pending
+status: done
 type: feature
 priority: 1
 phase: phase-3
 branch: feature/phase-3
 created: 2026-02-21
+shipped_at: 2026-02-21
 ---
-
 # Configurable tool approval for IM connectors
 
 ## Context
@@ -47,3 +47,18 @@ Tool approval currently treats all tools equally — every tool_approval_request
 - Run: `bun test`
 - Expected: All existing tests pass; new approval flow works with all three modes
 - Edge cases: Session override set should be cleared when session is destroyed; "accept all" should not persist across sessions
+
+## Progress
+- Added ToolApprovalMode type ("always" | "never" | "ask") to shared/types.ts
+- Added ToolApprovalConfig and toolApproval field to RuntimeConfig in config/types.ts
+- Added default approval modes (tui: never, telegram: ask, discord: ask) in defaults.ts
+- Added session-level tool override tracking (sessionToolOverrides Map) in procedures.ts
+- Added approval mode resolution logic in getSessionAgent (checks config + session overrides)
+- Added tool.config query and tool.acceptForSession mutation to tRPC router
+- Session overrides cleaned up on session destroy
+- Telegram: added "Always allow <tool>" third inline keyboard button + callback handler
+- Discord: added "Always allow <tool>" third button + interaction handler
+- TUI: updated comment — engine-side config handles approval mode, TUI still auto-approves if event arrives
+- ConnectorSettings: added per-connector tool approval mode cycle selector (ask/never/always)
+- Modified: src/shared/types.ts, src/engine/config/types.ts, src/engine/config/defaults.ts, src/engine/procedures.ts, src/connectors/telegram/transport.ts, src/connectors/discord/transport.ts, src/connectors/tui/App.tsx, src/cli/config/ConnectorSettings.tsx
+- Verification: typecheck passed, lint passed, 201 tests passed
