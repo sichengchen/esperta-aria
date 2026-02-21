@@ -56,9 +56,7 @@ async function start(): Promise<void> {
     process.exit(1);
   }
 
-  await writeFile(PID_FILE, String(child.pid));
-
-  // Wait briefly for the server to boot, then check it's alive
+  // Wait for the engine to write its own PID file
   await new Promise((r) => setTimeout(r, 1500));
 
   if (!isProcessAlive(child.pid)) {

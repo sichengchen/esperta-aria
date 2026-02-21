@@ -1,8 +1,15 @@
 #!/usr/bin/env bun
 
+import { writeFileSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { createRuntime } from "./runtime.js";
 import { startServer } from "./server.js";
 import { createEngineClient } from "@sa/shared/client.js";
+
+const saHome = process.env.SA_HOME ?? join(homedir(), ".sa");
+const PID_FILE = join(saHome, "engine.pid");
+const URL_FILE = join(saHome, "engine.url");
 
 const port = process.env.SA_ENGINE_PORT
   ? parseInt(process.env.SA_ENGINE_PORT, 10)
@@ -13,8 +20,12 @@ async function main() {
   const runtime = await createRuntime();
   const server = await startServer(runtime, { port });
 
-  // Build a loopback tRPC client for connectors running in-process
+  // Write discovery files so `sa engine status` works regardless of how we were started
   const httpUrl = `http://127.0.0.1:${server.port}`;
+  writeFileSync(PID_FILE, String(process.pid));
+  writeFileSync(URL_FILE, httpUrl);
+
+  // Build a loopback tRPC client for connectors running in-process
   const wsUrl = `ws://127.0.0.1:${server.port + 1}`;
   const token = runtime.auth.getMasterToken();
   const client = createEngineClient({ httpUrl, wsUrl, token });
@@ -54,6 +65,8 @@ async function main() {
   // Graceful shutdown
   function shutdown() {
     console.log("\nSA Engine shutting down...");
+    try { unlinkSync(PID_FILE); } catch {}
+    try { unlinkSync(URL_FILE); } catch {}
     server.stop().then(() => process.exit(0));
   }
 
