@@ -1,14 +1,14 @@
 ---
-id: 075
-title: "Comprehensive docs bundled in sa skill"
-status: pending
+id: 75
+title: Comprehensive docs bundled in sa skill
+status: done
 type: feature
 priority: 2
 phase: 006-full-stack-polish
 branch: feature/006-full-stack-polish
 created: 2026-02-22
+shipped_at: 2026-02-22
 ---
-
 # Comprehensive docs bundled in sa skill
 
 ## Context
@@ -100,3 +100,16 @@ Update `scripts/embed-skills.ts` to embed all `.md` files in each skill director
 - Verify: CONSTITUTION.md has the new documentation principle
 - Verify: Each doc file is substantially more detailed than its predecessor (architecture ≥ 200 lines, configuration ≥ 250 lines, tools ≥ 200 lines, development ≥ 120 lines, new docs ≥ 100 lines each)
 - Edge cases: Ensure no other files in the repo reference `docs/` paths (grep for broken links)
+
+## Progress
+- Created 8 comprehensive doc files in src/engine/skills/bundled/sa/docs/ (4205 lines total): architecture (830), configuration (780), tools (590), development (376), skills (314), sessions (273), automation (354), security (688)
+- Updated SKILL.md with Documentation reference table
+- Updated README.md links to new doc paths
+- Added documentation principle #8 to CONSTITUTION.md
+- Rewrote embed-skills.ts to embed all .md files per skill directory (Record<string, Record<string, string>> format)
+- Updated loader.ts with parseEmbeddedSkills multi-file support, loadEmbeddedDoc, listEmbeddedFiles
+- Updated Wizard.tsx for new embedded skills format (writes all .md files, not just SKILL.md)
+- Regenerated embedded-skills.generated.ts (22 files across 12 skills)
+- Deleted docs/ directory
+- Verification: typecheck clean, lint clean, 441 pass / 9 skip / 0 fail, build succeeds (10.38 MB)
+- Modified: 8 new doc files, SKILL.md, README.md, CONSTITUTION.md, embed-skills.ts, loader.ts, embedded-skills.generated.ts, Wizard.tsx, deleted 4 old doc files
