@@ -8,6 +8,7 @@ phase: 006-full-stack-polish
 branch: fix/remove-clawhub-engine
 created: 2026-02-22
 shipped_at: 2026-02-22
+pr: 18
 ---
 # fix: Remove ClawHub integration from engine (keep bundled skills)
 
