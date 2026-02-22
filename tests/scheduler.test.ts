@@ -146,6 +146,60 @@ describe("Scheduler", () => {
     const tasks = scheduler.list();
     expect(tasks[0]!.prompt).toBe("Good morning briefing");
   });
+
+  test("runTask runs only the named task", async () => {
+    let heartbeatRan = false;
+    let cronRan = false;
+
+    scheduler.register({
+      name: "heartbeat",
+      schedule: "* * * * *",
+      handler: () => { heartbeatRan = true; },
+      builtin: true,
+    });
+    scheduler.register({
+      name: "user-cron",
+      schedule: "* * * * *",
+      handler: () => { cronRan = true; },
+    });
+
+    await scheduler.runTask("heartbeat");
+
+    expect(heartbeatRan).toBe(true);
+    expect(cronRan).toBe(false);
+  });
+
+  test("runTask returns false for nonexistent task", async () => {
+    const result = await scheduler.runTask("nonexistent");
+    expect(result).toBe(false);
+  });
+
+  test("runTask catches handler errors", async () => {
+    scheduler.register({
+      name: "failing",
+      schedule: "* * * * *",
+      handler: () => { throw new Error("boom"); },
+    });
+
+    const result = await scheduler.runTask("failing");
+    expect(result).toBe(true);
+  });
+
+  test("runTask removes one-shot tasks after execution", async () => {
+    let completed = false;
+    scheduler.register({
+      name: "one-time",
+      schedule: "* * * * *",
+      handler: () => {},
+      oneShot: true,
+      onComplete: () => { completed = true; },
+    });
+
+    expect(scheduler.size).toBe(1);
+    await scheduler.runTask("one-time");
+    expect(scheduler.size).toBe(0);
+    expect(completed).toBe(true);
+  });
 });
 
 describe("createHeartbeatTask", () => {
