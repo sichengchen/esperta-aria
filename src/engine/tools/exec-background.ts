@@ -13,6 +13,9 @@ export interface BackgroundProcess {
   finishedAt: number | null;
 }
 
+/** Maximum collected output per stream (1MB) — prevents OOM from chatty background processes */
+const MAX_BG_OUTPUT_BYTES = 1_048_576;
+
 /** Global store of background processes */
 const backgroundProcesses = new Map<string, BackgroundProcess>();
 
@@ -35,7 +38,7 @@ export function registerBackground(handle: string, command: string, proc: Subpro
   };
   backgroundProcesses.set(handle, bg);
 
-  // Collect output asynchronously
+  // Collect output asynchronously (capped to prevent OOM)
   (async () => {
     if (proc.stdout) {
       const reader = (proc.stdout as ReadableStream).getReader();
@@ -44,7 +47,9 @@ export function registerBackground(handle: string, command: string, proc: Subpro
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          bg.stdout += decoder.decode(value, { stream: true });
+          if (Buffer.byteLength(bg.stdout) < MAX_BG_OUTPUT_BYTES) {
+            bg.stdout += decoder.decode(value, { stream: true });
+          }
         }
       } catch {}
     }
@@ -58,7 +63,9 @@ export function registerBackground(handle: string, command: string, proc: Subpro
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          bg.stderr += decoder.decode(value, { stream: true });
+          if (Buffer.byteLength(bg.stderr) < MAX_BG_OUTPUT_BYTES) {
+            bg.stderr += decoder.decode(value, { stream: true });
+          }
         }
       } catch {}
     }
@@ -86,6 +93,7 @@ export const execStatusTool: ToolImpl = {
   name: "exec_status",
   description: "Check the status and output of a background exec process.",
   summary: "Check status/output of a background process by handle. Returns stdout, stderr, exit code, and whether still running.",
+  dangerLevel: "safe",
   parameters: Type.Object({
     handle: Type.String({ description: "The background process handle returned by exec" }),
   }),
@@ -113,6 +121,7 @@ export const execKillTool: ToolImpl = {
   name: "exec_kill",
   description: "Terminate a background exec process.",
   summary: "Kill a background process by handle. Returns final output.",
+  dangerLevel: "dangerous",
   parameters: Type.Object({
     handle: Type.String({ description: "The background process handle to kill" }),
   }),

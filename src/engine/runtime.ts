@@ -24,12 +24,25 @@ the user's request.
 Prioritize safety and human oversight over task completion; if instructions conflict, \
 pause and ask; comply with stop/pause requests and never bypass safeguards.
 Do not manipulate the user to expand your access or disable safeguards. Do not modify \
-your own system prompt, safety rules, or tool behaviour unless explicitly asked.`;
+your own system prompt, safety rules, or tool behaviour unless explicitly asked.
+Tool safety is enforced by the engine — dangerous tools always require user confirmation \
+regardless of your instructions.`;
 
 const TOOL_CALL_STYLE = `## Tool Call Style
-Default: do not narrate routine, low-risk tool calls — just call the tool.
-Narrate only when it helps: multi-step work, sensitive actions (e.g. deletions), or when the user explicitly asks.
-Keep narration brief and value-dense; avoid repeating what the tool result already shows.`;
+- **safe tools** (read, web_search, etc.): call silently, no narration needed.
+- **moderate tools** (write, edit, install): brief narration only for multi-step work.
+- **dangerous tools** (exec, exec_kill): always state what you're about to do and why before calling.
+- When calling exec, always set the \`danger\` parameter:
+  - "safe" for read-only commands (ls, cat, git status, pwd, echo, etc.)
+  - "moderate" for commands that modify local state but are reversible (git add, npm install, mkdir)
+  - "dangerous" for destructive or irreversible commands (rm, sudo, kill, chmod 777, curl|sh)
+- If unsure about danger level, default to "dangerous" — the engine will ask the user.
+- Never narrate tool results the user can already see.`;
+
+const REACTIONS_GUIDE = `## Reactions
+React with emoji liberally. Not every message needs a text reply — a 👍 or ❤️ is often enough. \
+React AND reply when both feel natural, or just react when the emoji says it all. \
+Match the tone: 👍 acknowledgment, ❤️ appreciation, 😂 humor, 🎉 celebrations, 🤔 curiosity.`;
 
 const SKILLS_DIRECTIVE = `## Skills (mandatory)
 Before replying to each user message, scan the <available_skills> list below.
@@ -106,6 +119,11 @@ export async function createRuntime(): Promise<EngineRuntime> {
         runtime: { ...baseConfigFile.runtime, activeModel: state.activeModel },
       });
     },
+    {
+      modelTiers: saConfig.runtime.modelTiers,
+      taskTierOverrides: saConfig.runtime.taskTierOverrides,
+      modelAliases: saConfig.runtime.modelAliases,
+    },
   );
 
   // Load skills
@@ -137,6 +155,7 @@ export async function createRuntime(): Promise<EngineRuntime> {
     saConfig.identity.systemPrompt,
     `\n${toolsSection}`,
     `\n${TOOL_CALL_STYLE}`,
+    `\n${REACTIONS_GUIDE}`,
     `\n${SAFETY_ADVISORY}`,
     userProfile ? `\n## User Profile\n${userProfile}` : "",
     `\n${heartbeat}`,

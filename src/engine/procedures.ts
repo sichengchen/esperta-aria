@@ -1,22 +1,13 @@
 import { z } from "zod";
-import { router, publicProcedure } from "./trpc.js";
+import { TRPCError } from "@trpc/server";
+import { router, publicProcedure, middleware } from "./trpc.js";
 import type { EngineRuntime } from "./runtime.js";
-import type { Agent } from "./agent/index.js";
+import type { Agent, AgentEvent } from "./agent/index.js";
+import type { DangerLevel } from "./agent/types.js";
+import { classifyExecCommand } from "./tools/exec-classifier.js";
+import { ToolPolicyManager, type ToolEventContext } from "./tools/policy.js";
 import type { EngineEvent, SkillInfo, ConnectorType, ToolApprovalMode } from "@sa/shared/types.js";
 import type { ModelConfig, ProviderConfig } from "./router/types.js";
-
-/** Tools that are always auto-approved and silent on IM connectors */
-const SAFE_TOOLS = new Set([
-  "read_skill",
-  "remember",
-  "reaction",
-  "set_env_secret",
-  "set_env_variable",
-  "clawhub_search",
-  "web_search",
-  "web_fetch",
-  "read",
-]);
 
 /** Format tool args as a compact summary for IM display */
 function formatArgsForIM(toolName: string, args: Record<string, unknown>): string {
@@ -55,6 +46,33 @@ const pendingApprovalMeta = new Map<string, { sessionId: string; toolName: strin
 
 /** Create the tRPC router bound to a runtime instance */
 export function createAppRouter(runtime: EngineRuntime) {
+  /** Build the policy manager from config + built-in tool danger levels */
+  const builtinLevels = new Map<string, DangerLevel>(
+    runtime.tools.map((t) => [t.name, t.dangerLevel]),
+  );
+  const policyManager = new ToolPolicyManager(
+    runtime.config.getConfigFile().runtime.toolPolicy,
+    builtinLevels,
+  );
+
+  function getDangerLevel(toolName: string): DangerLevel {
+    return policyManager.getDangerLevel(toolName);
+  }
+
+  /** Auth middleware — validates bearer token via AuthManager */
+  const authMiddleware = middleware(async ({ ctx, next }) => {
+    if (!ctx.token) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Missing auth token" });
+    }
+    const entry = runtime.auth.validate(ctx.token);
+    if (!entry) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid auth token" });
+    }
+    return next({ ctx: { ...ctx, connectorId: entry.connectorId } });
+  });
+
+  const protectedProcedure = publicProcedure.use(authMiddleware);
+
   /** Resolve the tool approval mode for a session */
   function getApprovalMode(sessionId: string): ToolApprovalMode {
     const session = runtime.sessions.getSession(sessionId);
@@ -68,38 +86,130 @@ export function createAppRouter(runtime: EngineRuntime) {
   function getSessionAgent(sessionId: string): Agent {
     let agent = sessionAgents.get(sessionId);
     if (!agent) {
-      agent = runtime.createAgent(async (toolName, toolCallId, _args) => {
+      agent = runtime.createAgent(async (toolName, toolCallId, args) => {
         const mode = getApprovalMode(sessionId);
 
-        // "never" mode: auto-approve everything
-        if (mode === "never") return true;
-
-        // Safe tools are always auto-approved (read-only, no side effects)
-        if (SAFE_TOOLS.has(toolName)) return true;
-
-        // "ask" mode: check session-level overrides first
-        if (mode === "ask") {
-          const overrides = sessionToolOverrides.get(sessionId);
-          if (overrides?.has(toolName)) return true;
+        // For exec: use hybrid classification (agent-declared + pattern override)
+        let level = getDangerLevel(toolName);
+        if (toolName === "exec" && typeof args.command === "string") {
+          const agentDeclared = (args.danger as DangerLevel | undefined) ?? "dangerous";
+          level = classifyExecCommand(args.command, agentDeclared);
         }
 
-        // "always" mode or "ask" without override: prompt the connector
-        return new Promise<boolean>((resolve) => {
-          pendingApprovals.set(toolCallId, resolve);
-          pendingApprovalMeta.set(toolCallId, { sessionId, toolName });
-          // Auto-reject after 5 minutes if no response
-          setTimeout(() => {
-            if (pendingApprovals.has(toolCallId)) {
-              pendingApprovals.delete(toolCallId);
-              pendingApprovalMeta.delete(toolCallId);
-              resolve(false);
-            }
-          }, 5 * 60 * 1000);
-        });
+        // Safe tools: always auto-approve
+        if (level === "safe") return true;
+
+        // Dangerous tools: always ask (even TUI "never" mode)
+        if (level === "dangerous") {
+          // Check session-level overrides first
+          const overrides = sessionToolOverrides.get(sessionId);
+          if (overrides?.has(toolName)) return true;
+
+          return new Promise<boolean>((resolve) => {
+            pendingApprovals.set(toolCallId, resolve);
+            pendingApprovalMeta.set(toolCallId, { sessionId, toolName });
+            setTimeout(() => {
+              if (pendingApprovals.has(toolCallId)) {
+                pendingApprovals.delete(toolCallId);
+                pendingApprovalMeta.delete(toolCallId);
+                resolve(false);
+              }
+            }, 5 * 60 * 1000);
+          });
+        }
+
+        // Moderate tools: auto-approve unless mode is "always"
+        if (mode === "always") {
+          const overrides = sessionToolOverrides.get(sessionId);
+          if (overrides?.has(toolName)) return true;
+
+          return new Promise<boolean>((resolve) => {
+            pendingApprovals.set(toolCallId, resolve);
+            pendingApprovalMeta.set(toolCallId, { sessionId, toolName });
+            setTimeout(() => {
+              if (pendingApprovals.has(toolCallId)) {
+                pendingApprovals.delete(toolCallId);
+                pendingApprovalMeta.delete(toolCallId);
+                resolve(false);
+              }
+            }, 5 * 60 * 1000);
+          });
+        }
+
+        return true;
       });
       sessionAgents.set(sessionId, agent);
     }
     return agent;
+  }
+
+  /** Shared generator that filters agent events through the policy manager */
+  async function* filterAgentEvents(
+    events: AsyncIterable<AgentEvent>,
+    connectorType: ConnectorType,
+  ): AsyncGenerator<EngineEvent> {
+    const isIM = connectorType !== "tui";
+
+    for await (const event of events) {
+      switch (event.type) {
+        case "text_delta":
+        case "thinking_delta":
+        case "done":
+        case "error":
+          yield event;
+          break;
+        case "tool_start": {
+          const ctx: ToolEventContext = {
+            toolName: event.name,
+            dangerLevel: getDangerLevel(event.name),
+          };
+          if (!policyManager.shouldEmitToolStart(connectorType, ctx)) break;
+          if (isIM) {
+            const argsStr = formatArgsForIM(event.name, event.args);
+            yield { type: "tool_end", name: event.name, id: event.id, content: argsStr, isError: false };
+          } else {
+            yield { type: "tool_start", name: event.name, id: event.id };
+          }
+          break;
+        }
+        case "tool_end":
+          // Intercept reaction tool — emit a reaction event for connectors
+          if (event.name === "reaction" && event.result.content.startsWith("__reaction__:")) {
+            const emoji = event.result.content.slice("__reaction__:".length);
+            yield { type: "reaction", emoji };
+          } else {
+            const ctx: ToolEventContext = {
+              toolName: event.name,
+              dangerLevel: getDangerLevel(event.name),
+              isError: event.result.isError,
+            };
+            if (policyManager.shouldEmitToolEnd(connectorType, ctx)) {
+              yield {
+                type: "tool_end",
+                name: event.name,
+                id: event.id,
+                content: event.result.content,
+                isError: event.result.isError ?? false,
+              };
+            }
+          }
+          break;
+        case "tool_approval_request": {
+          const ctx: ToolEventContext = {
+            toolName: event.name,
+            dangerLevel: getDangerLevel(event.name),
+          };
+          if (!policyManager.shouldEmitApproval(connectorType, ctx)) break;
+          yield {
+            type: "tool_approval_request",
+            name: event.name,
+            id: event.id,
+            args: event.args,
+          };
+          break;
+        }
+      }
+    }
   }
 
   return router({
@@ -119,7 +229,7 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Chat procedures */
     chat: router({
       /** Send a user message and stream back AgentEvents */
-      send: publicProcedure
+      send: protectedProcedure
         .input(z.object({ sessionId: z.string(), message: z.string() }))
         .mutation(async ({ input }): Promise<{ sessionId: string }> => {
           const session = runtime.sessions.getSession(input.sessionId);
@@ -131,7 +241,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Stream AgentEvents for a chat turn */
-      stream: publicProcedure
+      stream: protectedProcedure
         .input(z.object({ sessionId: z.string(), message: z.string() }))
         .subscription(async function* ({ input }): AsyncGenerator<EngineEvent> {
           const session = runtime.sessions.getSession(input.sessionId);
@@ -142,57 +252,10 @@ export function createAppRouter(runtime: EngineRuntime) {
 
           runtime.sessions.touchSession(input.sessionId);
           const agent = getSessionAgent(input.sessionId);
-          const isIM = session.connectorType !== "tui";
+          const connectorType = session.connectorType as ConnectorType;
 
           try {
-            for await (const event of agent.chat(input.message)) {
-              switch (event.type) {
-                case "text_delta":
-                case "thinking_delta":
-                case "done":
-                case "error":
-                  yield event;
-                  break;
-                case "tool_start":
-                  if (isIM && SAFE_TOOLS.has(event.name)) break;
-                  if (isIM) {
-                    // On IM: show what was called (args summary), suppress tool_end later
-                    const argsStr = formatArgsForIM(event.name, event.args);
-                    yield { type: "tool_end", name: event.name, id: event.id, content: argsStr, isError: false };
-                  } else {
-                    yield { type: "tool_start", name: event.name, id: event.id };
-                  }
-                  break;
-                case "tool_end":
-                  // Intercept reaction tool — emit a reaction event for connectors
-                  if (event.name === "reaction" && event.result.content.startsWith("__reaction__:")) {
-                    const emoji = event.result.content.slice("__reaction__:".length);
-                    yield { type: "reaction", emoji };
-                  } else if (isIM) {
-                    // IM: already shown at tool_start, suppress result
-                    break;
-                  } else {
-                    yield {
-                      type: "tool_end",
-                      name: event.name,
-                      id: event.id,
-                      content: event.result.content,
-                      isError: event.result.isError ?? false,
-                    };
-                  }
-                  break;
-                case "tool_approval_request":
-                  // Safe tools are auto-approved — don't show approval UI
-                  if (SAFE_TOOLS.has(event.name)) break;
-                  yield {
-                    type: "tool_approval_request",
-                    name: event.name,
-                    id: event.id,
-                    args: event.args,
-                  };
-                  break;
-              }
-            }
+            yield* filterAgentEvents(agent.chat(input.message), connectorType);
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             yield { type: "error", message };
@@ -200,7 +263,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Get conversation history for a session */
-      history: publicProcedure
+      history: protectedProcedure
         .input(z.object({ sessionId: z.string() }))
         .query(({ input }): { sessionId: string; messages: unknown[] } => {
           const agent = sessionAgents.get(input.sessionId);
@@ -209,7 +272,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Transcribe audio and send as a chat message */
-      transcribeAndSend: publicProcedure
+      transcribeAndSend: protectedProcedure
         .input(z.object({
           sessionId: z.string(),
           audio: z.string(), // base64-encoded audio
@@ -251,52 +314,9 @@ export function createAppRouter(runtime: EngineRuntime) {
 
           // Process transcript as a normal chat message
           const agent = getSessionAgent(input.sessionId);
-          const isIM = session.connectorType !== "tui";
+          const connectorType = session.connectorType as ConnectorType;
           try {
-            for await (const event of agent.chat(transcript)) {
-              switch (event.type) {
-                case "text_delta":
-                case "thinking_delta":
-                case "done":
-                case "error":
-                  yield event;
-                  break;
-                case "tool_start":
-                  if (isIM && SAFE_TOOLS.has(event.name)) break;
-                  if (isIM) {
-                    const argsStr = formatArgsForIM(event.name, event.args);
-                    yield { type: "tool_end", name: event.name, id: event.id, content: argsStr, isError: false };
-                  } else {
-                    yield { type: "tool_start", name: event.name, id: event.id };
-                  }
-                  break;
-                case "tool_end":
-                  if (event.name === "reaction" && event.result.content.startsWith("__reaction__:")) {
-                    const emoji = event.result.content.slice("__reaction__:".length);
-                    yield { type: "reaction", emoji };
-                  } else if (isIM) {
-                    break;
-                  } else {
-                    yield {
-                      type: "tool_end",
-                      name: event.name,
-                      id: event.id,
-                      content: event.result.content,
-                      isError: event.result.isError ?? false,
-                    };
-                  }
-                  break;
-                case "tool_approval_request":
-                  if (SAFE_TOOLS.has(event.name)) break;
-                  yield {
-                    type: "tool_approval_request",
-                    name: event.name,
-                    id: event.id,
-                    args: event.args,
-                  };
-                  break;
-              }
-            }
+            yield* filterAgentEvents(agent.chat(transcript), connectorType);
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             yield { type: "error", message };
@@ -307,7 +327,7 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Session management */
     session: router({
       /** Create a new session for a Connector */
-      create: publicProcedure
+      create: protectedProcedure
         .input(
           z.object({
             connectorType: z.enum(["tui", "telegram", "discord", "webhook"]),
@@ -319,12 +339,12 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** List active sessions */
-      list: publicProcedure.query(() => {
+      list: protectedProcedure.query(() => {
         return runtime.sessions.listSessions();
       }),
 
       /** Destroy a session and its Agent */
-      destroy: publicProcedure
+      destroy: protectedProcedure
         .input(z.object({ sessionId: z.string() }))
         .mutation(({ input }): { destroyed: boolean } => {
           sessionAgents.delete(input.sessionId);
@@ -336,14 +356,14 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Tool execution */
     tool: router({
       /** Get the tool approval mode for a session */
-      config: publicProcedure
+      config: protectedProcedure
         .input(z.object({ sessionId: z.string() }))
         .query(({ input }): { mode: ToolApprovalMode } => {
           return { mode: getApprovalMode(input.sessionId) };
         }),
 
       /** Approve or reject a pending tool execution */
-      approve: publicProcedure
+      approve: protectedProcedure
         .input(
           z.object({
             toolCallId: z.string(),
@@ -362,7 +382,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Accept all calls to a tool for the rest of this session, and approve the current call */
-      acceptForSession: publicProcedure
+      acceptForSession: protectedProcedure
         .input(
           z.object({
             toolCallId: z.string(),
@@ -394,25 +414,26 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Model management */
     model: router({
       /** List all model configurations */
-      list: publicProcedure.query((): ModelConfig[] => {
+      list: protectedProcedure.query((): ModelConfig[] => {
         return runtime.router.listModelConfigs();
       }),
 
       /** Get the active model name */
-      active: publicProcedure.query((): { name: string } => {
+      active: protectedProcedure.query((): { name: string } => {
         return { name: runtime.router.getActiveModelName() };
       }),
 
-      /** Switch the active model */
-      switch: publicProcedure
+      /** Switch the active model (supports aliases) */
+      switch: protectedProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }): Promise<{ name: string }> => {
-          await runtime.router.switchModel(input.name);
-          return { name: input.name };
+          const resolved = runtime.router.resolveAlias(input.name);
+          await runtime.router.switchModel(resolved);
+          return { name: resolved };
         }),
 
       /** Add a model configuration */
-      add: publicProcedure
+      add: protectedProcedure
         .input(
           z.object({
             name: z.string(),
@@ -428,23 +449,44 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Remove a model configuration */
-      remove: publicProcedure
+      remove: protectedProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }): Promise<{ removed: boolean }> => {
           await runtime.router.removeModel(input.name);
           return { removed: true };
         }),
+
+      /** Get the current tier-to-model mapping */
+      tiers: protectedProcedure.query(() => {
+        return runtime.router.getTierConfig();
+      }),
+
+      /** Set a tier's model */
+      setTier: protectedProcedure
+        .input(z.object({
+          tier: z.enum(["performance", "normal", "eco"]),
+          modelName: z.string(),
+        }))
+        .mutation(async ({ input }) => {
+          await runtime.router.setTierModel(input.tier, input.modelName);
+          return { tier: input.tier, modelName: input.modelName };
+        }),
+
+      /** Get full routing state (tiers, aliases, active/default model) */
+      routing: protectedProcedure.query(() => {
+        return runtime.router.getRoutingState();
+      }),
     }),
 
     /** Provider management */
     provider: router({
       /** List all configured providers */
-      list: publicProcedure.query((): ProviderConfig[] => {
+      list: protectedProcedure.query((): ProviderConfig[] => {
         return runtime.router.listProviders();
       }),
 
       /** Add a provider configuration */
-      add: publicProcedure
+      add: protectedProcedure
         .input(
           z.object({
             id: z.string(),
@@ -459,7 +501,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Remove a provider configuration */
-      remove: publicProcedure
+      remove: protectedProcedure
         .input(z.object({ id: z.string() }))
         .mutation(async ({ input }): Promise<{ removed: boolean }> => {
           await runtime.router.removeProvider(input.id);
@@ -470,7 +512,7 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Skills */
     skill: router({
       /** List loaded skills */
-      list: publicProcedure.query((): SkillInfo[] => {
+      list: protectedProcedure.query((): SkillInfo[] => {
         return runtime.skills.getMetadataList().map((s) => ({
           name: s.name,
           description: s.description,
@@ -479,7 +521,7 @@ export function createAppRouter(runtime: EngineRuntime) {
       }),
 
       /** Manually activate a skill */
-      activate: publicProcedure
+      activate: protectedProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }): Promise<{ activated: boolean }> => {
           return { activated: await runtime.skills.activate(input.name) };
@@ -519,12 +561,12 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Cron scheduler */
     cron: router({
       /** List all scheduled tasks */
-      list: publicProcedure.query(() => {
+      list: protectedProcedure.query(() => {
         return runtime.scheduler.list();
       }),
 
       /** Add a user-defined scheduled task */
-      add: publicProcedure
+      add: protectedProcedure
         .input(z.object({ name: z.string(), schedule: z.string(), prompt: z.string() }))
         .mutation(({ input }) => {
           runtime.scheduler.register({
@@ -541,7 +583,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Remove a user-defined scheduled task */
-      remove: publicProcedure
+      remove: protectedProcedure
         .input(z.object({ name: z.string() }))
         .mutation(({ input }) => {
           return { removed: runtime.scheduler.unregister(input.name) };

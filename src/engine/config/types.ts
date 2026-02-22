@@ -1,4 +1,5 @@
 import type { ProviderConfig, ModelConfig } from "../router/types.js";
+import type { ModelTier, TaskType } from "../router/task-types.js";
 import type { ToolApprovalMode, ConnectorType } from "@sa/shared/types.js";
 
 export interface Identity {
@@ -9,6 +10,23 @@ export interface Identity {
 
 /** Per-connector tool approval configuration */
 export type ToolApprovalConfig = Partial<Record<ConnectorType, ToolApprovalMode>>;
+
+/** Tool reporting verbosity levels */
+export type ToolVerbosity = "silent" | "minimal" | "verbose";
+
+/** Per-tool override for danger level and reporting */
+export interface ToolOverride {
+  dangerLevel?: "safe" | "moderate" | "dangerous";
+  report?: "always" | "never" | "on_error";
+}
+
+/** Tool policy configuration */
+export interface ToolPolicyConfig {
+  /** Per-connector reporting verbosity */
+  verbosity?: Partial<Record<ConnectorType, ToolVerbosity>>;
+  /** Per-tool overrides (danger level and/or reporting) */
+  overrides?: Record<string, ToolOverride>;
+}
 
 export interface RuntimeConfig {
   activeModel: string;
@@ -33,6 +51,14 @@ export interface RuntimeConfig {
   };
   /** Plain (non-secret) environment variables injected at engine startup */
   env?: Record<string, string>;
+  /** Map each model tier to a configured model name */
+  modelTiers?: Partial<Record<ModelTier, string>>;
+  /** Override the default task-to-tier mapping */
+  taskTierOverrides?: Partial<Record<TaskType, ModelTier>>;
+  /** Shorthand aliases for model names (e.g. { "fast": "haiku", "smart": "opus" }) */
+  modelAliases?: Record<string, string>;
+  /** Tool policy: per-connector verbosity and per-tool overrides */
+  toolPolicy?: ToolPolicyConfig;
 }
 
 /** On-disk config.json schema (v3 — merged models + runtime) */
