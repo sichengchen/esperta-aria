@@ -67,7 +67,7 @@ async function handleWebhook(req: Request, runtime: EngineRuntime, appRouter: Re
   // Create or resume session
   let sessionId = body.sessionId;
   if (!sessionId) {
-    const session = runtime.sessions.createSession(`webhook-${Date.now()}`, "webhook");
+    const session = runtime.sessions.create("webhook", "webhook");
     sessionId = session.id;
   } else {
     const existing = runtime.sessions.getSession(sessionId);

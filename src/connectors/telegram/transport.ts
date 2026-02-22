@@ -43,7 +43,7 @@ export class TelegramConnector {
     if (!this.sessionId) {
       const session = await this.client.session.create.mutate({
         connectorType: "telegram",
-        connectorId: `telegram-${Date.now()}`,
+        prefix: `telegram:${this.allowedChatId ?? "default"}`,
       });
       this.sessionId = session.id;
     }

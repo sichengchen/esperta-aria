@@ -331,16 +331,18 @@ export function createAppRouter(runtime: EngineRuntime) {
 
     /** Session management */
     session: router({
-      /** Create a new session for a Connector */
+      /** Create a new session for a Connector.
+       *  prefix: structured session prefix (e.g. "tui", "telegram:123456")
+       */
       create: protectedProcedure
         .input(
           z.object({
-            connectorType: z.enum(["tui", "telegram", "discord", "webhook"]),
-            connectorId: z.string(),
+            connectorType: z.enum(["tui", "telegram", "discord", "webhook", "engine"]),
+            prefix: z.string(),
           }),
         )
         .mutation(({ input }) => {
-          return runtime.sessions.createSession(input.connectorId, input.connectorType);
+          return runtime.sessions.create(input.prefix, input.connectorType);
         }),
 
       /** List active sessions */
@@ -542,7 +544,7 @@ export function createAppRouter(runtime: EngineRuntime) {
           z.object({
             credential: z.string(),
             connectorId: z.string(),
-            connectorType: z.enum(["tui", "telegram", "discord", "webhook"]),
+            connectorType: z.enum(["tui", "telegram", "discord", "webhook", "engine"]),
           }),
         )
         .mutation(({ input }) => {

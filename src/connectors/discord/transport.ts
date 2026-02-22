@@ -58,7 +58,7 @@ export class DiscordConnector {
     if (!this.sessionId) {
       const session = await this.client.session.create.mutate({
         connectorType: "discord",
-        connectorId: `discord-${Date.now()}`,
+        prefix: `discord:${this.options.allowedChannelId ?? "default"}`,
       });
       this.sessionId = session.id;
     }
