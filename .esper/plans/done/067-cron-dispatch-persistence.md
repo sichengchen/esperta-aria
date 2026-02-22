@@ -1,14 +1,14 @@
 ---
-id: 067
-title: "Cron dispatch + persistence + one-shot scheduling"
-status: pending
+id: 67
+title: Cron dispatch + persistence + one-shot scheduling
+status: done
 type: feature
 priority: 2
 phase: 006-full-stack-polish
 branch: feature/006-full-stack-polish
 created: 2026-02-22
+shipped_at: 2026-02-22
 ---
-
 # Cron dispatch + persistence + one-shot scheduling
 
 ## Context
@@ -93,3 +93,13 @@ Ensure removing a task also removes it from `config.automation.cronTasks`.
 - Expected: Clean
 - Manual: Start engine, `cron.add` a task with `"* * * * *"` schedule, wait 1 minute, check `~/.sa/automation/` for result log
 - Edge cases: Task with same name as builtin (reject); empty prompt (reject); invalid cron syntax (reject); engine restart preserves tasks; one-shot task runs exactly once then disappears; expired one-shot tasks at startup (skip, don't run)
+
+## Progress
+- Added CronTask, AutomationConfig types to config/types.ts; added "cron" ConnectorType
+- Wired cron.add to dispatch prompts to isolated cron:name agent sessions with result logging to ~/.sa/automation/
+- Added one-shot support to Scheduler (oneShot flag + onComplete callback, auto-removes after tick)
+- Persisted tasks to config.json via automation.cronTasks; restore at engine startup
+- Updated cron.remove to also remove from config persistence
+- Created tests/cron-dispatch.test.ts (8 tests)
+- Modified: shared/types.ts, config/types.ts, scheduler.ts, procedures.ts, runtime.ts
+- Verification: 370 pass, 9 skip, 0 fail; typecheck clean; lint clean
