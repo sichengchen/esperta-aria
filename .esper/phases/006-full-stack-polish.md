@@ -87,3 +87,4 @@ Connectors track the "current session" per chat context. `/new` calls `create(pr
 - Plan 065 — tRPC API tests: 13 non-live + 2 live tRPC procedure tests covering session CRUD, cron, model, heartbeat, chat.stream. Files: tests/procedures.test.ts, tests/live/procedures.test.ts
 - Plan 066 — Migrate imports to path aliases: 56 test imports migrated from relative to @sa/* aliases. Files: 22 test files
 - Plan 067 — Cron dispatch + persistence + one-shot: Wired cron.add to isolated agent sessions, one-shot auto-removal, config persistence, result logging. Files: scheduler.ts, procedures.ts, runtime.ts, types.ts
+- Plan 068 — Notify tool: Push messages to Telegram/Discord via HTTP from agent loop. Files: notify.ts, notify.test.ts, runtime.ts, SKILL.md
