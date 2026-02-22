@@ -1,12 +1,13 @@
 ---
 id: 62
 title: fix: exec tool shows phantom approval dialogs for safe commands
-status: active
+status: done
 type: fix
 priority: 2
 phase: 005-security-tool-policy
 branch: fix/exec-approval-filter-mismatch
 created: 2026-02-22
+shipped_at: 2026-02-22
 ---
 # fix: exec tool shows phantom approval dialogs for safe commands
 
