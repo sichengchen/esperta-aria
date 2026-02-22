@@ -23,19 +23,16 @@ const DEFAULT_PORT = 7420;
 interface WebhookBody {
   message: string;
   sessionId?: string;
-  secret?: string;
 }
 
 /**
- * Authenticate a webhook request using bearer token or legacy secret.
+ * Authenticate a webhook request using bearer token.
  * Returns a Response if authentication fails, or null if authenticated.
  */
 function authenticateWebhook(
   req: Request,
-  webhookConfig: { token?: string; secret?: string } | undefined,
-  body?: WebhookBody,
+  webhookConfig: { token?: string } | undefined,
 ): Response | null {
-  // Bearer token takes precedence
   if (webhookConfig?.token) {
     const authHeader = req.headers.get("authorization") ?? "";
     const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
@@ -46,17 +43,6 @@ function authenticateWebhook(
       });
     }
     return null; // Authenticated
-  }
-
-  // Legacy secret check (for /webhook/agent backwards compat)
-  if (webhookConfig?.secret && body) {
-    const provided = body.secret ?? req.headers.get("x-webhook-secret") ?? "";
-    if (!safeCompare(provided, webhookConfig.secret)) {
-      return new Response(JSON.stringify({ error: "Invalid secret" }), {
-        status: 401,
-        headers: { "content-type": "application/json" },
-      });
-    }
   }
 
   return null; // No auth configured = open
@@ -91,8 +77,8 @@ async function handleWebhookAgent(req: Request, runtime: EngineRuntime, appRoute
     });
   }
 
-  // Authenticate (bearer token or legacy secret)
-  const authError = authenticateWebhook(req, webhookConfig, body);
+  // Authenticate (bearer token only)
+  const authError = authenticateWebhook(req, webhookConfig);
   if (authError) return authError;
 
   // Create or resume session
