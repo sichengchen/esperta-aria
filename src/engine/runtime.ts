@@ -112,6 +112,11 @@ export async function createRuntime(): Promise<EngineRuntime> {
         runtime: { ...baseConfigFile.runtime, activeModel: state.activeModel },
       });
     },
+    {
+      modelTiers: saConfig.runtime.modelTiers,
+      taskTierOverrides: saConfig.runtime.taskTierOverrides,
+      modelAliases: saConfig.runtime.modelAliases,
+    },
   );
 
   // Load skills

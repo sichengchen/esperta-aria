@@ -1,7 +1,9 @@
 import { getModel } from "@mariozechner/pi-ai";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import type { ModelConfig, ProviderConfig } from "./types.js";
-import type { SecretsFile } from "../config/types.js";
+import type { ModelTier, TaskType } from "./task-types.js";
+import { DEFAULT_TASK_TIER } from "./task-types.js";
+import type { SecretsFile, RuntimeConfig } from "../config/types.js";
 
 export interface ModelRouterData {
   providers: ProviderConfig[];
@@ -25,10 +27,18 @@ export class ModelRouter {
   private secrets: SecretsFile | null;
   private onSave: ((state: RouterState) => Promise<void>) | null;
 
+  /** Tier → model name mapping */
+  private tierModels: Record<ModelTier, string>;
+  /** Task → tier overrides */
+  private taskTierOverrides: Partial<Record<TaskType, ModelTier>>;
+  /** Alias → model name mapping */
+  private aliases: Record<string, string>;
+
   private constructor(
     data: ModelRouterData,
     secrets: SecretsFile | null,
     onSave: ((state: RouterState) => Promise<void>) | null,
+    runtimeConfig?: Partial<Pick<RuntimeConfig, "modelTiers" | "taskTierOverrides" | "modelAliases">>,
   ) {
     this.providers = [...data.providers];
     this.models = [...data.models];
@@ -36,6 +46,16 @@ export class ModelRouter {
     this.activeModelName = data.defaultModel;
     this.secrets = secrets;
     this.onSave = onSave;
+
+    // Initialize tiers — default all to active model
+    this.tierModels = {
+      performance: data.defaultModel,
+      normal: data.defaultModel,
+      eco: data.defaultModel,
+      ...runtimeConfig?.modelTiers,
+    };
+    this.taskTierOverrides = runtimeConfig?.taskTierOverrides ?? {};
+    this.aliases = runtimeConfig?.modelAliases ?? {};
   }
 
   /** Create a ModelRouter from config data (no file I/O) */
@@ -43,9 +63,12 @@ export class ModelRouter {
     data: ModelRouterData,
     secrets?: SecretsFile | null,
     onSave?: (state: RouterState) => Promise<void>,
+    runtimeConfig?: Partial<Pick<RuntimeConfig, "modelTiers" | "taskTierOverrides" | "modelAliases">>,
   ): ModelRouter {
     ModelRouter.validate(data);
-    return new ModelRouter(data, secrets ?? null, onSave ?? null);
+    const router = new ModelRouter(data, secrets ?? null, onSave ?? null, runtimeConfig);
+    router.validateFallbackChains();
+    return router;
   }
 
   /** Validate model/provider configuration */
@@ -231,6 +254,119 @@ export class ModelRouter {
     }
     this.providers.splice(idx, 1);
     await this.save();
+  }
+
+  /** Resolve an alias to a model name (returns input if not an alias) */
+  resolveAlias(name: string): string {
+    return this.aliases[name] ?? name;
+  }
+
+  /** Get the model name assigned to a tier */
+  getTierModel(tier: ModelTier): string {
+    return this.tierModels[tier] ?? this.activeModelName;
+  }
+
+  /** Get the current tier-to-model mapping */
+  getTierConfig(): Record<ModelTier, string> {
+    return { ...this.tierModels };
+  }
+
+  /** Update a tier's model assignment */
+  async setTierModel(tier: ModelTier, modelName: string): Promise<void> {
+    const resolved = this.resolveAlias(modelName);
+    if (!this.models.some((m) => m.name === resolved)) {
+      throw new Error(`Model "${resolved}" not found`);
+    }
+    this.tierModels[tier] = resolved;
+  }
+
+  /** Get PI-mono Model for a specific task type (resolves task → tier → model) */
+  getModelForTask(task: TaskType): Model<Api> {
+    const tier = this.taskTierOverrides[task] ?? DEFAULT_TASK_TIER[task] ?? "normal";
+    return this.getModelForTier(tier);
+  }
+
+  /** Get PI-mono Model for a specific tier */
+  getModelForTier(tier: ModelTier): Model<Api> {
+    const modelName = this.tierModels[tier] ?? this.activeModelName;
+    return this.getModel(modelName);
+  }
+
+  /** Get streaming options for a specific task type */
+  getStreamOptionsForTask(task: TaskType): {
+    temperature?: number;
+    maxTokens?: number;
+    apiKey: string;
+  } {
+    const tier = this.taskTierOverrides[task] ?? DEFAULT_TASK_TIER[task] ?? "normal";
+    const modelName = this.tierModels[tier] ?? this.activeModelName;
+    return this.getStreamOptions(modelName);
+  }
+
+  /** Get full routing state for tRPC queries */
+  getRoutingState(): {
+    tiers: Record<ModelTier, string>;
+    aliases: Record<string, string>;
+    activeModel: string;
+    defaultModel: string;
+  } {
+    return {
+      tiers: { ...this.tierModels },
+      aliases: { ...this.aliases },
+      activeModel: this.activeModelName,
+      defaultModel: this.defaultModelName,
+    };
+  }
+
+  /** Validate that fallback chains don't have circular references or missing targets */
+  private validateFallbackChains(): void {
+    const modelNames = new Set(this.models.map((m) => m.name));
+    for (const model of this.models) {
+      if (!model.fallback) continue;
+      if (!modelNames.has(model.fallback)) {
+        throw new Error(
+          `Model "${model.name}" has fallback "${model.fallback}" which does not exist`
+        );
+      }
+      // Detect circular chains
+      const visited = new Set<string>();
+      let current: string | undefined = model.name;
+      while (current) {
+        if (visited.has(current)) {
+          throw new Error(
+            `Circular fallback chain detected involving model "${current}"`
+          );
+        }
+        visited.add(current);
+        const cfg = this.models.find((m) => m.name === current);
+        current = cfg?.fallback;
+      }
+    }
+  }
+
+  /** Get model with fallback — tries the primary model, falls back on provider error */
+  getModelWithFallback(name?: string): { model: Model<Api>; options: { temperature?: number; maxTokens?: number; apiKey: string }; fallbackName?: string } {
+    const target = name ?? this.activeModelName;
+    try {
+      return {
+        model: this.getModel(target),
+        options: this.getStreamOptions(target),
+      };
+    } catch (err) {
+      const cfg = this.getConfig(target);
+      if (cfg.fallback) {
+        try {
+          return {
+            model: this.getModel(cfg.fallback),
+            options: this.getStreamOptions(cfg.fallback),
+            fallbackName: cfg.fallback,
+          };
+        } catch {
+          // Fallback also failed — throw the original error
+        }
+      }
+      throw err;
+    }
   }
 
   private async save(): Promise<void> {
