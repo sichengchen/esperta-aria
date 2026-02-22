@@ -76,6 +76,11 @@ export function stripBotMention(text: string, botUsername: string): string {
   return text.replace(new RegExp(`@${botUsername}\\s*`, "gi"), "").trim();
 }
 
+/** Format a message with sender attribution for group chats */
+export function formatSenderAttribution(senderName: string, text: string): string {
+  return `[${senderName}]: ${text}`;
+}
+
 /** Pure helper — validates that the user-supplied pairing code matches the expected one */
 export function validatePairingCode(input: string | undefined, expected: string | undefined): boolean {
   if (!expected || !input) return false;

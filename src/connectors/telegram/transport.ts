@@ -21,7 +21,8 @@ export class TelegramConnector {
   private allowedChatId?: number;
   private pairingCode?: string;
   private onPaired?: (chatId: number) => Promise<void>;
-  private sessionId: string | null = null;
+  /** Per-chat active session: prefix → sessionId */
+  private activeSessions = new Map<string, string>();
   /** Track last user message for emoji reactions */
   private lastUserMessageId: number | null = null;
   private lastUserChatId: number | null = null;
@@ -39,15 +40,25 @@ export class TelegramConnector {
     return this.allowedChatId === undefined || this.allowedChatId === chatId;
   }
 
-  private async ensureSession(): Promise<string> {
-    if (!this.sessionId) {
-      const session = await this.client.session.create.mutate({
-        connectorType: "telegram",
-        prefix: `telegram:${this.allowedChatId ?? "default"}`,
-      });
-      this.sessionId = session.id;
+  private async ensureSession(chatId: number): Promise<string> {
+    const prefix = `telegram:${chatId}`;
+    const existing = this.activeSessions.get(prefix);
+    if (existing) return existing;
+
+    // Try to resume existing session on the engine
+    const latest = await this.client.session.getLatest.query({ prefix });
+    if (latest) {
+      this.activeSessions.set(prefix, latest.id);
+      return latest.id;
     }
-    return this.sessionId;
+
+    // Create a new session
+    const session = await this.client.session.create.mutate({
+      connectorType: "telegram",
+      prefix,
+    });
+    this.activeSessions.set(prefix, session.id);
+    return session.id;
   }
 
   private setupHandlers(): void {
@@ -74,13 +85,17 @@ export class TelegramConnector {
       await ctx.reply("Paired! I will only respond to you from now on.");
     });
 
-    // /new command — clear session
+    // /new command — start a fresh session for this chat
     this.bot.command("new", async (ctx) => {
       if (!this.isAllowed(ctx.message!.chat.id)) return;
-      if (this.sessionId) {
-        try { await this.client.session.destroy.mutate({ sessionId: this.sessionId }); } catch {}
-      }
-      this.sessionId = null;
+      const chatId = ctx.message!.chat.id;
+      const prefix = `telegram:${chatId}`;
+      // Create a fresh session under the same prefix (old session preserved)
+      const session = await this.client.session.create.mutate({
+        connectorType: "telegram",
+        prefix,
+      });
+      this.activeSessions.set(prefix, session.id);
       await ctx.reply("New session started.");
     });
 
@@ -198,7 +213,13 @@ export class TelegramConnector {
       await ctx.api.sendChatAction(ctx.message.chat.id, "typing");
 
       try {
-        const sessionId = await this.ensureSession();
+        const sessionId = await this.ensureSession(ctx.message.chat.id);
+
+        // Sender attribution for group chats
+        const isGroupChat = ctx.chat.type === "group" || ctx.chat.type === "supergroup";
+        const messageForEngine = isGroupChat && ctx.from
+          ? `[${ctx.from.first_name}]: ${userText}`
+          : userText;
 
         type TgMsg = Awaited<ReturnType<typeof ctx.reply>>;
         const { handleTextDelta, handleDone, handleError } = createStreamHandler<TgMsg>({
@@ -214,7 +235,7 @@ export class TelegramConnector {
         });
 
         const subscription = this.client.chat.stream.subscribe(
-          { sessionId, message: userText },
+          { sessionId, message: messageForEngine },
           {
             onData: async (event) => {
               switch (event.type) {
@@ -293,7 +314,7 @@ export class TelegramConnector {
       await ctx.api.sendChatAction(ctx.message.chat.id, "typing");
 
       try {
-        const sessionId = await this.ensureSession();
+        const sessionId = await this.ensureSession(ctx.message.chat.id);
 
         // Get file info and download
         const fileId = ctx.message.voice?.file_id ?? ctx.message.audio?.file_id;
