@@ -8,6 +8,7 @@ phase: 005-security-tool-policy
 branch: feature/005-security-tool-policy
 created: 2026-02-21
 shipped_at: 2026-02-22
+pr: https://github.com/sichengchen/sa/pull/10
 ---
 # Security audit: exec sandboxing
 
