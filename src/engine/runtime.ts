@@ -248,6 +248,15 @@ export async function createRuntime(): Promise<EngineRuntime> {
         }
         console.log(`[cron] Task "${task.name}" completed: ${responseText.slice(0, 100)}`);
       },
+      onComplete: task.oneShot ? async (taskName) => {
+        const configFile = config.getConfigFile();
+        const automation = configFile.runtime.automation ?? { cronTasks: [] };
+        automation.cronTasks = automation.cronTasks.filter((t) => t.name !== taskName);
+        await config.saveConfig({
+          ...configFile,
+          runtime: { ...configFile.runtime, automation },
+        });
+      } : undefined,
     });
   }
   if (cronTasks.length > 0) {
