@@ -8,6 +8,7 @@ import { classifyExecCommand } from "./tools/exec-classifier.js";
 import { ToolPolicyManager, type ToolEventContext } from "./tools/policy.js";
 import type { EngineEvent, SkillInfo, ConnectorType, ToolApprovalMode } from "@sa/shared/types.js";
 import type { ModelConfig, ProviderConfig } from "./router/types.js";
+import { heartbeatState, createHeartbeatTask } from "./scheduler.js";
 
 /** Format tool args as a compact summary for IM display */
 function formatArgsForIM(toolName: string, args: Record<string, unknown>): string {
@@ -595,6 +596,52 @@ export function createAppRouter(runtime: EngineRuntime) {
         .mutation(({ input }) => {
           return { removed: runtime.scheduler.unregister(input.name) };
         }),
+    }),
+
+    /** Heartbeat management */
+    heartbeat: router({
+      /** Get heartbeat status */
+      status: protectedProcedure.query(() => {
+        return {
+          config: heartbeatState.config,
+          lastResult: heartbeatState.lastResult,
+          mainSessionId: runtime.mainSessionId,
+        };
+      }),
+
+      /** Update heartbeat configuration (in-memory only — persisting requires config save) */
+      configure: protectedProcedure
+        .input(z.object({
+          enabled: z.boolean().optional(),
+          intervalMinutes: z.number().min(1).max(1440).optional(),
+        }))
+        .mutation(({ input }) => {
+          if (input.enabled !== undefined) {
+            heartbeatState.config.enabled = input.enabled;
+          }
+          if (input.intervalMinutes !== undefined) {
+            heartbeatState.config.intervalMinutes = input.intervalMinutes;
+          }
+          return { config: heartbeatState.config };
+        }),
+
+      /** Manually trigger a heartbeat check */
+      trigger: protectedProcedure.mutation(async () => {
+        await runtime.scheduler.tick();
+        return { triggered: true, lastResult: heartbeatState.lastResult };
+      }),
+    }),
+
+    /** Main session info */
+    mainSession: router({
+      /** Get main session metadata */
+      info: protectedProcedure.query(() => {
+        const session = runtime.sessions.getSession(runtime.mainSessionId);
+        return {
+          sessionId: runtime.mainSessionId,
+          session: session ?? null,
+        };
+      }),
     }),
   });
 }
