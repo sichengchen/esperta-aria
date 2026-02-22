@@ -2,21 +2,9 @@ import { z } from "zod";
 import { router, publicProcedure } from "./trpc.js";
 import type { EngineRuntime } from "./runtime.js";
 import type { Agent } from "./agent/index.js";
+import type { DangerLevel } from "./agent/types.js";
 import type { EngineEvent, SkillInfo, ConnectorType, ToolApprovalMode } from "@sa/shared/types.js";
 import type { ModelConfig, ProviderConfig } from "./router/types.js";
-
-/** Tools that are always auto-approved and silent on IM connectors */
-const SAFE_TOOLS = new Set([
-  "read_skill",
-  "remember",
-  "reaction",
-  "set_env_secret",
-  "set_env_variable",
-  "clawhub_search",
-  "web_search",
-  "web_fetch",
-  "read",
-]);
 
 /** Format tool args as a compact summary for IM display */
 function formatArgsForIM(toolName: string, args: Record<string, unknown>): string {
@@ -55,6 +43,14 @@ const pendingApprovalMeta = new Map<string, { sessionId: string; toolName: strin
 
 /** Create the tRPC router bound to a runtime instance */
 export function createAppRouter(runtime: EngineRuntime) {
+  /** Build a danger level lookup from runtime tools (defaults to "dangerous" for unknown tools) */
+  const dangerLevels = new Map<string, DangerLevel>(
+    runtime.tools.map((t) => [t.name, t.dangerLevel]),
+  );
+  function getDangerLevel(toolName: string): DangerLevel {
+    return dangerLevels.get(toolName) ?? "dangerous";
+  }
+
   /** Resolve the tool approval mode for a session */
   function getApprovalMode(sessionId: string): ToolApprovalMode {
     const session = runtime.sessions.getSession(sessionId);
@@ -70,32 +66,49 @@ export function createAppRouter(runtime: EngineRuntime) {
     if (!agent) {
       agent = runtime.createAgent(async (toolName, toolCallId, _args) => {
         const mode = getApprovalMode(sessionId);
+        const level = getDangerLevel(toolName);
 
-        // "never" mode: auto-approve everything
-        if (mode === "never") return true;
+        // Safe tools: always auto-approve
+        if (level === "safe") return true;
 
-        // Safe tools are always auto-approved (read-only, no side effects)
-        if (SAFE_TOOLS.has(toolName)) return true;
-
-        // "ask" mode: check session-level overrides first
-        if (mode === "ask") {
+        // Dangerous tools: always ask (even TUI "never" mode)
+        if (level === "dangerous") {
+          // Check session-level overrides first
           const overrides = sessionToolOverrides.get(sessionId);
           if (overrides?.has(toolName)) return true;
+
+          return new Promise<boolean>((resolve) => {
+            pendingApprovals.set(toolCallId, resolve);
+            pendingApprovalMeta.set(toolCallId, { sessionId, toolName });
+            setTimeout(() => {
+              if (pendingApprovals.has(toolCallId)) {
+                pendingApprovals.delete(toolCallId);
+                pendingApprovalMeta.delete(toolCallId);
+                resolve(false);
+              }
+            }, 5 * 60 * 1000);
+          });
         }
 
-        // "always" mode or "ask" without override: prompt the connector
-        return new Promise<boolean>((resolve) => {
-          pendingApprovals.set(toolCallId, resolve);
-          pendingApprovalMeta.set(toolCallId, { sessionId, toolName });
-          // Auto-reject after 5 minutes if no response
-          setTimeout(() => {
-            if (pendingApprovals.has(toolCallId)) {
-              pendingApprovals.delete(toolCallId);
-              pendingApprovalMeta.delete(toolCallId);
-              resolve(false);
-            }
-          }, 5 * 60 * 1000);
-        });
+        // Moderate tools: auto-approve unless mode is "always"
+        if (mode === "always") {
+          const overrides = sessionToolOverrides.get(sessionId);
+          if (overrides?.has(toolName)) return true;
+
+          return new Promise<boolean>((resolve) => {
+            pendingApprovals.set(toolCallId, resolve);
+            pendingApprovalMeta.set(toolCallId, { sessionId, toolName });
+            setTimeout(() => {
+              if (pendingApprovals.has(toolCallId)) {
+                pendingApprovals.delete(toolCallId);
+                pendingApprovalMeta.delete(toolCallId);
+                resolve(false);
+              }
+            }, 5 * 60 * 1000);
+          });
+        }
+
+        return true;
       });
       sessionAgents.set(sessionId, agent);
     }
@@ -154,7 +167,7 @@ export function createAppRouter(runtime: EngineRuntime) {
                   yield event;
                   break;
                 case "tool_start":
-                  if (isIM && SAFE_TOOLS.has(event.name)) break;
+                  if (isIM && getDangerLevel(event.name) === "safe") break;
                   if (isIM) {
                     // On IM: show what was called (args summary), suppress tool_end later
                     const argsStr = formatArgsForIM(event.name, event.args);
@@ -183,7 +196,7 @@ export function createAppRouter(runtime: EngineRuntime) {
                   break;
                 case "tool_approval_request":
                   // Safe tools are auto-approved — don't show approval UI
-                  if (SAFE_TOOLS.has(event.name)) break;
+                  if (getDangerLevel(event.name) === "safe") break;
                   yield {
                     type: "tool_approval_request",
                     name: event.name,
@@ -262,7 +275,7 @@ export function createAppRouter(runtime: EngineRuntime) {
                   yield event;
                   break;
                 case "tool_start":
-                  if (isIM && SAFE_TOOLS.has(event.name)) break;
+                  if (isIM && getDangerLevel(event.name) === "safe") break;
                   if (isIM) {
                     const argsStr = formatArgsForIM(event.name, event.args);
                     yield { type: "tool_end", name: event.name, id: event.id, content: argsStr, isError: false };
@@ -287,7 +300,7 @@ export function createAppRouter(runtime: EngineRuntime) {
                   }
                   break;
                 case "tool_approval_request":
-                  if (SAFE_TOOLS.has(event.name)) break;
+                  if (getDangerLevel(event.name) === "safe") break;
                   yield {
                     type: "tool_approval_request",
                     name: event.name,
