@@ -46,3 +46,4 @@ Phase 4 was clean — no carry-forward items. The current tool system is binary 
 - Plan 054 — Hybrid exec command classification: Agent self-declares danger for exec, engine validates with pattern matching. Files: exec.ts, exec-classifier.ts, exec-classifier.test.ts, procedures.ts, runtime.ts
 - Plan 055 — Task-tier model routing: 3-tier model routing (performance/normal/eco), task-based dispatch, aliases, fallback chains. Files: task-types.ts, router.ts, types.ts, config/types.ts, runtime.ts, procedures.ts
 - Plan 056 — Per-tool config and reporting overhaul: ToolPolicyManager centralizes event filtering with per-connector verbosity and per-tool overrides. Files: config/types.ts, config/defaults.ts, tools/policy.ts, tools/policy.test.ts, procedures.ts
+- Plan 057 — System prompt tool guidance revision: Rewrite TOOL_CALL_STYLE with per-tier narration rules, add reactions guide, show danger levels in tool listing. Files: runtime.ts, tools/index.ts
