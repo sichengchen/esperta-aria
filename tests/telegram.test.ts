@@ -5,6 +5,8 @@ import {
   escapeMarkdown,
   isMessageAllowed,
   validatePairingCode,
+  shouldRespondInGroup,
+  stripBotMention,
 } from "@sa/connectors/telegram/index.js";
 
 describe("Telegram pairing", () => {
@@ -106,6 +108,127 @@ describe("Telegram formatter", () => {
       expect(chunks).toHaveLength(2);
       expect(chunks[0]).toBe("a".repeat(3000));
       expect(chunks[1]).toBe("b".repeat(2000));
+    });
+  });
+});
+
+describe("Telegram group chat filtering", () => {
+  const baseInput = {
+    botUsername: "sa_bot",
+    botId: 123,
+  };
+
+  describe("shouldRespondInGroup", () => {
+    test("always responds in private chat", () => {
+      expect(shouldRespondInGroup({ ...baseInput, chatType: "private" })).toBe(true);
+    });
+
+    test("ignores group message without mention or reply", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "group",
+        text: "hello everyone",
+        entities: [],
+      })).toBe(false);
+    });
+
+    test("ignores supergroup message without mention or reply", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "supergroup",
+        text: "hello everyone",
+        entities: [],
+      })).toBe(false);
+    });
+
+    test("responds when @mentioned in group", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "group",
+        text: "@sa_bot hello",
+        entities: [{ type: "mention", offset: 0, length: 7 }],
+      })).toBe(true);
+    });
+
+    test("responds when @mentioned mid-sentence", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "group",
+        text: "hey @sa_bot what do you think?",
+        entities: [{ type: "mention", offset: 4, length: 7 }],
+      })).toBe(true);
+    });
+
+    test("responds when reply-to-bot in group", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "group",
+        text: "yes I agree",
+        entities: [],
+        replyToMessageFromId: 123,
+      })).toBe(true);
+    });
+
+    test("ignores reply to different user in group", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "group",
+        text: "yes I agree",
+        entities: [],
+        replyToMessageFromId: 999,
+      })).toBe(false);
+    });
+
+    test("mention matching is case-insensitive", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "group",
+        text: "@SA_BOT hello",
+        entities: [{ type: "mention", offset: 0, length: 7 }],
+      })).toBe(true);
+    });
+
+    test("ignores mention of different bot", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "group",
+        text: "@other_bot hello",
+        entities: [{ type: "mention", offset: 0, length: 10 }],
+      })).toBe(false);
+    });
+
+    test("handles missing entities gracefully", () => {
+      expect(shouldRespondInGroup({
+        ...baseInput,
+        chatType: "group",
+        text: "hello",
+      })).toBe(false);
+    });
+  });
+
+  describe("stripBotMention", () => {
+    test("strips @mention from start of text", () => {
+      expect(stripBotMention("@sa_bot hello world", "sa_bot")).toBe("hello world");
+    });
+
+    test("strips @mention from middle of text", () => {
+      expect(stripBotMention("hey @sa_bot what's up?", "sa_bot")).toBe("hey what's up?");
+    });
+
+    test("strips multiple mentions", () => {
+      expect(stripBotMention("@sa_bot hello @sa_bot world", "sa_bot")).toBe("hello world");
+    });
+
+    test("is case-insensitive", () => {
+      expect(stripBotMention("@SA_BOT hello", "sa_bot")).toBe("hello");
+    });
+
+    test("returns empty string when only mention", () => {
+      expect(stripBotMention("@sa_bot", "sa_bot")).toBe("");
+    });
+
+    test("preserves text without mention", () => {
+      expect(stripBotMention("hello world", "sa_bot")).toBe("hello world");
     });
   });
 });
