@@ -88,3 +88,4 @@ Connectors track the "current session" per chat context. `/new` calls `create(pr
 - Plan 066 — Migrate imports to path aliases: 56 test imports migrated from relative to @sa/* aliases. Files: 22 test files
 - Plan 067 — Cron dispatch + persistence + one-shot: Wired cron.add to isolated agent sessions, one-shot auto-removal, config persistence, result logging. Files: scheduler.ts, procedures.ts, runtime.ts, types.ts
 - Plan 068 — Notify tool: Push messages to Telegram/Discord via HTTP from agent loop. Files: notify.ts, notify.test.ts, runtime.ts, SKILL.md
+- Plan 070 — Mention-gated IM filtering: Pure-function mention/reply gates for Telegram and Discord group chats. Files: telegram/formatter.ts, telegram/transport.ts, discord/formatter.ts, discord/transport.ts, telegram.test.ts, discord-filter.test.ts
