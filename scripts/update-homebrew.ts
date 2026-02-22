@@ -56,11 +56,8 @@ const formula = `class Sa < Formula
   end
 
   service do
-    run [opt_bin/"sa", "__engine"]
-    keep_alive true
+    run [opt_bin/"sa", "engine", "start"]
     working_dir Dir.home
-    log_path var/"log/sa/engine.log"
-    error_log_path var/"log/sa/engine.log"
     environment_variables SA_HOME: "\#{Dir.home}/.sa", PATH: "\#{HOMEBREW_PREFIX}/bin:\#{HOMEBREW_PREFIX}/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
   end
 
