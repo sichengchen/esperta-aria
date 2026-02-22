@@ -26,6 +26,7 @@ SA (nicknamed Sasa) is a personal AI agent assistant with minimalist design. It 
   - `bun test` — run all tests
   - `bun run lint` — lint
   - `bun run typecheck` — type checking
+- See `TESTING.md` for detailed testing guidance and patterns.
 
 ## Principles
 1. **Minimalism over features** — every feature must justify its complexity; less is more
