@@ -443,14 +443,12 @@ Override the danger level or reporting behavior for individual tools by name:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `webhook.enabled` | boolean | `false` | Enable the `POST /webhook` endpoint |
-| `webhook.token` | string | -- | Bearer token for `Authorization: Bearer <token>` header authentication (preferred) |
-| `webhook.secret` | string | -- | Legacy shared secret passed in request body or `X-Webhook-Secret` header (deprecated) |
+| `webhook.token` | string | -- | Bearer token for `Authorization: Bearer <token>` header authentication |
 
-Authentication is checked in order:
+Authentication:
 
 1. If `token` is configured, the request must include `Authorization: Bearer <token>` header. Requests without a valid bearer token are rejected with `401`.
-2. If only `secret` is configured (legacy), the request must include the secret in the JSON body field `secret` or the `X-Webhook-Secret` header.
-3. If neither is configured, all requests to the webhook endpoint are accepted (not recommended for production).
+2. If `token` is not configured, all requests to the webhook endpoint are accepted (not recommended for production).
 
 Example request with bearer token:
 ```bash

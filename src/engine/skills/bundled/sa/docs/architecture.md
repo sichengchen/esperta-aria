@@ -550,8 +550,8 @@ config and authenticate via Bearer token or legacy shared secret.
 POST /webhook/agent
   |
   +-- Verify webhook.enabled
-  +-- Parse JSON body: { message, sessionId?, secret? }
-  +-- Authenticate (Bearer token or legacy secret)
+  +-- Parse JSON body: { message, sessionId? }
+  +-- Authenticate (Bearer token)
   +-- Create or resume session (connectorType=webhook)
   |
   +-- If Accept: text/event-stream:
@@ -688,9 +688,8 @@ Request arrives
 Webhook endpoints use a separate auth path:
 
 - **Bearer token**: `Authorization: Bearer <token>` header, matched against `webhook.token` in config.
-- **Legacy secret**: `X-Webhook-Secret` header or `body.secret` field, matched against `webhook.secret` in config.
 
-Both use timing-safe string comparison to prevent timing attacks.
+Uses timing-safe string comparison to prevent timing attacks.
 
 ---
 

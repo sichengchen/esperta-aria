@@ -547,28 +547,11 @@ function safeCompare(a: string, b: string): boolean {
 }
 ```
 
-### Legacy secret (deprecated)
-
-For backward compatibility, the `/webhook/agent` endpoint also supports a
-`secret` field in the request body or an `x-webhook-secret` header. This is
-deprecated in favor of bearer tokens:
-
-```json
-{
-  "runtime": {
-    "webhook": {
-      "enabled": true,
-      "secret": "legacy-secret"
-    }
-  }
-}
-```
-
 ### No auth = open
 
-If neither `token` nor `secret` is configured, webhook endpoints are open to
-any request on localhost. Since the engine binds to `127.0.0.1`, this is
-acceptable for simple local setups but not recommended for production use.
+If `token` is not configured, webhook endpoints are open to any request on
+localhost. Since the engine binds to `127.0.0.1`, this is acceptable for simple
+local setups but not recommended for production use.
 
 ### Webhook task routing
 

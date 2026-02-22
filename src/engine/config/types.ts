@@ -90,8 +90,6 @@ export interface RuntimeConfig {
     enabled: boolean;
     /** Shared bearer token for authenticating all webhook endpoints */
     token?: string;
-    /** Legacy shared secret for authenticating webhook requests (deprecated) */
-    secret?: string;
   };
   /** Audio transcription configuration */
   audio?: {
