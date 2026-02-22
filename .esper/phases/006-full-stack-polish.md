@@ -93,3 +93,4 @@ Connectors track the "current session" per chat context. `/new` calls `create(pr
 - Plan 073 — Webhook-triggered automation tasks: Bearer token auth, /webhook/agent + /webhook/tasks/:slug + /webhook/heartbeat routes, webhook task CRUD. Files: types.ts, server.ts, procedures.ts, webhook-tasks.test.ts
 - Plan 074 — TruffleHog secret scanning in CI: Added secret-scan job with --only-verified --fail. Files: .github/workflows/ci.yml
 - Plan 075 — Comprehensive docs bundled in sa skill: Relocate docs/ into sa skill directory as single source of truth (8 docs, 4200+ lines). Files: architecture.md, configuration.md, tools.md, development.md, skills.md, sessions.md, automation.md, security.md, SKILL.md, README.md, CONSTITUTION.md, embed-skills.ts, loader.ts, Wizard.tsx
+- Plan 069 — Skill-based agent orchestration: Claude Code and Codex orchestration skills for delegating coding tasks via exec. Files: claude-code/SKILL.md, codex/SKILL.md, skills.test.ts
