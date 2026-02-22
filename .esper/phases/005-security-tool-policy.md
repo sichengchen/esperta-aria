@@ -51,3 +51,4 @@ Phase 4 was clean — no carry-forward items. The current tool system is binary 
 - Plan 059 — Security audit: tRPC auth and network: Add auth middleware to tRPC, timing-safe webhook secret, WS connection auth. Files: context.ts, procedures.ts, server.ts, shared/client.ts
 - Plan 060 — Security audit: exec sandboxing: Env sanitization, output capping at 1MB, foreground timeout reduction to 300s. Files: tools/exec.ts, tools/exec-background.ts, tools/exec.test.ts
 - Plan 061 — Replace apple-calendar skill with apple-calendar-cli: Replace the entire content with the apple-calendar-cli skill document from the reference URL. Files: SKILL.md, cal-list.sh, cal-events.sh, cal-read.sh, cal-create.sh, cal-update.sh, cal-delete.sh, cal-search.sh
+- Plan 062 — fix: exec tool shows phantom approval dialogs for safe commands: In the `tool_approval_request` case, apply the same exec hybrid classification that the callback uses. Files: procedures.ts
