@@ -170,6 +170,21 @@ Or re-run: `sa onboard`
 ### Installing a skill from ClawHub
 Ask: "Search ClawHub for [topic]" — uses the clawhub bundled skill.
 
+## Documentation
+
+Detailed docs live alongside this skill in the `docs/` directory. Use the `read` tool to access them when deeper knowledge is needed:
+
+| Doc | Path | Covers |
+|-----|------|--------|
+| Architecture | `src/engine/skills/bundled/sa/docs/architecture.md` | Engine subsystems, agent loop, model router, session lifecycle, tRPC API, streaming events, connector architecture |
+| Configuration | `src/engine/skills/bundled/sa/docs/configuration.md` | Config schema, providers, models, model tiers/aliases, tool policy, automation config, full annotated example |
+| Tools | `src/engine/skills/bundled/sa/docs/tools.md` | Tool danger classification, 3-tier approval flow, exec hybrid approval, filter patterns, per-tool config |
+| Development | `src/engine/skills/bundled/sa/docs/development.md` | Testing strategy, test helpers, CI/CD pipeline, CalVer versioning, contributing guidelines, debugging |
+| Skills | `src/engine/skills/bundled/sa/docs/skills.md` | SKILL.md format, bundled vs user vs ClawHub skills, activation, discovery catalog, creating custom skills |
+| Sessions | `src/engine/skills/bundled/sa/docs/sessions.md` | Structured session IDs, 3-tier model (main/connector/cron), SessionManager API, /new command |
+| Automation | `src/engine/skills/bundled/sa/docs/automation.md` | Heartbeat (HEARTBEAT.md, smart suppression), cron dispatch, webhook tasks, decision guide |
+| Security | `src/engine/skills/bundled/sa/docs/security.md` | Tool danger levels, approval modes, encrypted secrets vault, auth model, webhook auth |
+
 ## Tech Stack
 
 - **Runtime**: Bun
