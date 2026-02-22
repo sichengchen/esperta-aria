@@ -8,6 +8,7 @@ phase: 006-full-stack-polish
 branch: fix/webhook-secret-enforcement
 created: 2026-02-22
 shipped_at: 2026-02-22
+pr: https://github.com/sichengchen/sa/pull/13
 ---
 # fix: remove legacy webhook secret auth, enforce bearer token on all routes
 
