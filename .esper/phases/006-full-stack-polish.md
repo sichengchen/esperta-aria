@@ -99,6 +99,7 @@ Connectors track the "current session" per chat context. `/new` calls `create(pr
 - Plan 078 — fix: remove restored one-shot cron tasks from persisted config: Add onComplete callback for restored one-shot tasks to remove from config.json. Files: runtime.ts, scheduler.test.ts
 - Plan 079 — fix: re-register heartbeat schedule when interval changes: Add Scheduler.updateSchedule() and call from heartbeat.configure. Files: scheduler.ts, procedures.ts, scheduler.test.ts
 - Plan 080 — fix: honor cron task model override during execution: Add modelOverride to Agent, wire through cron task execution. Files: types.ts, agent.ts, procedures.ts, runtime.ts, agent.test.ts
+- Plan 081 — Convert ClawHub tools to bundled skill: Move the tool logic into standalone scripts that the agent can invoke via `exec`. Files: search.ts, install.ts, update.ts, SKILL.md, procedures.ts, runtime.ts, index.ts, tools.md, skills.md, clawhub.test.ts
 
 ## Post-Review Findings (2026-02-22)
 - [ ] **[P1] Enforce legacy webhook secret on task + heartbeat routes** (`src/engine/server.ts`): `authenticateWebhook` only checks `webhook.secret` when a request body is passed, so `/webhook/tasks/:slug` and `/webhook/heartbeat` are not protected when token auth is unset.
