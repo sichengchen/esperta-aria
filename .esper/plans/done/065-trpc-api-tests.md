@@ -1,14 +1,14 @@
 ---
-id: 065
-title: "tRPC API tests"
-status: pending
+id: 65
+title: tRPC API tests
+status: done
 type: feature
 priority: 2
 phase: 006-full-stack-polish
 branch: feature/006-full-stack-polish
 created: 2026-02-22
+shipped_at: 2026-02-22
 ---
-
 # tRPC API tests
 
 ## Context
@@ -55,3 +55,10 @@ Since `filterAgentEvents` is a pure-ish async generator transform, it can be tes
 - Run: `bun run typecheck && bun run lint`
 - Expected: Clean
 - Edge cases: Runtime initialization may need a temp SA_HOME to avoid touching real config; auth tokens need to be generated for test context
+
+## Progress
+- Created tests/procedures.test.ts with 13 non-live tests: health.ping, session CRUD, cron list/add/remove, model list/active, heartbeat.status, mainSession.info
+- Created tests/live/procedures.test.ts with 2 live tests: chat.stream text response, chat.stream tool use
+- Built createTestRuntime/createLiveTestRuntime factories for isolated tRPC testing
+- Modified: tests/procedures.test.ts, tests/live/procedures.test.ts
+- Verification: 362 pass, 9 skip, 0 fail; typecheck clean; lint clean
