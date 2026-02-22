@@ -1,14 +1,14 @@
 ---
-id: 072
-title: "Main session + heartbeat overhaul"
-status: pending
+id: 72
+title: Main session + heartbeat overhaul
+status: done
 type: feature
 priority: 1
 phase: 006-full-stack-polish
 branch: feature/006-full-stack-polish
 created: 2026-02-22
+shipped_at: 2026-02-22
 ---
-
 # Main session + heartbeat overhaul
 
 ## Context
@@ -137,3 +137,15 @@ Document the main session and heartbeat system in `src/engine/skills/bundled/sa/
 - Expected: Existing session tests updated to use structured IDs, `create`/`getLatest`/`listByPrefix` tested, `/new` creates fresh session under same prefix
 - Manual: Set interval to 1 minute, edit HEARTBEAT.md with a check item, verify agent runs the check, suppresses on HEARTBEAT_OK, and notifies on actionable items
 - Edge cases: HEARTBEAT.md missing (create default); empty checklist (always HEARTBEAT_OK); agent response is HEARTBEAT_OK within longer text (should NOT suppress — must be exact match); heartbeat disabled in config (skip); `getLatest("main")` returns the main session; `getType("cron:daily-report:x7y8")` returns `"cron"`; `create("main", "engine")` generates a unique suffix; `/new` under same prefix creates a new session without destroying the old one
+
+## Progress
+- Added "engine" to ConnectorType, HeartbeatConfig to RuntimeConfig, DEFAULT_HEARTBEAT and DEFAULT_HEARTBEAT_MD defaults
+- Refactored SessionManager: structured prefix:id IDs, create(prefix, connectorType), getLatest(prefix), listByPrefix(prefix), getPrefix(), getType()
+- Updated all session consumers: procedures (session.create accepts prefix), server.ts webhook handler, TUI/Telegram/Discord connectors
+- Overhauled heartbeat: agent-based with HEARTBEAT.md checklist, smart suppress on exact HEARTBEAT_OK match, configurable interval, health JSON always written
+- Created main session at engine startup in runtime.ts, exposed mainSessionId on EngineRuntime
+- Added heartbeat.status/configure/trigger and mainSession.info tRPC procedures
+- Updated bundled SA skill with session and heartbeat documentation
+- Created tests/heartbeat.test.ts (15 tests) and rewrote tests/sessions.test.ts (27 tests)
+- Modified: shared/types.ts, config/types.ts, config/defaults.ts, sessions.ts, runtime.ts, scheduler.ts, procedures.ts, server.ts, App.tsx, telegram/transport.ts, discord/transport.ts, SKILL.md
+- Verification: all tests pass (349 pass, 1 skip), typecheck clean, lint clean
