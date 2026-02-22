@@ -1,5 +1,8 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { HeartbeatConfig } from "./config/types.js";
+import { DEFAULT_HEARTBEAT } from "./config/defaults.js";
+import type { Agent } from "./agent/index.js";
 
 /** A scheduled task definition */
 export interface ScheduledTask {
@@ -125,20 +128,97 @@ export class Scheduler {
 
 // --- Built-in tasks ---
 
-/** Create heartbeat task: writes timestamp to engine.heartbeat */
-export function createHeartbeatTask(saHome: string): ScheduledTask {
+/** Result of the last heartbeat check */
+export interface HeartbeatResult {
+  timestamp: string;
+  pid: number;
+  memory: number;
+  agentRan: boolean;
+  suppressed: boolean;
+  response?: string;
+}
+
+/** In-memory heartbeat state (accessible by procedures) */
+export const heartbeatState = {
+  lastResult: null as HeartbeatResult | null,
+  config: { ...DEFAULT_HEARTBEAT } as HeartbeatConfig,
+};
+
+/** Create the agent-based heartbeat task.
+ *  Writes a health JSON file every cycle AND runs the agent with the HEARTBEAT.md checklist.
+ */
+export function createHeartbeatTask(
+  saHome: string,
+  mainAgent: Agent | null,
+  config?: Partial<HeartbeatConfig>,
+): ScheduledTask {
+  const hbConfig: HeartbeatConfig = { ...DEFAULT_HEARTBEAT, ...config };
+  heartbeatState.config = hbConfig;
+
+  const schedule = `*/${hbConfig.intervalMinutes} * * * *`;
+
   return {
     name: "heartbeat",
-    schedule: "*/5 * * * *",
+    schedule,
     builtin: true,
     async handler() {
+      // Always write the health file for daemon monitoring
       const heartbeatFile = join(saHome, "engine.heartbeat");
-      const data = JSON.stringify({
+      const healthData: HeartbeatResult = {
         timestamp: new Date().toISOString(),
         pid: process.pid,
         memory: process.memoryUsage().heapUsed,
-      });
-      await writeFile(heartbeatFile, data + "\n");
+        agentRan: false,
+        suppressed: false,
+      };
+
+      if (!hbConfig.enabled || !mainAgent) {
+        healthData.agentRan = false;
+        await writeFile(heartbeatFile, JSON.stringify(healthData) + "\n");
+        heartbeatState.lastResult = healthData;
+        return;
+      }
+
+      // Read the checklist
+      const checklistPath = join(saHome, hbConfig.checklistPath ?? "HEARTBEAT.md");
+      let checklist = "";
+      try {
+        checklist = await readFile(checklistPath, "utf-8");
+      } catch {
+        // No checklist — agent will just report HEARTBEAT_OK
+      }
+
+      // Run the agent in the main session
+      const preamble = [
+        "This is a heartbeat check. Review the checklist below and handle each item.",
+        `If nothing needs attention, reply with exactly \`${hbConfig.suppressToken}\`.`,
+        "If something needs the user's attention, describe it clearly.",
+        "",
+        checklist || "(No checklist items configured.)",
+      ].join("\n");
+
+      let responseText = "";
+      try {
+        for await (const event of mainAgent.chat(preamble)) {
+          if (event.type === "text_delta") {
+            responseText += event.delta;
+          }
+        }
+      } catch (err) {
+        console.error("[heartbeat] Agent error:", err);
+        responseText = `Heartbeat agent error: ${err instanceof Error ? err.message : String(err)}`;
+      }
+
+      healthData.agentRan = true;
+      healthData.response = responseText.trim();
+      healthData.suppressed = responseText.trim() === hbConfig.suppressToken;
+
+      await writeFile(heartbeatFile, JSON.stringify(healthData) + "\n");
+      heartbeatState.lastResult = healthData;
+
+      if (!healthData.suppressed && responseText.trim()) {
+        console.log(`[heartbeat] Agent report: ${responseText.trim().slice(0, 200)}`);
+      }
     },
   };
 }

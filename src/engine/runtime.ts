@@ -15,6 +15,9 @@ import { AuthManager } from "./auth.js";
 import { SkillRegistry, formatSkillsDiscovery } from "./skills/index.js";
 import { createReadSkillTool } from "./tools/read-skill.js";
 import { Scheduler, createHeartbeatTask } from "./scheduler.js";
+import { DEFAULT_HEARTBEAT_MD } from "./config/defaults.js";
+import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { createTranscriber, type Transcriber } from "./audio/index.js";
 
 const SAFETY_ADVISORY = `## Safety
@@ -72,6 +75,8 @@ export interface EngineRuntime {
   scheduler: Scheduler;
   transcriber: Transcriber;
   agentName: string;
+  /** The main session ID (engine-level, not tied to any connector) */
+  mainSessionId: string;
   /** Create a new Agent instance for a session (each session gets its own Agent) */
   createAgent(onToolApproval?: ToolApprovalCallback): Agent;
 }
@@ -183,11 +188,6 @@ export async function createRuntime(): Promise<EngineRuntime> {
     .filter(Boolean)
     .join("\n");
 
-  // Initialize scheduler with built-in tasks
-  const scheduler = new Scheduler();
-  scheduler.register(createHeartbeatTask(saHome));
-  scheduler.start();
-
   // Initialize audio transcriber
   const audioConfig = saConfig.runtime.audio ?? { enabled: true, preferLocal: true };
   const transcriber = await createTranscriber({ preferLocal: audioConfig.preferLocal });
@@ -198,6 +198,26 @@ export async function createRuntime(): Promise<EngineRuntime> {
   const sessions = new SessionManager();
   const auth = new AuthManager(saHome);
   await auth.init();
+
+  // Create or resume the main session
+  let mainSession = sessions.getLatest("main");
+  if (!mainSession) {
+    mainSession = sessions.create("main", "engine");
+  }
+
+  // Create the main agent (used by heartbeat and engine-level tasks)
+  const mainAgent = new Agent({ router, tools, systemPrompt });
+
+  // Ensure HEARTBEAT.md exists
+  const heartbeatMdPath = join(saHome, saConfig.runtime.heartbeat?.checklistPath ?? "HEARTBEAT.md");
+  if (!existsSync(heartbeatMdPath)) {
+    await writeFile(heartbeatMdPath, DEFAULT_HEARTBEAT_MD);
+  }
+
+  // Initialize scheduler with agent-based heartbeat
+  const scheduler = new Scheduler();
+  scheduler.register(createHeartbeatTask(saHome, mainAgent, saConfig.runtime.heartbeat));
+  scheduler.start();
 
   return {
     config,
@@ -211,6 +231,7 @@ export async function createRuntime(): Promise<EngineRuntime> {
     scheduler,
     transcriber,
     agentName: saConfig.identity.name,
+    mainSessionId: mainSession.id,
     createAgent(onToolApproval?: ToolApprovalCallback): Agent {
       return new Agent({
         router,
