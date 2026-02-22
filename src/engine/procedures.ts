@@ -434,6 +434,13 @@ export function createAppRouter(runtime: EngineRuntime) {
           return runtime.sessions.create(input.prefix, input.connectorType);
         }),
 
+      /** Get the most recently active session for a prefix */
+      getLatest: protectedProcedure
+        .input(z.object({ prefix: z.string() }))
+        .query(({ input }) => {
+          return runtime.sessions.getLatest(input.prefix) ?? null;
+        }),
+
       /** List active sessions */
       list: protectedProcedure.query(() => {
         return runtime.sessions.listSessions();
