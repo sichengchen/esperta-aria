@@ -135,6 +135,22 @@ export class Scheduler {
     }
   }
 
+  /** Run a single task by name, bypassing cron matching and lastRun guard */
+  async runTask(name: string): Promise<boolean> {
+    const task = this.tasks.get(name);
+    if (!task) return false;
+    try {
+      await task.handler();
+    } catch (err) {
+      console.error(`[scheduler] Task "${task.name}" failed:`, err);
+    }
+    if (task.oneShot) {
+      this.tasks.delete(name);
+      task.onComplete?.(name);
+    }
+    return true;
+  }
+
   get size(): number {
     return this.tasks.size;
   }

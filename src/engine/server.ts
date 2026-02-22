@@ -283,9 +283,9 @@ async function handleWebhookHeartbeat(req: Request, runtime: EngineRuntime): Pro
     });
   }
 
-  // Trigger heartbeat
+  // Trigger only the heartbeat task (not all cron jobs)
   try {
-    await runtime.scheduler.tick();
+    await runtime.scheduler.runTask("heartbeat");
     return new Response(
       JSON.stringify({ triggered: true, lastResult: heartbeatState.lastResult }),
       { headers: { "content-type": "application/json" } },
