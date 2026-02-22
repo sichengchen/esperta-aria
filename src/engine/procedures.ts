@@ -855,9 +855,9 @@ export function createAppRouter(runtime: EngineRuntime) {
           return { config: heartbeatState.config };
         }),
 
-      /** Manually trigger a heartbeat check */
+      /** Manually trigger a heartbeat check (runs only heartbeat, not all cron jobs) */
       trigger: protectedProcedure.mutation(async () => {
-        await runtime.scheduler.tick();
+        await runtime.scheduler.runTask("heartbeat");
         return { triggered: true, lastResult: heartbeatState.lastResult };
       }),
     }),
