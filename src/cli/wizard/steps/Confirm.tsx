@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text, useInput } from "ink";
+import type { ModelPickerResult } from "../../shared/ModelPicker.js";
 
 export interface WizardData {
   name: string;
@@ -25,6 +26,10 @@ export interface WizardData {
   selectedSkills?: string[];
   /** Max output tokens from PI-mono model metadata */
   maxTokens?: number;
+  /** Optional eco model for lightweight tasks */
+  ecoModel?: ModelPickerResult;
+  /** Optional embedding model for memory vector search */
+  embeddingModel?: ModelPickerResult;
 }
 
 interface ConfirmProps {
@@ -60,13 +65,20 @@ export function Confirm({ data, onConfirm, onBack }: ConfirmProps) {
       <Text> Style: {data.communicationStyle || "(not set)"}</Text>
       {data.aboutMe && <Text> About: {data.aboutMe}</Text>}
       <Text />
-      <Text bold>Model:</Text>
-      <Text> Provider: {data.provider}</Text>
-      <Text> Model: {data.model}</Text>
-      {data.baseUrl && <Text> Base URL: {data.baseUrl}</Text>}
-      <Text>
-        {" "}API Key: {data.apiKey ? "••••••••" : `(set ${data.apiKeyEnvVar} manually)`}
-      </Text>
+      <Text bold>Models:</Text>
+      <Text> Primary: {data.provider}/{data.model} <Text dimColor>[performance]</Text></Text>
+      <Text>  API Key: {data.apiKey ? "••••••••" : `(set ${data.apiKeyEnvVar} manually)`}</Text>
+      {data.baseUrl && <Text>  Base URL: {data.baseUrl}</Text>}
+      {data.ecoModel ? (
+        <Text> Eco: {data.ecoModel.providerId}/{data.ecoModel.model} <Text dimColor>[eco]</Text></Text>
+      ) : (
+        <Text dimColor> Eco: (not configured — primary used for all tiers)</Text>
+      )}
+      {data.embeddingModel ? (
+        <Text> Embedding: {data.embeddingModel.providerId}/{data.embeddingModel.model}</Text>
+      ) : (
+        <Text dimColor> Embedding: (not configured — keyword search only)</Text>
+      )}
       <Text />
       <Text bold>Telegram:</Text>
       <Text> {data.botToken ? "Configured" : "Skipped"}</Text>
