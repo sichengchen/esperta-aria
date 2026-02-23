@@ -39,8 +39,10 @@ All configuration lives in `~/.sa/`:
 | `IDENTITY.md` | Agent name and personality |
 | `USER.md` | User profile, preferences, recurring context |
 | `secrets.enc` | Encrypted API keys and bot tokens |
-| `memory/MEMORY.md` | Long-term memory (injected into system prompt) |
-| `memory/topics/` | Topic-specific memory files (managed via remember/recall/forget tools) |
+| `memory/MEMORY.md` | Long-term memory (curated by user, injected into system prompt) |
+| `memory/topics/` | Topic-specific memory files (managed via memory_write/memory_read/memory_delete) |
+| `memory/journal/` | Daily append-only journal entries (`YYYY-MM-DD.md`) |
+| `memory/.index.sqlite` | Search index (SQLite FTS5 + optional vector embeddings) |
 | `skills/` | User-installed skills |
 
 ## CLI Commands

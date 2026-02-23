@@ -1,6 +1,6 @@
 # Built-in Tools
 
-SA exposes 18 runtime tools to the agent. Each tool carries a **danger level** that governs
+SA exposes 17 runtime tools to the agent. Each tool carries a **danger level** that governs
 approval behavior and event reporting across connectors.
 
 | # | Tool | Danger Level | Purpose |
@@ -14,15 +14,14 @@ approval behavior and event reporting across connectors.
 | 7 | `web_fetch` | safe | Fetch a URL and return content as markdown |
 | 8 | `web_search` | safe | Web search via Brave or Perplexity |
 | 9 | `reaction` | safe | React to a message with an emoji (IM connectors) |
-| 10 | `remember` | safe | Save memory entry by key |
-| 11 | `recall` | safe | Retrieve a memory entry by key |
-| 12 | `list_memories` | safe | List all stored memory keys |
-| 13 | `search_memories` | safe | Search memories by keyword |
-| 14 | `forget` | safe | Delete a memory entry by key |
-| 15 | `read_skill` | safe | Load and activate a skill by name |
-| 16 | `set_env_secret` | safe | Store a secret in the encrypted vault (secrets.enc) |
-| 17 | `set_env_variable` | safe | Set a plain environment variable in config.json |
-| 18 | `notify` | safe | Push notification to Telegram/Discord |
+| 10 | `memory_write` | safe | Write to memory — topics (with key) or journal (without key) |
+| 11 | `memory_search` | safe | Search memory with hybrid BM25 + vector search |
+| 12 | `memory_read` | safe | Read a memory entry by key or journal date |
+| 13 | `memory_delete` | safe | Delete a topic memory entry by key |
+| 14 | `read_skill` | safe | Load and activate a skill by name |
+| 15 | `set_env_secret` | safe | Store a secret in the encrypted vault (secrets.enc) |
+| 16 | `set_env_variable` | safe | Set a plain environment variable in config.json |
+| 17 | `notify` | safe | Push notification to Telegram/Discord |
 
 *The `exec` tool is registered as `dangerous` but uses **hybrid classification** at runtime --
 see "Exec hybrid approval" below.
@@ -474,44 +473,41 @@ React to the user's message with an emoji. The reaction is forwarded to IM conne
 |---|---|---|---|
 | `emoji` | string | Yes | Emoji character |
 
-### `remember`
+### `memory_write`
 
-Save a memory topic entry under the configured memory directory.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `key` | string | Yes | Memory key (sanitized to filename-safe form) |
-| `content` | string | Yes | Content to save |
-
-### `recall`
-
-Retrieve a specific memory entry by key. Returns the content previously saved with `remember`.
+Write to persistent memory. With a key: saves/updates a topic file (`topics/<key>.md`). Without a key (or `type: "journal"`): appends to today's daily journal (`journal/YYYY-MM-DD.md`).
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `key` | string | Yes | The memory key to retrieve |
+| `content` | string | Yes | The content to write |
+| `key` | string | No | Topic key (e.g. "user-preferences"). Omit to write to journal. |
+| `type` | string | No | `"topic"` (default if key provided) or `"journal"` (default if no key) |
 
-### `list_memories`
+### `memory_search`
 
-List all stored memory keys. Returns a list of available memory entries.
-
-No parameters.
-
-### `search_memories`
-
-Search across all memory entries for a keyword or phrase. Returns matching entries with key and content snippet.
+Search persistent memory using hybrid BM25 + semantic search. Returns ranked snippets with source paths, line ranges, and scores.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `query` | string | Yes | The search term to look for across all memories |
+| `query` | string | Yes | Search query |
+| `source` | string | No | Filter: `"all"` (default), `"topics"`, `"journal"`, `"memory"` |
+| `limit` | number | No | Max results (default: 5) |
 
-### `forget`
+### `memory_read`
 
-Delete a memory entry by key. Permanently removes the stored information.
+Read the full content of a specific memory file by topic key or journal date.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `key` | string | Yes | The memory key to delete |
+| `key` | string | Yes | Topic key (e.g. "user-preferences") or journal date (e.g. "2026-02-22") |
+
+### `memory_delete`
+
+Delete a topic memory entry by key. Only works on topic files, not journal or MEMORY.md.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `key` | string | Yes | The topic key to delete |
 
 ### `read_skill`
 
