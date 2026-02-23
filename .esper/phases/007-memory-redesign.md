@@ -67,3 +67,4 @@ Phase 6 shipped cleanly — no carry-forward. This phase is informed by explorat
 - Plan 090 — fix: ConnectorType Zod enum missing 'cron' and duplicated across modules: Create shared ConnectorTypeSchema as single source of truth; replace inline z.enum in procedures.ts. Files: types.ts, procedures.ts
 - Plan 091 — fix: temp dir leak, clearTimeout gap, and silent stream-handler catches: Use rm(dir, recursive) for temp cleanup, move clearTimeout to finally, add console.warn to catches. Files: transcriber.ts, web-fetch.ts, stream-handler.ts
 - Plan 092 — fix: add missing tests for agent timeout and memory embedding fallback: Agent timeout tests using mock pi-ai stream; session destroy coverage. Files: agent.test.ts, sessions.test.ts
+- Plan 093 — fix: standardize tRPC mutation return shapes and session ID pairing entropy: Wrap session.create return as { session }, add pairing brute-force rate limit. Files: procedures.ts, auth.ts, App.tsx, transport.ts, procedures.test.ts
