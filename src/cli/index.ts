@@ -114,7 +114,9 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
     console.log("  config      Interactive configuration editor");
     console.log("  onboard     Run the onboarding wizard");
     console.log("  engine      Manage the Engine daemon (start/stop/status/logs/restart)");
-    console.log("  help        Show this help message");
+    console.log("  help        Show this help message\n");
+    console.log("Flags:");
+    console.log("  --help, -h  Show this help message");
   },
 };
 
@@ -125,6 +127,12 @@ async function main() {
       return;
     }
     await openTui();
+    return;
+  }
+
+  // Handle --help / -h flags as aliases for the help command
+  if (subcommand === "--help" || subcommand === "-h") {
+    await COMMANDS.help!(args);
     return;
   }
 

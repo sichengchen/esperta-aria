@@ -1,14 +1,15 @@
 ---
-id: 094
-title: "fix: sa --help shows error instead of usage text"
-status: pending
+id: 94
+title: fix: sa --help shows error instead of usage text
+status: done
 type: fix
 priority: 3
 phase: 007-memory-redesign
 branch: fix/sa-help-output
 created: 2026-02-23
+shipped_at: 2026-02-23
+pr: https://github.com/sichengchen/sa/pull/27
 ---
-
 # fix: sa --help shows error instead of usage text
 
 ## Context
@@ -38,3 +39,10 @@ and exits with code 1.
 - Run: `bun run dev -- -h` — same
 - Run: `bun run dev -- help` — existing behavior must still work
 - Regression check: `bun run dev` (no args) should still trigger first-run detection or show usage; unknown commands should still show the error message
+
+## Progress
+- Added `--help` and `-h` flag handling before COMMANDS dispatch in `src/cli/index.ts`
+- Updated help text to include a "Flags" section listing --help/-h
+- Verified: `bun run dev -- --help`, `-h`, and `help` all show correct output
+- Modified: src/cli/index.ts
+- Verification: 535 tests pass, lint clean, typecheck clean
