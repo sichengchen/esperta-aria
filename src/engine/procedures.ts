@@ -442,7 +442,8 @@ export function createAppRouter(runtime: EngineRuntime) {
           }),
         )
         .mutation(({ input }) => {
-          return runtime.sessions.create(input.prefix, input.connectorType);
+          const session = runtime.sessions.create(input.prefix, input.connectorType);
+          return { session };
         }),
 
       /** Get the most recently active session for a prefix */
@@ -670,6 +671,7 @@ export function createAppRouter(runtime: EngineRuntime) {
           return {
             paired: result.success,
             token: result.token ?? null,
+            error: result.error ?? null,
           };
         }),
 

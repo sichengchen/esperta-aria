@@ -7,6 +7,9 @@ import { homedir } from "node:os";
 const TOKEN_BYTES = 32;
 const PAIRING_CODE_LENGTH = 6;
 const PAIRING_CODE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I confusion
+const PAIRING_MAX_FAILURES = 5;
+const PAIRING_WINDOW_MS = 60_000;
+const PAIRING_LOCKOUT_MS = 30_000;
 
 interface TokenEntry {
   token: string;
@@ -21,6 +24,8 @@ export class AuthManager {
   private pairedTokens = new Map<string, TokenEntry>();
   private activePairingCode: string | null = null;
   private tokenFilePath: string;
+  private pairingFailures: number[] = [];
+  private pairingLockedUntil = 0;
 
   constructor(saHome?: string) {
     const home = saHome ?? process.env.SA_HOME ?? join(homedir(), ".sa");
@@ -60,7 +65,14 @@ export class AuthManager {
     credential: string,
     connectorId: string,
     connectorType: string,
-  ): { success: boolean; token?: string } {
+  ): { success: boolean; token?: string; error?: string } {
+    // Rate limit pairing attempts (not master token — local connectors should always work)
+    const now = Date.now();
+    if (now < this.pairingLockedUntil) {
+      const remaining = Math.ceil((this.pairingLockedUntil - now) / 1000);
+      return { success: false, error: `Too many failed pairing attempts. Try again in ${remaining}s.` };
+    }
+
     // Master token (local Connectors read from ~/.sa/engine.token)
     if (credential === this.masterToken) {
       const sessionToken = randomBytes(TOKEN_BYTES).toString("hex");
@@ -76,6 +88,7 @@ export class AuthManager {
     // Pairing code (remote device-flow)
     if (this.activePairingCode && credential === this.activePairingCode) {
       this.activePairingCode = null; // one-time use
+      this.pairingFailures = []; // clear on success
       const sessionToken = randomBytes(TOKEN_BYTES).toString("hex");
       this.pairedTokens.set(sessionToken, {
         token: sessionToken,
@@ -84,6 +97,14 @@ export class AuthManager {
         pairedAt: Date.now(),
       });
       return { success: true, token: sessionToken };
+    }
+
+    // Track failure for rate limiting
+    this.pairingFailures.push(now);
+    this.pairingFailures = this.pairingFailures.filter((t) => now - t < PAIRING_WINDOW_MS);
+    if (this.pairingFailures.length >= PAIRING_MAX_FAILURES) {
+      this.pairingLockedUntil = now + PAIRING_LOCKOUT_MS;
+      this.pairingFailures = [];
     }
 
     return { success: false };
