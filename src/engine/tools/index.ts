@@ -19,10 +19,10 @@ export { webFetchTool } from "./web-fetch.js";
 export { webSearchTool } from "./web-search.js";
 export { reactionTool } from "./reaction.js";
 export { createSetEnvSecretTool, createSetEnvVariableTool } from "./set-api-key.js";
-export { createRecallTool } from "./recall.js";
-export { createListMemoriesTool } from "./list-memories.js";
-export { createSearchMemoriesTool } from "./search-memories.js";
-export { createForgetTool } from "./forget.js";
+export { createMemoryWriteTool } from "./memory-write.js";
+export { createMemorySearchTool } from "./memory-search.js";
+export { createMemoryReadTool } from "./memory-read.js";
+export { createMemoryDeleteTool } from "./memory-delete.js";
 
 export function getBuiltinTools(): ToolImpl[] {
   return [readTool, writeTool, editTool, execTool, execStatusTool, execKillTool, webFetchTool, webSearchTool, reactionTool];
