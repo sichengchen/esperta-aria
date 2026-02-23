@@ -1,12 +1,13 @@
 ---
 id: 83
 title: fix: expose missing memory tools (recall, list, search, delete)
-status: active
+status: done
 type: fix
 priority: 1
 phase: 006-full-stack-polish
 branch: fix/memory-tools-complete
 created: 2026-02-22
+shipped_at: 2026-02-23
 ---
 # fix: expose missing memory tools (recall, list, search, delete)
 
