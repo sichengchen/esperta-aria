@@ -1,6 +1,6 @@
 # Built-in Tools
 
-SA exposes 14 runtime tools to the agent. Each tool carries a **danger level** that governs
+SA exposes 18 runtime tools to the agent. Each tool carries a **danger level** that governs
 approval behavior and event reporting across connectors.
 
 | # | Tool | Danger Level | Purpose |
@@ -15,10 +15,14 @@ approval behavior and event reporting across connectors.
 | 8 | `web_search` | safe | Web search via Brave or Perplexity |
 | 9 | `reaction` | safe | React to a message with an emoji (IM connectors) |
 | 10 | `remember` | safe | Save memory entry by key |
-| 11 | `read_skill` | safe | Load and activate a skill by name |
-| 12 | `set_env_secret` | safe | Store a secret in the encrypted vault (secrets.enc) |
-| 13 | `set_env_variable` | safe | Set a plain environment variable in config.json |
-| 14 | `notify` | safe | Push notification to Telegram/Discord |
+| 11 | `recall` | safe | Retrieve a memory entry by key |
+| 12 | `list_memories` | safe | List all stored memory keys |
+| 13 | `search_memories` | safe | Search memories by keyword |
+| 14 | `forget` | safe | Delete a memory entry by key |
+| 15 | `read_skill` | safe | Load and activate a skill by name |
+| 16 | `set_env_secret` | safe | Store a secret in the encrypted vault (secrets.enc) |
+| 17 | `set_env_variable` | safe | Set a plain environment variable in config.json |
+| 18 | `notify` | safe | Push notification to Telegram/Discord |
 
 *The `exec` tool is registered as `dangerous` but uses **hybrid classification** at runtime --
 see "Exec hybrid approval" below.
@@ -34,8 +38,9 @@ Every tool declares a `dangerLevel` of one of three tiers:
 Read-only or side-effect-free operations. These tools never trigger approval prompts regardless
 of connector configuration. They are suppressed from IM reporting by default.
 
-**Examples:** `read`, `web_fetch`, `web_search`, `remember`, `reaction`,
-`read_skill`, `exec_status`, `set_env_secret`, `set_env_variable`, `notify`
+**Examples:** `read`, `web_fetch`, `web_search`, `remember`, `recall`, `list_memories`,
+`search_memories`, `forget`, `reaction`, `read_skill`, `exec_status`, `set_env_secret`,
+`set_env_variable`, `notify`
 
 ### `moderate` -- context-dependent approval
 
@@ -477,6 +482,36 @@ Save a memory topic entry under the configured memory directory.
 |---|---|---|---|
 | `key` | string | Yes | Memory key (sanitized to filename-safe form) |
 | `content` | string | Yes | Content to save |
+
+### `recall`
+
+Retrieve a specific memory entry by key. Returns the content previously saved with `remember`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `key` | string | Yes | The memory key to retrieve |
+
+### `list_memories`
+
+List all stored memory keys. Returns a list of available memory entries.
+
+No parameters.
+
+### `search_memories`
+
+Search across all memory entries for a keyword or phrase. Returns matching entries with key and content snippet.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | Yes | The search term to look for across all memories |
+
+### `forget`
+
+Delete a memory entry by key. Permanently removes the stored information.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `key` | string | Yes | The memory key to delete |
 
 ### `read_skill`
 

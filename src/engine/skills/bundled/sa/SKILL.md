@@ -39,8 +39,8 @@ All configuration lives in `~/.sa/`:
 | `IDENTITY.md` | Agent name and personality |
 | `USER.md` | User profile, preferences, recurring context |
 | `secrets.enc` | Encrypted API keys and bot tokens |
-| `memory/MEMORY.md` | Long-term memory |
-| `memory/topics/` | Topic-specific memory files |
+| `memory/MEMORY.md` | Long-term memory (injected into system prompt) |
+| `memory/topics/` | Topic-specific memory files (managed via remember/recall/forget tools) |
 | `skills/` | User-installed skills |
 
 ## CLI Commands
