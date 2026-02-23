@@ -32,6 +32,18 @@ export const DEFAULT_CONFIG: SAConfigFile = {
     memory: {
       enabled: true,
       directory: "memory",
+      search: {
+        maxResults: 10,
+        vectorWeight: 0.6,
+        textWeight: 0.4,
+        temporalDecay: {
+          enabled: true,
+          halfLifeDays: 30,
+        },
+      },
+      journal: {
+        enabled: true,
+      },
     },
     toolApproval: {
       tui: "never",

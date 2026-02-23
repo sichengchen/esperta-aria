@@ -6,11 +6,10 @@ import { Agent } from "./agent/index.js";
 import type { ToolImpl, ToolApprovalCallback } from "./agent/index.js";
 import { MemoryManager } from "./memory/index.js";
 import { getBuiltinTools, formatToolsSection } from "./tools/index.js";
-import { createRememberTool } from "./tools/remember.js";
-import { createRecallTool } from "./tools/recall.js";
-import { createListMemoriesTool } from "./tools/list-memories.js";
-import { createSearchMemoriesTool } from "./tools/search-memories.js";
-import { createForgetTool } from "./tools/forget.js";
+import { createMemoryWriteTool } from "./tools/memory-write.js";
+import { createMemorySearchTool } from "./tools/memory-search.js";
+import { createMemoryReadTool } from "./tools/memory-read.js";
+import { createMemoryDeleteTool } from "./tools/memory-delete.js";
 import { createSetEnvSecretTool, createSetEnvVariableTool } from "./tools/set-api-key.js";
 import { createNotifyTool } from "./tools/notify.js";
 import { SessionManager } from "./sessions.js";
@@ -54,6 +53,25 @@ const REACTIONS_GUIDE = `## Reactions
 React with emoji liberally. Not every message needs a text reply — a 👍 or ❤️ is often enough. \
 React AND reply when both feel natural, or just react when the emoji says it all. \
 Match the tone: 👍 acknowledgment, ❤️ appreciation, 😂 humor, 🎉 celebrations, 🤔 curiosity.`;
+
+const MEMORY_GUIDE = `## Memory
+You have persistent memory across sessions. Use it proactively:
+
+**Reading memory:**
+- At the start of each conversation, use memory_search to find context relevant to the user's first message.
+- When a topic comes up that might have stored context, search before answering.
+- Use memory_read when you know the exact key from a previous search.
+
+**Writing memory:**
+- When the user shares facts, preferences, or decisions — write them to a topic: memory_write with a descriptive key.
+- When the user says "remember this" — always write immediately.
+- After substantive exchanges, write a brief journal entry: memory_write without a key.
+- Journal entries should be concise (1-3 sentences) capturing what was discussed and any decisions made.
+
+**What goes where:**
+- Topics (key provided): Stable facts — addresses, preferences, project context, people, schedules.
+- Journal (no key): Session notes — what was discussed, decisions made, tasks completed.
+- MEMORY.md: You cannot write to this directly. It is curated by the user.`;
 
 const SKILLS_DIRECTIVE = `## Skills (mandatory)
 Before replying to each user message, scan the <available_skills> list below.
@@ -100,6 +118,16 @@ export async function createRuntime(): Promise<EngineRuntime> {
   const memoryDir = join(config.homeDir, saConfig.runtime.memory.directory);
   const memory = new MemoryManager(memoryDir);
   await memory.init();
+
+  // Apply search weights from config
+  const searchConfig = saConfig.runtime.memory.search;
+  if (searchConfig) {
+    memory.setSearchWeights({
+      vectorWeight: searchConfig.vectorWeight,
+      textWeight: searchConfig.textWeight,
+      temporalDecay: searchConfig.temporalDecay,
+    });
+  }
 
   // Inject plain env vars from config.json (env vars take precedence)
   if (saConfig.runtime.env) {
@@ -157,6 +185,21 @@ export async function createRuntime(): Promise<EngineRuntime> {
     },
   );
 
+  // Wire embedding config from router to memory manager (if an embedding model is configured)
+  if (router.hasEmbedding()) {
+    const embCfg = router.getEmbeddingConfig()!;
+    const embProvider = router.getProvider(embCfg.provider);
+    try {
+      await memory.setEmbedding({
+        embed: (texts) => router.embed(texts),
+        provider: embProvider.type,
+        model: embCfg.model,
+      });
+    } catch (err) {
+      console.warn("[sa] Failed to initialize embeddings:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // Load skills
   const skills = new SkillRegistry();
   await skills.loadAll(saHome);
@@ -164,11 +207,10 @@ export async function createRuntime(): Promise<EngineRuntime> {
   // Build tools
   const tools = [
     ...getBuiltinTools(),
-    createRememberTool(memory),
-    createRecallTool(memory),
-    createListMemoriesTool(memory),
-    createSearchMemoriesTool(memory),
-    createForgetTool(memory),
+    createMemoryWriteTool(memory),
+    createMemorySearchTool(memory),
+    createMemoryReadTool(memory),
+    createMemoryDeleteTool(memory),
     createReadSkillTool(skills),
     createSetEnvSecretTool(config),
     createSetEnvVariableTool(config),
@@ -194,7 +236,8 @@ export async function createRuntime(): Promise<EngineRuntime> {
     `\n${SAFETY_ADVISORY}`,
     userProfile ? `\n## User Profile\n${userProfile}` : "",
     `\n${heartbeat}`,
-    memoryContext ? `\n## Memory\n${memoryContext}` : "",
+    `\n${MEMORY_GUIDE}`,
+    memoryContext ? `\n**Current memory context:**\n${memoryContext}` : "",
     skillsBlock,
   ]
     .filter(Boolean)

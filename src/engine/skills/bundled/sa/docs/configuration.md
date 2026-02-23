@@ -71,7 +71,19 @@ Single source of truth for runtime settings, providers, models, routing, policy,
     // Memory subsystem
     "memory": {
       "enabled": true,
-      "directory": "memory"           // relative to SA_HOME
+      "directory": "memory",          // relative to SA_HOME
+      "search": {
+        "maxResults": 10,             // max search results
+        "vectorWeight": 0.6,          // hybrid search: vector weight
+        "textWeight": 0.4,            // hybrid search: BM25 weight
+        "temporalDecay": {
+          "enabled": true,            // decay journal entries by age
+          "halfLifeDays": 30          // score halves every N days
+        }
+      },
+      "journal": {
+        "enabled": true               // daily append-only journal
+      }
     },
 
     // Per-connector tool approval mode
@@ -246,6 +258,12 @@ Single source of truth for runtime settings, providers, models, routing, policy,
 | `runtime.telegramBotTokenEnvVar` | string | `"TELEGRAM_BOT_TOKEN"` | Legacy runtime field for Telegram env-var name |
 | `runtime.memory.enabled` | boolean | `true` | Enable/disable memory subsystem |
 | `runtime.memory.directory` | string | `"memory"` | Memory directory path relative to `SA_HOME` |
+| `runtime.memory.search.maxResults` | number | `10` | Maximum search results |
+| `runtime.memory.search.vectorWeight` | number | `0.6` | Hybrid search vector weight (0-1) |
+| `runtime.memory.search.textWeight` | number | `0.4` | Hybrid search BM25 weight (0-1) |
+| `runtime.memory.search.temporalDecay.enabled` | boolean | `true` | Decay journal entry scores by age |
+| `runtime.memory.search.temporalDecay.halfLifeDays` | number | `30` | Score halves every N days |
+| `runtime.memory.journal.enabled` | boolean | `true` | Enable daily journal |
 | `runtime.toolApproval` | object | see below | Per-connector tool approval mode |
 | `runtime.webhook` | object | `{ enabled: false }` | Webhook connector settings |
 | `runtime.audio` | object | see below | Audio transcription settings |

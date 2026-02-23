@@ -14,6 +14,8 @@ import { Confirm, type WizardData } from "./steps/Confirm.js";
 import { saveSecrets } from "@sa/engine/config/secrets.js";
 import { BUNDLED_SKILLS_DIR } from "@sa/engine/skills/registry.js";
 import { EMBEDDED_SKILLS } from "@sa/engine/skills/embedded-skills.generated.js";
+import type { ModelConfig, ProviderConfig } from "@sa/engine/router/types.js";
+import type { ModelTier } from "@sa/engine/router/task-types.js";
 
 type Step = "welcome" | "identity" | "profile" | "model" | "telegram" | "discord" | "skills" | "confirm" | "done";
 
@@ -53,6 +55,7 @@ export function Wizard({ homeDir, onComplete, existingConfig }: WizardProps) {
     try {
       await mkdir(homeDir, { recursive: true });
       await mkdir(join(homeDir, "memory", "topics"), { recursive: true });
+      await mkdir(join(homeDir, "memory", "journal"), { recursive: true });
 
       // Write IDENTITY.md
       const identityMd = `# ${data.name}\n\n## Personality\n${data.personality}\n\n## System Prompt\nYou are ${data.name}, a personal AI agent assistant. You help with tasks, answer questions, and use tools when needed. Keep responses concise and actionable.\n`;
@@ -86,6 +89,66 @@ ${recurringContext}
 `;
       await writeFile(userProfilePath, userProfileContent);
 
+      // Build providers and models arrays (deduplicating providers)
+      const providerMap = new Map<string, ProviderConfig>();
+      const models: ModelConfig[] = [];
+      const modelTiers: Partial<Record<ModelTier, string>> = {};
+
+      // Primary model
+      providerMap.set(data.providerId, {
+        id: data.providerId,
+        type: data.providerType as ProviderConfig["type"],
+        apiKeyEnvVar: data.apiKeyEnvVar,
+        ...(data.baseUrl ? { baseUrl: data.baseUrl } : {}),
+      });
+      models.push({
+        name: "default",
+        provider: data.providerId,
+        model: data.model,
+        temperature: 0.7,
+        maxTokens: data.maxTokens ?? 8192,
+      });
+
+      // Eco model (optional)
+      if (data.ecoModel) {
+        const eco = data.ecoModel;
+        if (!providerMap.has(eco.providerId)) {
+          providerMap.set(eco.providerId, {
+            id: eco.providerId,
+            type: eco.providerType as ProviderConfig["type"],
+            apiKeyEnvVar: eco.apiKeyEnvVar,
+            ...(eco.baseUrl ? { baseUrl: eco.baseUrl } : {}),
+          });
+        }
+        models.push({
+          name: "eco",
+          provider: eco.providerId,
+          model: eco.model,
+          temperature: 0.7,
+          maxTokens: eco.maxTokens ?? 4096,
+        });
+        modelTiers.eco = "eco";
+      }
+
+      // Embedding model (optional)
+      if (data.embeddingModel) {
+        const emb = data.embeddingModel;
+        if (!providerMap.has(emb.providerId)) {
+          providerMap.set(emb.providerId, {
+            id: emb.providerId,
+            type: emb.providerType as ProviderConfig["type"],
+            apiKeyEnvVar: emb.apiKeyEnvVar,
+            ...(emb.baseUrl ? { baseUrl: emb.baseUrl } : {}),
+          });
+        }
+        models.push({
+          name: "embedding",
+          provider: emb.providerId,
+          model: emb.model,
+          type: "embedding",
+        });
+      }
+
       // Write merged config.json (v3 schema)
       const config = {
         version: 3,
@@ -93,24 +156,10 @@ ${recurringContext}
           activeModel: "default",
           telegramBotTokenEnvVar: "TELEGRAM_BOT_TOKEN",
           memory: { enabled: true, directory: "memory" },
+          ...(Object.keys(modelTiers).length > 0 ? { modelTiers } : {}),
         },
-        providers: [
-          {
-            id: data.providerId,
-            type: data.providerType,
-            apiKeyEnvVar: data.apiKeyEnvVar,
-            ...(data.baseUrl ? { baseUrl: data.baseUrl } : {}),
-          },
-        ],
-        models: [
-          {
-            name: "default",
-            provider: data.providerId,
-            model: data.model,
-            temperature: 0.7,
-            maxTokens: data.maxTokens ?? 8192,
-          },
-        ],
+        providers: Array.from(providerMap.values()),
+        models,
         defaultModel: "default",
       };
       await writeFile(
@@ -121,9 +170,11 @@ ${recurringContext}
       // Write empty MEMORY.md
       await writeFile(join(homeDir, "memory", "MEMORY.md"), "");
 
-      // Persist secrets (API key + bot tokens + pairing code) in encrypted file
+      // Persist secrets (API keys + bot tokens + pairing code) in encrypted file
       const apiKeys: Record<string, string> = {};
       if (data.apiKey) apiKeys[data.apiKeyEnvVar] = data.apiKey;
+      if (data.ecoModel?.apiKey) apiKeys[data.ecoModel.apiKeyEnvVar] = data.ecoModel.apiKey;
+      if (data.embeddingModel?.apiKey) apiKeys[data.embeddingModel.apiKeyEnvVar] = data.embeddingModel.apiKey;
       if (data.botToken) apiKeys.TELEGRAM_BOT_TOKEN = data.botToken;
       if (data.discordToken) apiKeys.DISCORD_TOKEN = data.discordToken;
       if (data.discordGuildId) apiKeys.DISCORD_GUILD_ID = data.discordGuildId;
@@ -215,6 +266,8 @@ ${recurringContext}
                   apiKeyEnvVar: data.apiKeyEnvVar,
                   apiKey: data.apiKey,
                   baseUrl: data.baseUrl,
+                  ecoModel: data.ecoModel,
+                  embeddingModel: data.embeddingModel,
                 }
               : undefined
           }

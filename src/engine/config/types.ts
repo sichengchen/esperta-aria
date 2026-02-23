@@ -82,6 +82,27 @@ export interface RuntimeConfig {
   memory: {
     enabled: boolean;
     directory: string;
+    /** Search configuration */
+    search?: {
+      /** Maximum number of search results (default: 10) */
+      maxResults?: number;
+      /** Weight for vector similarity in hybrid search (default: 0.6) */
+      vectorWeight?: number;
+      /** Weight for BM25 text score in hybrid search (default: 0.4) */
+      textWeight?: number;
+      /** Temporal decay settings for journal entries */
+      temporalDecay?: {
+        /** Whether temporal decay is enabled (default: true) */
+        enabled?: boolean;
+        /** Half-life in days — score halves every N days (default: 30) */
+        halfLifeDays?: number;
+      };
+    };
+    /** Journal (daily log) configuration */
+    journal?: {
+      /** Whether daily journal is enabled (default: true) */
+      enabled?: boolean;
+    };
   };
   /** Per-connector tool approval mode (default: "never" for tui, "ask" for IM connectors) */
   toolApproval?: ToolApprovalConfig;

@@ -2,17 +2,17 @@ import { Type } from "@mariozechner/pi-ai";
 import type { ToolImpl } from "../agent/types.js";
 import type { MemoryManager } from "../memory/index.js";
 
-export function createForgetTool(memory: MemoryManager): ToolImpl {
+export function createMemoryDeleteTool(memory: MemoryManager): ToolImpl {
   return {
-    name: "forget",
+    name: "memory_delete",
     description:
-      "Delete a memory entry by key. Permanently removes the stored information.",
+      "Delete a topic memory entry by key. Only works on topic files, not journal or MEMORY.md.",
     summary:
-      "Delete a memory entry by key. Use when information is no longer needed or the user asks to forget something.",
+      "Delete a memory topic by key. Cannot delete journal entries or MEMORY.md.",
     dangerLevel: "safe",
     parameters: Type.Object({
       key: Type.String({
-        description: "The memory key to delete",
+        description: "The topic key to delete (e.g. 'user-preferences')",
       }),
     }),
     async execute(args) {

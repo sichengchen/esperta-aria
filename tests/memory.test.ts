@@ -3,6 +3,7 @@ import { MemoryManager } from "@sa/engine/memory/index.js";
 import { writeFile, rm, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { existsSync } from "node:fs";
 
 const testDir = join(tmpdir(), "sa-test-memory-" + Date.now());
 
@@ -15,12 +16,16 @@ afterEach(async () => {
 });
 
 describe("MemoryManager", () => {
-  test("init creates directories and MEMORY.md", async () => {
+  test("init creates directories, MEMORY.md, and SQLite index", async () => {
     const mgr = new MemoryManager(testDir);
     await mgr.init();
 
     const context = await mgr.loadContext();
     expect(context).toBe("");
+    expect(existsSync(join(testDir, "topics"))).toBe(true);
+    expect(existsSync(join(testDir, "journal"))).toBe(true);
+    expect(existsSync(join(testDir, ".index.sqlite"))).toBe(true);
+    mgr.close();
   });
 
   test("save and get memory entries", async () => {
@@ -30,6 +35,7 @@ describe("MemoryManager", () => {
     await mgr.save("user-prefs", "Likes dark mode.");
     const content = await mgr.get("user-prefs");
     expect(content).toBe("Likes dark mode.");
+    mgr.close();
   });
 
   test("list returns saved keys", async () => {
@@ -42,6 +48,7 @@ describe("MemoryManager", () => {
     const keys = await mgr.list();
     expect(keys).toContain("prefs");
     expect(keys).toContain("context");
+    mgr.close();
   });
 
   test("delete removes entry", async () => {
@@ -51,6 +58,7 @@ describe("MemoryManager", () => {
     await mgr.save("temp", "temporary");
     expect(await mgr.delete("temp")).toBe(true);
     expect(await mgr.get("temp")).toBeNull();
+    mgr.close();
   });
 
   test("delete returns false for missing key", async () => {
@@ -58,9 +66,10 @@ describe("MemoryManager", () => {
     await mgr.init();
 
     expect(await mgr.delete("nonexistent")).toBe(false);
+    mgr.close();
   });
 
-  test("search finds matching entries", async () => {
+  test("search finds matching entries via FTS5", async () => {
     const mgr = new MemoryManager(testDir);
     await mgr.init();
 
@@ -70,6 +79,7 @@ describe("MemoryManager", () => {
     const results = await mgr.search("cats");
     expect(results).toHaveLength(1);
     expect(results[0].key).toBe("cats");
+    mgr.close();
   });
 
   test("search is case-insensitive", async () => {
@@ -80,6 +90,7 @@ describe("MemoryManager", () => {
 
     const results = await mgr.search("typescript");
     expect(results).toHaveLength(1);
+    mgr.close();
   });
 
   test("loadContext reads MEMORY.md", async () => {
@@ -89,6 +100,7 @@ describe("MemoryManager", () => {
     await writeFile(join(testDir, "MEMORY.md"), "Key insight: test works.");
     const context = await mgr.loadContext();
     expect(context).toBe("Key insight: test works.");
+    mgr.close();
   });
 
   test("loadContext truncates long MEMORY.md", async () => {
@@ -103,6 +115,7 @@ describe("MemoryManager", () => {
     expect(context).toContain("line 200");
     expect(context).toContain("...(truncated)");
     expect(context).not.toContain("line 201");
+    mgr.close();
   });
 
   test("sanitizes keys to safe filenames", async () => {
@@ -112,5 +125,182 @@ describe("MemoryManager", () => {
     await mgr.save("my/unsafe key!", "content");
     const content = await mgr.get("my/unsafe key!");
     expect(content).toBe("content");
+    mgr.close();
+  });
+});
+
+describe("MemoryManager — FTS5 search", () => {
+  test("searchIndex returns ranked SearchResult[]", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    await mgr.save("address", "My address is 123 Example St, Columbus OH");
+    await mgr.save("phone", "My phone number is 555-1234");
+
+    const results = await mgr.searchIndex("address");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results[0].sourceType).toBe("topic");
+    expect(results[0].source).toBe("topics/address.md");
+    expect(results[0].content).toContain("123 Example St");
+    expect(results[0].score).toBeGreaterThan(0);
+    expect(results[0].lineStart).toBeGreaterThanOrEqual(1);
+    mgr.close();
+  });
+
+  test("searchIndex filters by source type", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    await mgr.save("note", "Meeting notes for today");
+    await mgr.appendJournal("Had a meeting about project X");
+
+    const topicOnly = await mgr.searchIndex("meeting", { sourceType: "topic" });
+    const journalOnly = await mgr.searchIndex("meeting", { sourceType: "journal" });
+
+    expect(topicOnly.every((r) => r.sourceType === "topic")).toBe(true);
+    expect(journalOnly.every((r) => r.sourceType === "journal")).toBe(true);
+    mgr.close();
+  });
+
+  test("searchIndex respects maxResults", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    for (let i = 0; i < 5; i++) {
+      await mgr.save(`note-${i}`, `Important note number ${i} about testing`);
+    }
+
+    const limited = await mgr.searchIndex("note", { maxResults: 2 });
+    expect(limited.length).toBeLessThanOrEqual(2);
+    mgr.close();
+  });
+
+  test("searchIndex returns empty for no matches", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    await mgr.save("item", "Hello world");
+    const results = await mgr.searchIndex("zzzzzznonexistent");
+    expect(results).toEqual([]);
+    mgr.close();
+  });
+
+  test("search also indexes MEMORY.md", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    await writeFile(join(testDir, "MEMORY.md"), "The user prefers dark mode in all applications.");
+    await mgr.reindex();
+
+    const results = await mgr.searchIndex("dark mode");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results[0].sourceType).toBe("memory");
+    mgr.close();
+  });
+
+  test("deleted entries are removed from index", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    await mgr.save("removeme", "This content will be deleted.");
+    let results = await mgr.searchIndex("deleted");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+
+    await mgr.delete("removeme");
+    results = await mgr.searchIndex("deleted");
+    expect(results).toEqual([]);
+    mgr.close();
+  });
+});
+
+describe("MemoryManager — Journal", () => {
+  test("appendJournal creates and appends to daily file", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    await mgr.appendJournal("First entry.", "2026-02-22");
+    let content = await mgr.getJournal("2026-02-22");
+    expect(content).toBe("First entry.");
+
+    await mgr.appendJournal("Second entry.", "2026-02-22");
+    content = await mgr.getJournal("2026-02-22");
+    expect(content).toBe("First entry.\n\nSecond entry.");
+    mgr.close();
+  });
+
+  test("getJournal returns null for missing date", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    expect(await mgr.getJournal("2020-01-01")).toBeNull();
+    mgr.close();
+  });
+
+  test("journal entries are searchable", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    await mgr.appendJournal("Discussed the new database migration plan.", "2026-02-22");
+    const results = await mgr.searchIndex("database migration");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results[0].sourceType).toBe("journal");
+    mgr.close();
+  });
+});
+
+describe("MemoryManager — Reindex and migration", () => {
+  test("reindex picks up externally created topic files", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    // Create a topic file externally (simulating migration)
+    await writeFile(join(testDir, "topics", "external.md"), "Externally created memory file.");
+    await mgr.reindex();
+
+    const results = await mgr.searchIndex("externally created");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    expect(results[0].source).toBe("topics/external.md");
+    mgr.close();
+  });
+
+  test("reindex removes entries for deleted files", async () => {
+    const mgr = new MemoryManager(testDir);
+    await mgr.init();
+
+    await mgr.save("willdelete", "This unique content will be gone soon.");
+    // Verify it's indexed
+    expect((await mgr.searchIndex("unique content")).length).toBeGreaterThanOrEqual(1);
+
+    // Delete file externally
+    const { unlink } = await import("node:fs/promises");
+    await unlink(join(testDir, "topics", "willdelete.md"));
+    await mgr.reindex();
+
+    expect(await mgr.searchIndex("unique content")).toEqual([]);
+    mgr.close();
+  });
+
+  test("memories survive manager restart with reindex", async () => {
+    const mgr1 = new MemoryManager(testDir);
+    await mgr1.init();
+    await mgr1.save("user-name", "The user's name is Alice.");
+    await mgr1.save("preferences", "Prefers dark mode and TypeScript.");
+    mgr1.close();
+
+    // New manager instance — reindex on init
+    const mgr2 = new MemoryManager(testDir);
+    await mgr2.init();
+
+    const name = await mgr2.get("user-name");
+    expect(name).toBe("The user's name is Alice.");
+
+    const results = await mgr2.search("alice");
+    expect(results).toHaveLength(1);
+    expect(results[0].key).toBe("user-name");
+
+    const keys = await mgr2.list();
+    expect(keys).toContain("user-name");
+    expect(keys).toContain("preferences");
+    mgr2.close();
   });
 });
