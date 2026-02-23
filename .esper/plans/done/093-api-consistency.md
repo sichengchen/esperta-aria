@@ -8,6 +8,7 @@ phase: 007-memory-redesign
 branch: fix/api-consistency
 created: 2026-02-23
 shipped_at: 2026-02-23
+pr: https://github.com/sichengchen/sa/pull/26
 ---
 # fix: standardize tRPC mutation return shapes and session ID pairing entropy
 
