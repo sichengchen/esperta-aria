@@ -7,6 +7,10 @@ import type { ToolImpl, ToolApprovalCallback } from "./agent/index.js";
 import { MemoryManager } from "./memory/index.js";
 import { getBuiltinTools, formatToolsSection } from "./tools/index.js";
 import { createRememberTool } from "./tools/remember.js";
+import { createRecallTool } from "./tools/recall.js";
+import { createListMemoriesTool } from "./tools/list-memories.js";
+import { createSearchMemoriesTool } from "./tools/search-memories.js";
+import { createForgetTool } from "./tools/forget.js";
 import { createSetEnvSecretTool, createSetEnvVariableTool } from "./tools/set-api-key.js";
 import { createNotifyTool } from "./tools/notify.js";
 import { SessionManager } from "./sessions.js";
@@ -161,6 +165,10 @@ export async function createRuntime(): Promise<EngineRuntime> {
   const tools = [
     ...getBuiltinTools(),
     createRememberTool(memory),
+    createRecallTool(memory),
+    createListMemoriesTool(memory),
+    createSearchMemoriesTool(memory),
+    createForgetTool(memory),
     createReadSkillTool(skills),
     createSetEnvSecretTool(config),
     createSetEnvVariableTool(config),
