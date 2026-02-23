@@ -8,6 +8,7 @@ phase: 007-memory-redesign
 branch: fix/error-handling-leaks
 created: 2026-02-23
 shipped_at: 2026-02-23
+pr: https://github.com/sichengchen/sa/pull/24
 ---
 # fix: temp dir leak, clearTimeout gap, and silent stream-handler catches
 
