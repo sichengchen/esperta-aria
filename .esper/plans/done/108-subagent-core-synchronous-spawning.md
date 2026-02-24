@@ -1,14 +1,14 @@
 ---
 id: 108
-title: "Subagent core — synchronous spawning + delegate tool"
-status: pending
+title: Subagent core — synchronous spawning + delegate tool
+status: done
 type: feature
 priority: 2
 phase: 008-security-and-subagents
 branch: feature/008-security-and-subagents
 created: 2026-02-23
+shipped_at: 2026-02-24
 ---
-
 # Subagent core — synchronous spawning + delegate tool
 
 ## Context
@@ -138,3 +138,13 @@ orchestration?: {
 - Expected: No errors
 - Manual: Ask agent to "delegate researching the weather in Tokyo to a sub-agent" — sub-agent runs, result returned inline
 - Edge cases: SubAgent calls a tool that errors, SubAgent generates no text output, parent agent times out while SubAgent is running
+
+## Progress
+- Created SubAgent class with filtered tool registry, auto-approve, configurable timeout, eco tier default
+- Created createDelegateTool factory that spawns SubAgent and returns structured result
+- Added delegate tool to EngineRuntime tools array
+- Added orchestration config to RuntimeConfig types
+- Added sub_agent_start/sub_agent_end event types to shared types
+- 9 unit tests (5 SubAgent + 4 delegate tool) covering construction, tool filtering, metadata
+- Modified: sub-agent.ts, sub-agent.test.ts, delegate.ts, delegate.test.ts, index.ts, runtime.ts, config/types.ts, shared/types.ts
+- Verification: 711 tests pass, typecheck clean, lint clean
