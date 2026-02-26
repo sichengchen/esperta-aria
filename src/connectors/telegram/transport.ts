@@ -26,6 +26,8 @@ export class TelegramConnector {
   /** Track last user message for emoji reactions */
   private lastUserMessageId: number | null = null;
   private lastUserChatId: number | null = null;
+  /** Pending user questions: chatId → questionId (for free-text responses) */
+  private pendingFreeTextQuestions = new Map<number, string>();
 
   constructor(client: EngineClient, options: TelegramConnectorOptions) {
     this.bot = new Bot(options.botToken);
@@ -97,6 +99,52 @@ export class TelegramConnector {
       });
       this.activeSessions.set(prefix, session.id);
       await ctx.reply("New session started.");
+    });
+
+    // /shutdown command — stop SA engine completely
+    this.bot.command("shutdown", async (ctx) => {
+      if (!this.isAllowed(ctx.message!.chat.id)) return;
+      try {
+        await ctx.reply("Shutting down SA engine...");
+        await this.client.engine.shutdown.mutate();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await ctx.reply(`Failed to shutdown: ${msg}`);
+      }
+    });
+
+    // /restart command — restart SA engine
+    this.bot.command("restart", async (ctx) => {
+      if (!this.isAllowed(ctx.message!.chat.id)) return;
+      try {
+        await ctx.reply("Restarting SA engine...");
+        await this.client.engine.restart.mutate();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await ctx.reply(`Failed to restart: ${msg}`);
+      }
+    });
+
+    // /stop command — cancel running agent work
+    this.bot.command("stop", async (ctx) => {
+      if (!this.isAllowed(ctx.message!.chat.id)) return;
+      try {
+        const chatId = ctx.message!.chat.id;
+        const prefix = `telegram:${chatId}`;
+        const sessionId = this.activeSessions.get(prefix);
+        if (sessionId) {
+          const result = await this.client.chat.stop.mutate({ sessionId });
+          await ctx.reply(result.cancelled ? "Stopped all running tasks." : "Nothing running.");
+        } else {
+          const result = await this.client.chat.stopAll.mutate();
+          await ctx.reply(result.cancelled > 0
+            ? `Stopped ${result.cancelled} running agent(s).`
+            : "Nothing running.");
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await ctx.reply(`Failed to stop: ${msg}`);
+      }
     });
 
     // /status command
@@ -181,6 +229,20 @@ export class TelegramConnector {
       await ctx.editMessageReplyMarkup({ reply_markup: undefined });
     });
 
+    // Question answer callback queries (multiple-choice)
+    this.bot.callbackQuery(/^answer:([^:]+):(.+)$/, async (ctx) => {
+      const questionId = ctx.match![1]!;
+      const answer = ctx.match![2]!;
+      try {
+        await this.client.question.answer.mutate({ id: questionId, answer });
+        await ctx.answerCallbackQuery({ text: "Answered" });
+        await ctx.editMessageText(`Answer: ${answer}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await ctx.answerCallbackQuery({ text: `Error: ${msg}` });
+      }
+    });
+
     // Message handler
     this.bot.on("message:text", async (ctx) => {
       if (!this.isAllowed(ctx.message.chat.id)) return;
@@ -188,6 +250,21 @@ export class TelegramConnector {
       let userText = ctx.message.text;
       // Skip commands already handled above
       if (userText.startsWith("/")) return;
+
+      // Check if this is a response to a pending free-text question
+      const chatId = ctx.message.chat.id;
+      const pendingQuestionId = this.pendingFreeTextQuestions.get(chatId);
+      if (pendingQuestionId) {
+        this.pendingFreeTextQuestions.delete(chatId);
+        try {
+          await this.client.question.answer.mutate({ id: pendingQuestionId, answer: userText });
+          await ctx.reply(`Answer recorded: ${userText.slice(0, 200)}`);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          await ctx.reply(`Failed to submit answer: ${msg}`);
+        }
+        return;
+      }
 
       // Group chat gate: only respond when @mentioned or replied to
       const botInfo = this.bot.botInfo;
@@ -263,6 +340,25 @@ export class TelegramConnector {
                     `Tool: ${event.name}\nApprove execution?`,
                     { reply_markup: keyboard },
                   );
+                  break;
+                }
+
+                case "user_question": {
+                  if (event.options && event.options.length > 0) {
+                    // Multiple-choice: inline keyboard buttons
+                    const qKeyboard = new InlineKeyboard();
+                    for (const opt of event.options) {
+                      qKeyboard.text(opt, `answer:${event.id}:${opt}`).row();
+                    }
+                    await ctx.reply(
+                      `❓ ${event.question}`,
+                      { reply_markup: qKeyboard },
+                    );
+                  } else {
+                    // Free-text: send question and wait for next message
+                    this.pendingFreeTextQuestions.set(ctx.message.chat.id, event.id);
+                    await ctx.reply(`❓ ${event.question}\n\n(Reply with your answer)`);
+                  }
                   break;
                 }
 
@@ -403,6 +499,20 @@ export class TelegramConnector {
                   break;
                 }
 
+                case "user_question": {
+                  if (event.options && event.options.length > 0) {
+                    const qKeyboard = new InlineKeyboard();
+                    for (const opt of event.options) {
+                      qKeyboard.text(opt, `answer:${event.id}:${opt}`).row();
+                    }
+                    await ctx.reply(`❓ ${event.question}`, { reply_markup: qKeyboard });
+                  } else {
+                    this.pendingFreeTextQuestions.set(ctx.message.chat.id, event.id);
+                    await ctx.reply(`❓ ${event.question}\n\n(Reply with your answer)`);
+                  }
+                  break;
+                }
+
                 case "done":
                   handleDone();
                   break;
@@ -432,6 +542,9 @@ export class TelegramConnector {
   async start(): Promise<void> {
     await this.bot.api.setMyCommands([
       { command: "new", description: "Start a new session" },
+      { command: "stop", description: "Stop all running tasks" },
+      { command: "restart", description: "Restart the SA engine" },
+      { command: "shutdown", description: "Stop the SA engine" },
       { command: "status", description: "Show engine status" },
       { command: "model", description: "List and switch models" },
       { command: "provider", description: "List configured providers" },

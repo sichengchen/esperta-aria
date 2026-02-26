@@ -25,6 +25,9 @@ export { createMemoryReadTool } from "./memory-read.js";
 export { createMemoryDeleteTool } from "./memory-delete.js";
 export { createDelegateTool } from "./delegate.js";
 export { createDelegateStatusTool } from "./delegate-status.js";
+export { createClaudeCodeTool } from "./claude-code.js";
+export { createCodexTool } from "./codex.js";
+export { askUserTool } from "./ask-user.js";
 
 export function getBuiltinTools(): ToolImpl[] {
   return [readTool, writeTool, editTool, execTool, execStatusTool, execKillTool, webSearchTool, reactionTool];

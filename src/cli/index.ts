@@ -107,6 +107,94 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
     const existing = isConfigured() ? await loadExistingConfig() : undefined;
     await runOnboarding(existing);
   },
+  slack: async (cmdArgs) => {
+    const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3420;
+    const { startSlackConnector } = await import("@sa/connectors/slack/index.js");
+    await startSlackConnector(port);
+  },
+  teams: async (cmdArgs) => {
+    const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3421;
+    const { startTeamsConnector } = await import("@sa/connectors/teams/index.js");
+    await startTeamsConnector(port);
+  },
+  gchat: async (cmdArgs) => {
+    const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3422;
+    const { startGChatConnector } = await import("@sa/connectors/gchat/index.js");
+    await startGChatConnector(port);
+  },
+  github: async (cmdArgs) => {
+    const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3424;
+    const { startGitHubConnector } = await import("@sa/connectors/github/index.js");
+    await startGitHubConnector(port);
+  },
+  linear: async (cmdArgs) => {
+    const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3425;
+    const { startLinearConnector } = await import("@sa/connectors/linear/index.js");
+    await startLinearConnector(port);
+  },
+  shutdown: async () => {
+    const { createTuiClient } = await import("@sa/connectors/tui/client.js");
+    try {
+      const client = createTuiClient();
+      console.log("Shutting down SA engine...");
+      await client.engine.shutdown.mutate();
+      console.log("SA engine stopped.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to shut down: ${msg}`);
+      console.error("Is the Engine running? Try 'sa engine status'.");
+      process.exit(1);
+    }
+  },
+  restart: async () => {
+    const { createTuiClient } = await import("@sa/connectors/tui/client.js");
+    try {
+      const client = createTuiClient();
+      console.log("Restarting SA engine...");
+      await client.engine.restart.mutate();
+      // Wait for engine to come back up
+      let retries = 0;
+      while (retries < 30) {
+        await new Promise((r) => setTimeout(r, 500));
+        try {
+          const freshClient = createTuiClient();
+          await freshClient.health.ping.query();
+          console.log("SA engine restarted successfully.");
+          return;
+        } catch {
+          retries++;
+        }
+      }
+      console.log("SA engine restart initiated. It may still be starting up.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to restart: ${msg}`);
+      console.error("Is the Engine running? Try 'sa engine restart'.");
+      process.exit(1);
+    }
+  },
+  stop: async () => {
+    const { createTuiClient } = await import("@sa/connectors/tui/client.js");
+    try {
+      const client = createTuiClient();
+      const result = await client.chat.stopAll.mutate();
+      if (result.cancelled > 0) {
+        console.log(`Stopped ${result.cancelled} running agent(s) out of ${result.total} total.`);
+      } else {
+        console.log("No agents are currently running.");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to stop agents: ${msg}`);
+      console.error("Is the Engine running? Try 'sa engine status'.");
+      process.exit(1);
+    }
+  },
+  discord: async (cmdArgs) => {
+    const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3423;
+    const { startDiscordConnector } = await import("@sa/connectors/discord/index.js");
+    await startDiscordConnector(port);
+  },
   __engine: async () => {
     await import("@sa/engine/index.js");
   },
@@ -119,6 +207,15 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
     console.log("  config      Interactive configuration editor");
     console.log("  onboard     Run the onboarding wizard");
     console.log("  engine      Manage the Engine daemon (start/stop/status/logs/restart)");
+    console.log("  stop        Stop all running agent tasks");
+    console.log("  restart     Restart the SA engine");
+    console.log("  shutdown    Stop the SA engine completely");
+    console.log("  discord     Start the Discord connector (webhook server on port 3423)");
+    console.log("  slack       Start the Slack connector (webhook server on port 3420)");
+    console.log("  teams       Start the Teams connector (webhook server on port 3421)");
+    console.log("  gchat       Start the Google Chat connector (webhook server on port 3422)");
+    console.log("  github      Start the GitHub connector (webhook server on port 3424)");
+    console.log("  linear      Start the Linear connector (webhook server on port 3425)");
     console.log("  help        Show this help message\n");
     console.log("Flags:");
     console.log("  --help, -h  Show this help message");

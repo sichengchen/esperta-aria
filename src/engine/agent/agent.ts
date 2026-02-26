@@ -20,6 +20,8 @@ export class Agent {
   private registry: ToolRegistry;
   private options: AgentOptions;
   private messages: Message[] = [];
+  /** Current active AbortController — set during chat(), null when idle */
+  private activeAbortController: AbortController | null = null;
 
   constructor(options: AgentOptions) {
     this.options = options;
@@ -27,6 +29,18 @@ export class Agent {
     for (const tool of options.tools ?? []) {
       this.registry.register(tool);
     }
+  }
+
+  /** Whether the agent is currently running a chat turn */
+  get isRunning(): boolean {
+    return this.activeAbortController !== null;
+  }
+
+  /** Abort the current chat turn. No-op if idle. */
+  abort(): boolean {
+    if (!this.activeAbortController) return false;
+    this.activeAbortController.abort();
+    return true;
   }
 
   /** Stream a chat turn: sends user message, handles tool calls, yields events */
@@ -38,10 +52,11 @@ export class Agent {
     };
     this.messages.push(userMsg);
 
-    // Set up timeout
+    // Set up timeout and external abort support
     const timeoutMs = this.options.timeoutMs ?? DEFAULT_AGENT_TIMEOUT_MS;
-    const ac = timeoutMs > 0 ? new AbortController() : null;
-    const timeoutId = ac && timeoutMs > 0
+    const ac = new AbortController();
+    this.activeAbortController = ac;
+    const timeoutId = timeoutMs > 0
       ? setTimeout(() => ac.abort(), timeoutMs)
       : null;
 
@@ -98,6 +113,47 @@ export class Agent {
                   if (ac?.signal.aborted) {
                     yield { type: "error", message: `Agent timeout (${timeoutMs / 1000}s) exceeded` };
                     return;
+                  }
+
+                  // Intercept ask_user tool — handle via onAskUser callback
+                  if (tc.name === "ask_user" && this.options.onAskUser) {
+                    const args = tc.arguments as Record<string, unknown>;
+                    const question = String(args.question ?? "");
+                    const rawOptions = args.options;
+                    const options = Array.isArray(rawOptions) && rawOptions.length > 0
+                      ? rawOptions.map(String)
+                      : undefined;
+
+                    yield { type: "user_question", id: tc.id, question, options };
+
+                    try {
+                      const answer = await this.options.onAskUser(tc.id, question, options);
+                      const result = { content: answer, isError: false };
+                      yield { type: "tool_end", name: tc.name, id: tc.id, result };
+                      const toolResultMsg: ToolResultMessage = {
+                        role: "toolResult",
+                        toolCallId: tc.id,
+                        toolName: tc.name,
+                        content: [{ type: "text", text: answer }],
+                        isError: false,
+                        timestamp: Date.now(),
+                      };
+                      this.messages.push(toolResultMsg);
+                    } catch (err) {
+                      const errMsg = err instanceof Error ? err.message : String(err);
+                      const result = { content: `Question timed out or failed: ${errMsg}`, isError: true };
+                      yield { type: "tool_end", name: tc.name, id: tc.id, result };
+                      const toolResultMsg: ToolResultMessage = {
+                        role: "toolResult",
+                        toolCallId: tc.id,
+                        toolName: tc.name,
+                        content: [{ type: "text", text: result.content }],
+                        isError: true,
+                        timestamp: Date.now(),
+                      };
+                      this.messages.push(toolResultMsg);
+                    }
+                    continue;
                   }
 
                   // If an approval callback is set, request approval first
@@ -226,6 +282,7 @@ export class Agent {
       }
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
+      this.activeAbortController = null;
     }
   }
 
