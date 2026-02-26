@@ -13,7 +13,7 @@ import type { Session } from "@sa/shared/types.js";
 
 type EngineClient = ReturnType<typeof createTuiClient>;
 
-const TUI_COMMANDS = ["/new", "/stop", "/restart", "/status", "/model", "/models", "/provider", "/sessions", "/switch"];
+const TUI_COMMANDS = ["/new", "/stop", "/restart", "/shutdown", "/status", "/model", "/models", "/provider", "/sessions", "/switch"];
 
 interface AppProps {
   client: EngineClient;
@@ -129,6 +129,19 @@ export function App({ client }: AppProps) {
         }
         setStreamingText("");
         setIsStreaming(false);
+        return;
+      }
+
+      // Handle /shutdown command — stop the engine completely
+      if (text === "/shutdown") {
+        try {
+          addMessage({ role: "tool", content: "Shutting down SA engine...", toolName: "system" });
+          await client.engine.shutdown.mutate();
+          setTimeout(() => exit(), 500);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          addMessage({ role: "error", content: msg });
+        }
         return;
       }
 
