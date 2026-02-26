@@ -255,6 +255,17 @@ export class ChatSDKAdapter {
       }
     }
 
+    if (text === "/shutdown") {
+      try {
+        await thread.post("Shutting down SA engine...");
+        await this.client.engine.shutdown.mutate();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await thread.post(`Failed to shutdown: ${msg}`);
+      }
+      return true;
+    }
+
     if (text === "/restart") {
       try {
         await thread.post("Restarting SA engine...");

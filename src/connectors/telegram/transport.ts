@@ -99,6 +99,18 @@ export class TelegramConnector {
       await ctx.reply("New session started.");
     });
 
+    // /shutdown command — stop SA engine completely
+    this.bot.command("shutdown", async (ctx) => {
+      if (!this.isAllowed(ctx.message!.chat.id)) return;
+      try {
+        await ctx.reply("Shutting down SA engine...");
+        await this.client.engine.shutdown.mutate();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await ctx.reply(`Failed to shutdown: ${msg}`);
+      }
+    });
+
     // /restart command — restart SA engine
     this.bot.command("restart", async (ctx) => {
       if (!this.isAllowed(ctx.message!.chat.id)) return;
@@ -468,6 +480,7 @@ export class TelegramConnector {
       { command: "new", description: "Start a new session" },
       { command: "stop", description: "Stop all running tasks" },
       { command: "restart", description: "Restart the SA engine" },
+      { command: "shutdown", description: "Stop the SA engine" },
       { command: "status", description: "Show engine status" },
       { command: "model", description: "List and switch models" },
       { command: "provider", description: "List configured providers" },

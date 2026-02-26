@@ -1132,6 +1132,39 @@ export function createAppRouter(runtime: EngineRuntime) {
 
     /** Engine lifecycle */
     engine: router({
+      /** Shut down the engine process (no restart) */
+      shutdown: protectedProcedure.mutation((): { shuttingDown: boolean } => {
+        // Stop all running agents first
+        for (const [sid, agent] of sessionAgents.entries()) {
+          agent.abort();
+          for (const [toolCallId, meta] of pendingApprovalMeta.entries()) {
+            if (meta.sessionId === sid) {
+              const resolver = pendingApprovals.get(toolCallId);
+              if (resolver) {
+                resolver(false);
+                pendingApprovals.delete(toolCallId);
+              }
+              pendingApprovalMeta.delete(toolCallId);
+            }
+          }
+        }
+
+        auditLog(runtime, {
+          session: "global",
+          connector: "engine",
+          event: "tool_call",
+          tool: "shutdown",
+          summary: "Engine shutdown requested",
+        });
+
+        // Schedule shutdown — no restart marker
+        setTimeout(() => {
+          process.kill(process.pid, "SIGTERM");
+        }, 200);
+
+        return { shuttingDown: true };
+      }),
+
       /** Restart the engine process */
       restart: protectedProcedure.mutation((): { restarting: boolean } => {
         // Stop all running agents first

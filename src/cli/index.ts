@@ -132,6 +132,20 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
     const { startLinearConnector } = await import("@sa/connectors/linear/index.js");
     await startLinearConnector(port);
   },
+  shutdown: async () => {
+    const { createTuiClient } = await import("@sa/connectors/tui/client.js");
+    try {
+      const client = createTuiClient();
+      console.log("Shutting down SA engine...");
+      await client.engine.shutdown.mutate();
+      console.log("SA engine stopped.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to shut down: ${msg}`);
+      console.error("Is the Engine running? Try 'sa engine status'.");
+      process.exit(1);
+    }
+  },
   restart: async () => {
     const { createTuiClient } = await import("@sa/connectors/tui/client.js");
     try {
@@ -195,6 +209,7 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
     console.log("  engine      Manage the Engine daemon (start/stop/status/logs/restart)");
     console.log("  stop        Stop all running agent tasks");
     console.log("  restart     Restart the SA engine");
+    console.log("  shutdown    Stop the SA engine completely");
     console.log("  discord     Start the Discord connector (webhook server on port 3423)");
     console.log("  slack       Start the Slack connector (webhook server on port 3420)");
     console.log("  teams       Start the Teams connector (webhook server on port 3421)");
