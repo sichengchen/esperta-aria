@@ -1,12 +1,13 @@
 ---
 id: 112
 title: fix: stale engine.token after restart causes auth failure
-status: active
+status: done
 type: fix
 priority: 1
 phase: 008-security-and-subagents
 branch: fix/stale-engine-token
 created: 2026-02-25
+shipped_at: 2026-02-26
 ---
 # fix: stale engine.token after restart causes auth failure
 
