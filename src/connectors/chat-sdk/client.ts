@@ -15,8 +15,8 @@ function readEngineUrl(): string {
   return `http://127.0.0.1:${DEFAULT_HTTP_PORT}`;
 }
 
-/** Create a tRPC client for Discord Connector */
-export function createDiscordClient() {
+/** Create a tRPC client for Chat SDK connectors */
+export function createChatSDKClient() {
   const httpUrl = readEngineUrl();
   const url = new URL(httpUrl);
   const wsPort = parseInt(url.port, 10) + 1;

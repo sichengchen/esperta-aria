@@ -7,13 +7,14 @@ import { StatusBar } from "./StatusBar.js";
 import { ModelPicker } from "./ModelPicker.js";
 import { SessionPicker } from "./SessionPicker.js";
 import { ToolApproval } from "./ToolApproval.js";
+import { UserQuestion } from "./UserQuestion.js";
 import { createTuiClient } from "./client.js";
 import type { ModelConfig, ProviderConfig } from "@sa/engine/router/types.js";
 import type { Session } from "@sa/shared/types.js";
 
 type EngineClient = ReturnType<typeof createTuiClient>;
 
-const TUI_COMMANDS = ["/new", "/status", "/model", "/models", "/provider", "/sessions", "/switch"];
+const TUI_COMMANDS = ["/new", "/stop", "/restart", "/shutdown", "/status", "/model", "/models", "/provider", "/sessions", "/switch"];
 
 interface AppProps {
   client: EngineClient;
@@ -37,6 +38,11 @@ export function App({ client }: AppProps) {
     toolName: string;
     toolCallId: string;
     args: Record<string, unknown>;
+  } | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<{
+    questionId: string;
+    question: string;
+    options?: string[];
   } | null>(null);
 
   const msgIdRef = useRef(0);
@@ -109,6 +115,53 @@ export function App({ client }: AppProps) {
           setSessionConnectorType("tui");
           addMessage({ role: "tool", content: `New session started: ${session.id.slice(0, 12)}`, toolName: "system" });
         } catch {}
+        return;
+      }
+
+      // Handle /stop command — abort current agent work
+      if (text === "/stop") {
+        try {
+          if (sessionId) {
+            const result = await client.chat.stop.mutate({ sessionId });
+            addMessage({
+              role: "tool",
+              content: result.cancelled ? "Stopped all running tasks." : "Nothing running.",
+              toolName: "system",
+            });
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          addMessage({ role: "error", content: msg });
+        }
+        setStreamingText("");
+        setIsStreaming(false);
+        return;
+      }
+
+      // Handle /shutdown command — stop the engine completely
+      if (text === "/shutdown") {
+        try {
+          addMessage({ role: "tool", content: "Shutting down SA engine...", toolName: "system" });
+          await client.engine.shutdown.mutate();
+          setTimeout(() => exit(), 500);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          addMessage({ role: "error", content: msg });
+        }
+        return;
+      }
+
+      // Handle /restart command — restart the engine
+      if (text === "/restart") {
+        try {
+          addMessage({ role: "tool", content: "Restarting SA engine...", toolName: "system" });
+          await client.engine.restart.mutate();
+          // Engine will shut down — exit TUI so user can reconnect
+          setTimeout(() => exit(), 500);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          addMessage({ role: "error", content: msg });
+        }
         return;
       }
 
@@ -251,6 +304,13 @@ export function App({ client }: AppProps) {
                     args: event.args,
                   });
                   break;
+                case "user_question":
+                  setPendingQuestion({
+                    questionId: event.id,
+                    question: event.question,
+                    options: event.options,
+                  });
+                  break;
                 case "reaction":
                   addMessage({ role: "tool", content: event.emoji, toolName: "reaction" });
                   break;
@@ -364,6 +424,15 @@ export function App({ client }: AppProps) {
     [client],
   );
 
+  const handleQuestionAnswer = useCallback(
+    (questionId: string, answer: string) => {
+      client.question.answer.mutate({ id: questionId, answer });
+      setPendingQuestion(null);
+      addMessage({ role: "tool", content: `Answer: ${answer}`, toolName: "ask_user" });
+    },
+    [client],
+  );
+
   const pickerOverlay = showModelPicker ? (
     <ModelPicker
       models={models}
@@ -406,6 +475,13 @@ export function App({ client }: AppProps) {
           onApprove={handleToolApprove}
           onReject={handleToolReject}
           onAcceptForSession={handleToolAcceptForSession}
+        />
+      ) : pendingQuestion ? (
+        <UserQuestion
+          questionId={pendingQuestion.questionId}
+          question={pendingQuestion.question}
+          options={pendingQuestion.options}
+          onAnswer={handleQuestionAnswer}
         />
       ) : pickerOverlay ?? (
         <Input onSubmit={handleSubmit} disabled={isStreaming || !connected} commands={TUI_COMMANDS} />

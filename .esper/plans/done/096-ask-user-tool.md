@@ -1,14 +1,15 @@
 ---
-id: 096
-title: "Ask User Question tool"
-status: pending
+id: 96
+title: Ask User Question tool
+status: done
 type: feature
 priority: 2
-phase: future
-branch: feature/future
+phase: 009-chat-sdk-and-agent-tools
+branch: feature/009-chat-sdk-and-agent-tools
 created: 2026-02-23
+shipped_at: 2026-02-26
+pr: https://github.com/sichengchen/sa/pull/31
 ---
-
 # Ask User Question tool
 
 ## Context
@@ -113,13 +114,21 @@ In `src/connectors/telegram/transport.ts`:
 - **Multiple-choice**: send message with inline keyboard buttons (one per option). Callback query handler calls `client.question.answer.mutate()`.
 - **Free-text**: send the question as a plain message. Set conversation state to "awaiting answer for question ID X". Next incoming message from that chat resolves it via the mutation.
 
-### 10. Discord connector
+### 10. Chat SDK connector (covers Discord, Slack, Teams, GChat, GitHub, Linear)
 
-Same pattern as Telegram — inline buttons for choices, next-message capture for free-text.
+In `src/connectors/chat-sdk/adapter.ts`, handle `user_question` events:
+- **Multiple-choice**: send message with platform buttons/actions (one per option). Button callback calls `client.question.answer.mutate()`.
+- **Free-text**: send the question as a plain message. Track pending question ID in adapter state. Next incoming message from that user resolves it via the mutation.
 
 ### 11. Update bundled skill docs
 
 Update `src/engine/skills/bundled/sa/docs/tools.md` to document the new `ask_user` tool.
+
+### 12. Update specs docs
+
+- Update `specs/tools/README.md` — add `ask_user` to tool inventory table (tool #20, safe).
+- Create `specs/tools/ask-user.md` — full spec for the tool (parameters, event flow, timeout, connector rendering).
+- Update `specs/security/approval-flow.md` if needed to reference the new question flow.
 
 ## Files to change
 
@@ -132,8 +141,10 @@ Update `src/engine/skills/bundled/sa/docs/tools.md` to document the new `ask_use
 - `src/connectors/tui/UserQuestion.tsx` (create — Ink question component)
 - `src/connectors/tui/App.tsx` (modify — handle `user_question` event, render `UserQuestion`)
 - `src/connectors/telegram/transport.ts` (modify — question event handling + callback queries)
-- `src/connectors/discord/transport.ts` (modify — question event handling)
+- `src/connectors/chat-sdk/adapter.ts` (modify — question event handling for all Chat SDK connectors)
 - `src/engine/skills/bundled/sa/docs/tools.md` (modify — document `ask_user`)
+- `specs/tools/README.md` (modify — add `ask_user` to tool inventory)
+- `specs/tools/ask-user.md` (create — full tool spec)
 - `src/engine/tools/ask-user.test.ts` (create — unit tests)
 
 ## Verification
@@ -148,3 +159,14 @@ Update `src/engine/skills/bundled/sa/docs/tools.md` to document the new `ask_use
   - User disconnects mid-question → timeout handles it
   - Empty options array → treat as free-text
   - Very long question text → TUI wraps properly
+
+## Progress
+- Implemented ask_user tool with full connector support (TUI, Telegram, Chat SDK)
+- Added user_question event to EngineEvent and AgentEvent types
+- Added onAskUser callback with 10-minute timeout + pendingQuestions broker
+- Created UserQuestion.tsx Ink component (multiple-choice + free-text modes)
+- Added question handling to Telegram (inline keyboard + free-text capture)
+- Added question handling to Chat SDK adapter (answer command + free-text capture)
+- Updated ALL specs and docs for phase 9 (overview, README, CLAUDE.md, cli, configuration, sessions, approval-flow, subagents, tools inventory, coding-agents spec)
+- Modified: src/shared/types.ts, src/engine/agent/types.ts, src/engine/agent/agent.ts, src/engine/agent/index.ts, src/engine/tools/ask-user.ts, src/engine/tools/index.ts, src/engine/runtime.ts, src/engine/procedures.ts, src/connectors/tui/UserQuestion.tsx, src/connectors/tui/App.tsx, src/connectors/telegram/transport.ts, src/connectors/chat-sdk/adapter.ts, specs/*, README.md, CLAUDE.md
+- Verification: typecheck ✓, lint ✓, tests ✓ (740 pass, 9 skip, 0 fail)
