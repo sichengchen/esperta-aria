@@ -1,14 +1,14 @@
 ---
 id: 114
 title: Chat SDK base adapter — shared bridge to SA engine
-status: pending
+status: done
 type: feature
 priority: 1
 phase: 009-chat-sdk-and-agent-tools
 branch: feature/009-chat-sdk-and-agent-tools
 created: 2026-02-25
+shipped_at: 2026-02-26
 ---
-
 # Chat SDK base adapter — shared bridge to SA engine
 
 ## Context
@@ -46,3 +46,14 @@ The existing `src/connectors/shared/stream-handler.ts` handles text delta thrott
 - Run: `bun run typecheck`
 - Expected: ChatSDKAdapter compiles with correct tRPC client types
 - Edge cases: Chat SDK's `thread.post()` streaming behavior may differ from SA's `createStreamHandler` — verify throttle timing works
+
+## Progress
+- Installed `chat` and `@chat-adapter/state-memory` packages
+- Created ChatSDKAdapter class with full event wiring (onNewMention, onSubscribedMessage, onAction)
+- Reuses existing createStreamHandler for text_delta throttling via Chat SDK's SentMessage.edit()
+- Session management: ensureSession maps Chat SDK threads to SA sessions via prefix-based lookup
+- Tool approval: text-based approve/reject commands + onAction handlers for Card buttons
+- Slash commands: /new, /status, /model, /model <name>, /provider
+- Created client.ts (tRPC factory), formatter.ts (splitMessage, formatToolResult, platform limits)
+- Modified: package.json, src/connectors/chat-sdk/ (4 new files)
+- Verification: typecheck, lint, all 738 tests pass
