@@ -85,3 +85,4 @@ Happy project (github.com/slopus/happy) informs the coding agent tool design —
 - Plan 122 — /restart command: Add `engine.restart` tRPC procedure with restart marker file, `/restart` in all connectors, `sa restart` CLI. Files: procedures.ts, engine/index.ts, adapter.ts, App.tsx, transport.ts, cli/index.ts
 - Plan 124 — Native claude_code tool: Replace bundled skill with ToolImpl using AgentSubprocess. Files: claude-code.ts, tools/index.ts, runtime.ts, SKILL.md
 - Plan 125 — Native codex tool: Replace bundled skill with ToolImpl using AgentSubprocess. Files: codex.ts, tools/index.ts, runtime.ts, SKILL.md
+- Plan 126 — /shutdown command: Add `engine.shutdown` tRPC procedure, `/shutdown` in all connectors, `sa shutdown` CLI. Files: procedures.ts, adapter.ts, App.tsx, transport.ts, cli/index.ts
