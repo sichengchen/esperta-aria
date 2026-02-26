@@ -1,14 +1,14 @@
 ---
 id: 122
 title: /restart command — force SA restart
-status: pending
+status: done
 type: feature
 priority: 2
 phase: 009-chat-sdk-and-agent-tools
 branch: feature/009-chat-sdk-and-agent-tools
 created: 2026-02-25
+shipped_at: 2026-02-26
 ---
-
 # /restart command — force SA restart
 
 ## Context
@@ -46,6 +46,14 @@ This differs from `/stop`: `/stop` cancels agent work but keeps the engine runni
 - `src/connectors/telegram/transport.ts` (modify — add `/restart` command)
 - `src/cli/index.ts` (modify — add `sa restart` command)
 - `src/cli/engine.ts` (modify — restart signal detection in launcher)
+
+## Progress
+- Added `engine.restart` tRPC procedure — stops all agents, writes restart marker, schedules SIGTERM
+- Modified engine/index.ts shutdown handler — checks restart marker, spawns new engine after server stops
+- Added `/restart` to ChatSDKAdapter, TUI (exits after triggering), and Telegram
+- Added `sa restart` CLI — triggers restart, polls health endpoint up to 15s for engine to come back
+- Modified: procedures.ts, engine/index.ts, adapter.ts, App.tsx, transport.ts, cli/index.ts
+- Verification: typecheck, lint, 740 tests pass
 
 ## Verification
 
