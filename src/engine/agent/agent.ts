@@ -16,6 +16,56 @@ import type { AgentOptions, AgentEvent, ToolImpl, ToolLoopConfig } from "./types
 /** Default agent timeout: 10 minutes (matching OpenClaw) */
 const DEFAULT_AGENT_TIMEOUT_MS = 600_000;
 
+/** Max retries for transient provider errors */
+const MAX_STREAM_RETRIES = 2;
+
+/** Base delay for exponential backoff (ms) */
+const RETRY_BASE_DELAY_MS = 1000;
+
+/** Check if a provider error is retryable */
+function isRetryableError(errorMessage: string): boolean {
+  // HTTP 429 (rate limit), 500 (server error), 503 (service unavailable)
+  if (/\b429\b/.test(errorMessage)) return true;
+  if (/\b500\b/.test(errorMessage)) return true;
+  if (/\b503\b/.test(errorMessage)) return true;
+  if (/rate.?limit/i.test(errorMessage)) return true;
+  if (/overloaded/i.test(errorMessage)) return true;
+  if (/exceeded.*quota/i.test(errorMessage)) return true;
+  // Gemini thought_signature errors are retryable after history sanitization
+  if (/thought_signature/i.test(errorMessage)) return true;
+  return false;
+}
+
+/** Log stream error metadata for diagnostics */
+function logStreamError(
+  errorMessage: string,
+  modelName: string,
+  messageCount: number,
+  toolCount: number,
+  attempt: number,
+): void {
+  console.warn(
+    `[agent] Stream error (attempt ${attempt}): model=${modelName}, messages=${messageCount}, tools=${toolCount}: ${errorMessage.slice(0, 200)}`,
+  );
+}
+
+/**
+ * Sanitize message history for Gemini 3 retry.
+ * Removes the failed error message and any assistant messages with tool calls
+ * that lack thought signatures — these cause "Invalid Input" on replay.
+ */
+function sanitizeHistoryForRetry(messages: Message[]): Message[] {
+  const result: Message[] = [];
+  for (const msg of messages) {
+    // Drop error messages (role "assistant" with errorMessage) — they were from the failed attempt
+    if (msg.role === "assistant" && (msg as AssistantMessage).errorMessage) {
+      continue;
+    }
+    result.push(msg);
+  }
+  return result;
+}
+
 export class Agent {
   private registry: ToolRegistry;
   private options: AgentOptions;
@@ -80,204 +130,247 @@ export class Agent {
 
         const model = this.options.router.getModel(this.options.modelOverride);
         const streamOpts = this.options.router.getStreamOptions(this.options.modelOverride);
-        const eventStream = stream(model, context, streamOpts);
 
-        const toolCalls: ToolCall[] = [];
+        // Retry loop for transient provider errors
+        let lastError: string | null = null;
+        let streamSucceeded = false;
 
-        for await (const event of eventStream) {
-          switch (event.type) {
-            case "text_delta":
-              yield { type: "text_delta", delta: event.delta };
-              break;
-            case "thinking_delta":
-              yield { type: "thinking_delta", delta: event.delta };
-              break;
-            case "toolcall_end":
-              toolCalls.push(event.toolCall);
-              yield {
-                type: "tool_start",
-                name: event.toolCall.name,
-                id: event.toolCall.id,
-                args: (event.toolCall.arguments ?? {}) as Record<string, unknown>,
-              };
-              break;
-            case "done": {
-              this.messages.push(event.message);
+        for (let attempt = 1; attempt <= MAX_STREAM_RETRIES + 1; attempt++) {
+          const eventStream = stream(model, context, streamOpts);
+          const toolCalls: ToolCall[] = [];
+          let shouldRetry = false;
 
-              if (event.reason === "toolUse" && toolCalls.length > 0) {
-                // Execute tools and add results to conversation
-                let circuitBroken = false;
+          for await (const event of eventStream) {
+            switch (event.type) {
+              case "text_delta":
+                yield { type: "text_delta", delta: event.delta };
+                break;
+              case "thinking_delta":
+                yield { type: "thinking_delta", delta: event.delta };
+                break;
+              case "toolcall_end":
+                toolCalls.push(event.toolCall);
+                yield {
+                  type: "tool_start",
+                  name: event.toolCall.name,
+                  id: event.toolCall.id,
+                  args: (event.toolCall.arguments ?? {}) as Record<string, unknown>,
+                };
+                break;
+              case "done": {
+                this.messages.push(event.message);
 
-                for (const tc of toolCalls) {
-                  // Check timeout before each tool execution
-                  if (ac?.signal.aborted) {
-                    yield { type: "error", message: `Agent timeout (${timeoutMs / 1000}s) exceeded` };
-                    return;
-                  }
+                if (event.reason === "toolUse" && toolCalls.length > 0) {
+                  // Execute tools and add results to conversation
+                  let circuitBroken = false;
 
-                  // Intercept ask_user tool — handle via onAskUser callback
-                  if (tc.name === "ask_user" && this.options.onAskUser) {
-                    const args = tc.arguments as Record<string, unknown>;
-                    const question = String(args.question ?? "");
-                    const rawOptions = args.options;
-                    const options = Array.isArray(rawOptions) && rawOptions.length > 0
-                      ? rawOptions.map(String)
-                      : undefined;
-
-                    yield { type: "user_question", id: tc.id, question, options };
-
-                    try {
-                      const answer = await this.options.onAskUser(tc.id, question, options);
-                      const result = { content: answer, isError: false };
-                      yield { type: "tool_end", name: tc.name, id: tc.id, result };
-                      const toolResultMsg: ToolResultMessage = {
-                        role: "toolResult",
-                        toolCallId: tc.id,
-                        toolName: tc.name,
-                        content: [{ type: "text", text: answer }],
-                        isError: false,
-                        timestamp: Date.now(),
-                      };
-                      this.messages.push(toolResultMsg);
-                    } catch (err) {
-                      const errMsg = err instanceof Error ? err.message : String(err);
-                      const result = { content: `Question timed out or failed: ${errMsg}`, isError: true };
-                      yield { type: "tool_end", name: tc.name, id: tc.id, result };
-                      const toolResultMsg: ToolResultMessage = {
-                        role: "toolResult",
-                        toolCallId: tc.id,
-                        toolName: tc.name,
-                        content: [{ type: "text", text: result.content }],
-                        isError: true,
-                        timestamp: Date.now(),
-                      };
-                      this.messages.push(toolResultMsg);
+                  for (const tc of toolCalls) {
+                    // Check timeout before each tool execution
+                    if (ac?.signal.aborted) {
+                      yield { type: "error", message: `Agent timeout (${timeoutMs / 1000}s) exceeded` };
+                      return;
                     }
-                    continue;
-                  }
 
-                  // If an approval callback is set, request approval first
-                  if (this.options.onToolApproval) {
+                    // Intercept ask_user tool — handle via onAskUser callback
+                    if (tc.name === "ask_user" && this.options.onAskUser) {
+                      const args = tc.arguments as Record<string, unknown>;
+                      const question = String(args.question ?? "");
+                      const rawOptions = args.options;
+                      const options = Array.isArray(rawOptions) && rawOptions.length > 0
+                        ? rawOptions.map(String)
+                        : undefined;
+
+                      yield { type: "user_question", id: tc.id, question, options };
+
+                      try {
+                        const answer = await this.options.onAskUser(tc.id, question, options);
+                        const result = { content: answer, isError: false };
+                        yield { type: "tool_end", name: tc.name, id: tc.id, result };
+                        const toolResultMsg: ToolResultMessage = {
+                          role: "toolResult",
+                          toolCallId: tc.id,
+                          toolName: tc.name,
+                          content: [{ type: "text", text: answer }],
+                          isError: false,
+                          timestamp: Date.now(),
+                        };
+                        this.messages.push(toolResultMsg);
+                      } catch (err) {
+                        const errMsg = err instanceof Error ? err.message : String(err);
+                        const result = { content: `Question timed out or failed: ${errMsg}`, isError: true };
+                        yield { type: "tool_end", name: tc.name, id: tc.id, result };
+                        const toolResultMsg: ToolResultMessage = {
+                          role: "toolResult",
+                          toolCallId: tc.id,
+                          toolName: tc.name,
+                          content: [{ type: "text", text: result.content }],
+                          isError: true,
+                          timestamp: Date.now(),
+                        };
+                        this.messages.push(toolResultMsg);
+                      }
+                      continue;
+                    }
+
+                    // If an approval callback is set, request approval first
+                    if (this.options.onToolApproval) {
+                      yield {
+                        type: "tool_approval_request",
+                        name: tc.name,
+                        id: tc.id,
+                        args: tc.arguments as Record<string, unknown>,
+                      };
+                      const approved = await this.options.onToolApproval(
+                        tc.name,
+                        tc.id,
+                        tc.arguments as Record<string, unknown>,
+                      );
+                      if (!approved) {
+                        const rejected = {
+                          content: `Tool "${tc.name}" was rejected by the user.`,
+                          isError: true,
+                        };
+                        yield { type: "tool_end", name: tc.name, id: tc.id, result: rejected };
+                        const toolResultMsg: ToolResultMessage = {
+                          role: "toolResult",
+                          toolCallId: tc.id,
+                          toolName: tc.name,
+                          content: [{ type: "text", text: rejected.content }],
+                          isError: true,
+                          timestamp: Date.now(),
+                        };
+                        this.messages.push(toolResultMsg);
+                        continue;
+                      }
+                    }
+
+                    // Check loop detection BEFORE executing
+                    if (loopDetector) {
+                      const preCheck = loopDetector.checkBeforeExecution(
+                        tc.name,
+                        tc.arguments as Record<string, unknown>,
+                      );
+
+                      if (preCheck.level === "block") {
+                        const blocked = {
+                          content: `Blocked: ${preCheck.message}`,
+                          isError: true,
+                        };
+                        yield { type: "tool_end", name: tc.name, id: tc.id, result: blocked };
+                        yield { type: "warning", message: preCheck.message! };
+                        const toolResultMsg: ToolResultMessage = {
+                          role: "toolResult",
+                          toolCallId: tc.id,
+                          toolName: tc.name,
+                          content: [{ type: "text", text: blocked.content }],
+                          isError: true,
+                          timestamp: Date.now(),
+                        };
+                        this.messages.push(toolResultMsg);
+                        continue;
+                      }
+
+                      if (preCheck.level === "circuit_breaker") {
+                        yield { type: "error", message: `Circuit breaker: ${preCheck.message}` };
+                        circuitBroken = true;
+                        break;
+                      }
+                    }
+
+                    const rawResult = await this.registry.execute(tc.name, tc.arguments);
+
+                    // Sanitize + cap tool result size
+                    const sanitized = {
+                      ...rawResult,
+                      content: sanitizeContent(rawResult.content),
+                    };
+                    const result = capToolResultSize(sanitized, this.options.maxToolResultChars);
+
+                    // Record result for loop detection
+                    if (loopDetector) {
+                      const postCheck = loopDetector.recordResult(
+                        tc.name,
+                        tc.arguments as Record<string, unknown>,
+                        result.content,
+                      );
+                      if (postCheck.level === "warn") {
+                        yield { type: "warning", message: postCheck.message! };
+                      }
+                    }
+
                     yield {
-                      type: "tool_approval_request",
+                      type: "tool_end",
                       name: tc.name,
                       id: tc.id,
-                      args: tc.arguments as Record<string, unknown>,
+                      result,
                     };
-                    const approved = await this.options.onToolApproval(
-                      tc.name,
-                      tc.id,
-                      tc.arguments as Record<string, unknown>,
-                    );
-                    if (!approved) {
-                      const rejected = {
-                        content: `Tool "${tc.name}" was rejected by the user.`,
-                        isError: true,
-                      };
-                      yield { type: "tool_end", name: tc.name, id: tc.id, result: rejected };
-                      const toolResultMsg: ToolResultMessage = {
-                        role: "toolResult",
-                        toolCallId: tc.id,
-                        toolName: tc.name,
-                        content: [{ type: "text", text: rejected.content }],
-                        isError: true,
-                        timestamp: Date.now(),
-                      };
-                      this.messages.push(toolResultMsg);
-                      continue;
-                    }
+
+                    const toolResultMsg: ToolResultMessage = {
+                      role: "toolResult",
+                      toolCallId: tc.id,
+                      toolName: tc.name,
+                      content: [{ type: "text", text: result.content }],
+                      isError: result.isError ?? false,
+                      timestamp: Date.now(),
+                    };
+                    this.messages.push(toolResultMsg);
                   }
 
-                  // Check loop detection BEFORE executing
-                  if (loopDetector) {
-                    const preCheck = loopDetector.checkBeforeExecution(
-                      tc.name,
-                      tc.arguments as Record<string, unknown>,
-                    );
+                  if (circuitBroken) return;
 
-                    if (preCheck.level === "block") {
-                      const blocked = {
-                        content: `Blocked: ${preCheck.message}`,
-                        isError: true,
-                      };
-                      yield { type: "tool_end", name: tc.name, id: tc.id, result: blocked };
-                      yield { type: "warning", message: preCheck.message! };
-                      const toolResultMsg: ToolResultMessage = {
-                        role: "toolResult",
-                        toolCallId: tc.id,
-                        toolName: tc.name,
-                        content: [{ type: "text", text: blocked.content }],
-                        isError: true,
-                        timestamp: Date.now(),
-                      };
-                      this.messages.push(toolResultMsg);
-                      continue;
-                    }
-
-                    if (preCheck.level === "circuit_breaker") {
-                      yield { type: "error", message: `Circuit breaker: ${preCheck.message}` };
-                      circuitBroken = true;
-                      break;
-                    }
-                  }
-
-                  const rawResult = await this.registry.execute(tc.name, tc.arguments);
-
-                  // Sanitize + cap tool result size
-                  const sanitized = {
-                    ...rawResult,
-                    content: sanitizeContent(rawResult.content),
-                  };
-                  const result = capToolResultSize(sanitized, this.options.maxToolResultChars);
-
-                  // Record result for loop detection
-                  if (loopDetector) {
-                    const postCheck = loopDetector.recordResult(
-                      tc.name,
-                      tc.arguments as Record<string, unknown>,
-                      result.content,
-                    );
-                    if (postCheck.level === "warn") {
-                      yield { type: "warning", message: postCheck.message! };
-                    }
-                  }
-
-                  yield {
-                    type: "tool_end",
-                    name: tc.name,
-                    id: tc.id,
-                    result,
-                  };
-
-                  const toolResultMsg: ToolResultMessage = {
-                    role: "toolResult",
-                    toolCallId: tc.id,
-                    toolName: tc.name,
-                    content: [{ type: "text", text: result.content }],
-                    isError: result.isError ?? false,
-                    timestamp: Date.now(),
-                  };
-                  this.messages.push(toolResultMsg);
+                  // Continue the outer while loop to send tool results back to the LLM
+                  streamSucceeded = true;
+                  break;
                 }
 
-                if (circuitBroken) return;
+                // Not a tool-use stop — we're done
+                yield { type: "done", stopReason: event.reason };
+                return;
+              }
+              case "error": {
+                const errorMsg = event.error.errorMessage ?? "Unknown error";
+                const modelName = model.id ?? "unknown";
+                logStreamError(errorMsg, modelName, this.messages.length, context.tools?.length ?? 0, attempt);
 
-                // Continue the loop to send tool results back to the LLM
+                if (attempt <= MAX_STREAM_RETRIES && isRetryableError(errorMsg) && !ac?.signal.aborted) {
+                  // Don't push the error message into history — it would corrupt the conversation
+                  // Sanitize history in case the error was caused by malformed messages
+                  this.messages = sanitizeHistoryForRetry(this.messages);
+                  shouldRetry = true;
+                  lastError = errorMsg;
+                  yield { type: "warning", message: `Provider error, retrying (${attempt}/${MAX_STREAM_RETRIES})...` };
+                } else {
+                  // Final failure — push error and yield
+                  this.messages.push(event.error);
+                  yield { type: "error", message: errorMsg };
+                  return;
+                }
                 break;
               }
-
-              // Not a tool-use stop — we're done
-              yield { type: "done", stopReason: event.reason };
-              return;
             }
-            case "error":
-              this.messages.push(event.error);
-              yield {
-                type: "error",
-                message: event.error.errorMessage ?? "Unknown error",
-              };
-              return;
+
+            if (shouldRetry) break; // Break out of event loop to retry
           }
+
+          if (streamSucceeded) break; // Break retry loop — tool use succeeded, continue outer while
+
+          if (shouldRetry && attempt <= MAX_STREAM_RETRIES) {
+            // Exponential backoff before retry
+            const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+
+          if (!streamSucceeded && !shouldRetry) {
+            // Stream completed without tool use or error — already returned above
+            return;
+          }
+        }
+
+        // If we exhausted retries without success, yield the last error
+        if (!streamSucceeded && lastError) {
+          yield { type: "error", message: lastError };
+          return;
         }
       }
     } finally {
