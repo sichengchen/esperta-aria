@@ -166,15 +166,28 @@ export class ModelRouter {
     temperature?: number;
     maxTokens?: number;
     apiKey: string;
+    thinking?: { enabled: boolean };
   } {
     const cfg = this.getConfig(name);
     const provider = this.getProvider(cfg.provider);
     const apiKey = this.resolveApiKey(provider.apiKeyEnvVar);
-    return {
+    const opts: {
+      temperature?: number;
+      maxTokens?: number;
+      apiKey: string;
+      thinking?: { enabled: boolean };
+    } = {
       temperature: cfg.temperature,
       maxTokens: cfg.maxTokens,
       apiKey,
     };
+    // Gemini 3 models require explicit thinking config for reliable thought signatures
+    // on function calls. Without it, replayed function calls may lack signatures and
+    // trigger 400 "Invalid Input" errors.
+    if (provider.type === "google" && cfg.model.includes("gemini-3")) {
+      opts.thinking = { enabled: true };
+    }
+    return opts;
   }
 
   /** List all configured model names */
@@ -301,6 +314,7 @@ export class ModelRouter {
     temperature?: number;
     maxTokens?: number;
     apiKey: string;
+    thinking?: { enabled: boolean };
   } {
     const tier = this.taskTierOverrides[task] ?? DEFAULT_TASK_TIER[task] ?? "normal";
     const modelName = this.tierModels[tier] ?? this.activeModelName;
