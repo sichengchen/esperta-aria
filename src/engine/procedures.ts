@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { writeFile, mkdir } from "node:fs/promises";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { router, publicProcedure, middleware } from "./trpc.js";
@@ -16,12 +15,18 @@ import { type SessionSecurityOverrides, createEmptyOverrides } from "./agent/sec
 import type { ModelConfig, ProviderConfig } from "./router/types.js";
 import { heartbeatState, createHeartbeatTask } from "./scheduler.js";
 import { describeModeEffects } from "./security-mode.js";
-import { CRON_DEFAULT_TOOLS, WEBHOOK_DEFAULT_TOOLS } from "./config/defaults.js";
 import { createSessionToolEnvironment, type SessionToolEnvironment } from "./session-tool-environment.js";
 import { preprocessContextReferences } from "./context-references.js";
-import type { CronTask, DeliveryTarget, WebhookTask } from "./config/types.js";
+import type { CronTask } from "./config/types.js";
 import { computeNextRunAt, parseScheduleInput } from "./automation-schedule.js";
-import { listToolsets, mergeAllowedTools } from "./toolsets.js";
+import { listToolsets } from "./toolsets.js";
+import {
+  buildDelegationOptions,
+  registerCronTask,
+  persistCronTask,
+  removeCronTaskFromConfig,
+  updateCronTaskState,
+} from "./automation.js";
 
 /** Format tool args as a compact summary for IM display */
 function formatArgsForIM(toolName: string, args: Record<string, unknown>): string {
@@ -78,231 +83,42 @@ function getSecurityOverrides(sessionId: string): SessionSecurityOverrides {
   return overrides;
 }
 
-async function buildAttachedSkillsPrompt(runtime: EngineRuntime, skillNames?: string[]): Promise<string> {
-  if (!skillNames || skillNames.length === 0) {
-    return "";
-  }
-
-  const sections: string[] = [];
-  for (const skillName of skillNames) {
-    const content = await runtime.skills.getContent(skillName);
-    if (!content) continue;
-    sections.push(`## Skill: ${skillName}\n${content}`);
-  }
-
-  return sections.length > 0 ? `## Attached Skills\n${sections.join("\n\n")}` : "";
-}
-
-function buildDelegationOptions(runtime: EngineRuntime) {
-  const orchestration = runtime.config.getConfigFile().runtime.orchestration;
-  return {
-    router: runtime.router,
-    defaultTimeoutMs: orchestration?.defaultTimeoutMs,
-    memoryWriteDefault: orchestration?.memoryWriteDefault,
-    maxConcurrent: orchestration?.maxConcurrent,
-    maxSubAgentsPerTurn: orchestration?.maxSubAgentsPerTurn,
-    resultRetentionMs: orchestration?.resultRetentionMs,
-  };
-}
-
-async function deliverAutomationResult(runtime: EngineRuntime, delivery: DeliveryTarget | undefined, responseText: string): Promise<void> {
-  const connector = delivery?.connector;
-  if (!connector || !responseText.trim()) {
-    return;
-  }
-
-  const notifyTool = runtime.tools.find((tool) => tool.name === "notify");
-  if (!notifyTool) return;
-
-  try {
-    await notifyTool.execute({ message: responseText, connector });
-  } catch {
-    // Delivery failure is non-fatal.
-  }
-}
-
-async function logAutomationResult(runtime: EngineRuntime, name: string, prompt: string, responseText: string, toolCalls: Array<{ name: string; content: string }>): Promise<void> {
-  try {
-    const autoDir = join(runtime.config.homeDir, "automation");
-    await mkdir(autoDir, { recursive: true });
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    const logContent = [
-      `# ${name} — ${new Date().toISOString()}`,
-      "## Prompt",
-      prompt,
-      "## Response",
-      responseText || "(no response)",
-      toolCalls.length > 0 ? "## Tool calls" : "",
-      ...toolCalls.map((toolCall) => `- ${toolCall.name}: ${toolCall.content.slice(0, 200)}`),
-    ].filter(Boolean).join("\n");
-    await writeFile(join(autoDir, `${name}-${ts}.md`), logContent + "\n");
-  } catch {
-    // Log failure is non-fatal.
-  }
-}
-
-async function runAutomationAgent(
-  runtime: EngineRuntime,
-  task: {
-    sessionPrefix: string;
-    name: string;
-    prompt: string;
-    model?: string;
-    allowedTools?: string[];
-    allowedToolsets?: string[];
-    skills?: string[];
-  },
-): Promise<{ responseText: string; toolCalls: Array<{ name: string; content: string }>; status: "success" | "error"; summary: string }> {
-  const session = runtime.sessions.create(task.sessionPrefix, "cron");
-  const allowedTools = mergeAllowedTools(
-    runtime.tools,
-    task.allowedTools ?? CRON_DEFAULT_TOOLS,
-    task.allowedToolsets,
-  ) ?? CRON_DEFAULT_TOOLS;
-  const toolEnvironment = createSessionToolEnvironment({
-    baseTools: runtime.tools.filter((tool) => allowedTools.includes(tool.name)),
-    checkpointManager: runtime.checkpoints,
-    maxContextHintChars: runtime.config.getConfigFile().runtime.contextFiles?.maxHintChars,
-    delegation: buildDelegationOptions(runtime),
-  });
-  toolEnvironment.newTurn();
-
-  const attachedSkills = await buildAttachedSkillsPrompt(runtime, task.skills);
-  const systemPrompt = attachedSkills
-    ? `${runtime.systemPrompt}\n\n${attachedSkills}`
-    : runtime.systemPrompt;
-  const agent = new Agent({
-    router: runtime.router,
-    tools: toolEnvironment.tools,
-    systemPrompt,
-    modelOverride: task.model,
-  });
-
-  sessionAgents.set(session.id, agent);
-  sessionToolEnvironments.set(session.id, toolEnvironment);
-
-  let responseText = "";
-  const toolCalls: Array<{ name: string; content: string }> = [];
-  let status: "success" | "error" = "success";
-
-  try {
-    for await (const event of agent.chat(task.prompt)) {
-      if (event.type === "text_delta") {
-        responseText += event.delta;
-      }
-      if (event.type === "tool_end") {
-        toolCalls.push({ name: event.name, content: event.result.content });
-      }
-    }
-  } catch (error) {
-    status = "error";
-    responseText = `Error: ${error instanceof Error ? error.message : String(error)}`;
-  } finally {
-    await runtime.archive.syncSession(session, agent.getMessages());
-    sessionAgents.delete(session.id);
-    sessionToolEnvironments.delete(session.id);
-    runtime.sessions.destroySession(session.id);
-  }
-
-  return {
-    responseText,
-    toolCalls,
-    status,
-    summary: responseText.slice(0, 200) || "(no response)",
-  };
-}
-
-function registerCronTask(
-  runtime: EngineRuntime,
-  task: CronTask,
-): void {
-  runtime.scheduler.register({
-    name: task.name,
-    schedule: task.schedule,
-    scheduleKind: task.scheduleKind,
-    intervalMinutes: task.intervalMinutes,
-    runAt: task.runAt,
-    paused: task.paused,
-    prompt: task.prompt,
-    oneShot: task.oneShot,
-    async handler() {
-      const result = await runAutomationAgent(runtime, {
-        sessionPrefix: `cron:${task.name}`,
-        name: task.name,
-        prompt: task.prompt,
-        model: task.model,
-        allowedTools: task.allowedTools,
-        allowedToolsets: task.allowedToolsets,
-        skills: task.skills,
-      });
-
-      await logAutomationResult(runtime, task.name, task.prompt, result.responseText, result.toolCalls);
-      await deliverAutomationResult(runtime, task.delivery, result.responseText);
-      void updateCronTaskState(runtime, task.name, {
-        lastRunAt: new Date().toISOString(),
-        nextRunAt: computeNextRunAt({
-          schedule: task.schedule,
-          scheduleKind: task.scheduleKind,
-          intervalMinutes: task.intervalMinutes,
-          runAt: task.runAt,
-          lastRunAt: new Date().toISOString(),
-          oneShot: task.oneShot,
-        }),
-        lastStatus: result.status,
-        lastSummary: result.summary,
-      });
-
-      console.log(`[cron] Task "${task.name}" completed: ${result.summary}`);
-      return { status: result.status, summary: result.summary };
-    },
-    onComplete: task.oneShot ? async (taskName) => {
-      await removeCronTaskFromConfig(runtime, taskName);
-    } : undefined,
-  });
-}
-
-/** Persist a cron task to config.json */
-async function persistCronTask(
-  runtime: EngineRuntime,
-  task: CronTask,
-): Promise<void> {
-  const configFile = runtime.config.getConfigFile();
-  const automation = configFile.runtime.automation ?? { cronTasks: [], webhookTasks: [] };
-  // Remove existing task with same name
-  automation.cronTasks = automation.cronTasks.filter((t) => t.name !== task.name);
-  automation.cronTasks.push(task);
-  await runtime.config.saveConfig({
-    ...configFile,
-    runtime: { ...configFile.runtime, automation },
-  });
-}
-
-/** Remove a cron task from config.json */
-async function removeCronTaskFromConfig(runtime: EngineRuntime, name: string): Promise<void> {
-  const configFile = runtime.config.getConfigFile();
-  const automation = configFile.runtime.automation ?? { cronTasks: [], webhookTasks: [] };
-  automation.cronTasks = automation.cronTasks.filter((t) => t.name !== name);
-  await runtime.config.saveConfig({
-    ...configFile,
-    runtime: { ...configFile.runtime, automation },
-  });
-}
-
-async function updateCronTaskState(runtime: EngineRuntime, name: string, patch: Partial<CronTask>): Promise<void> {
-  const configFile = runtime.config.getConfigFile();
-  const automation = configFile.runtime.automation ?? { cronTasks: [], webhookTasks: [] };
-  automation.cronTasks = automation.cronTasks.map((task) => (
-    task.name === name ? { ...task, ...patch } : task
-  ));
-  await runtime.config.saveConfig({
-    ...configFile,
-    runtime: { ...configFile.runtime, automation },
-  });
-}
-
 /** Shorthand for audit logging */
 function auditLog(runtime: EngineRuntime, input: import("./audit.js").AuditInput): void {
   try { runtime.audit.log(input); } catch { /* audit failure is non-fatal */ }
+}
+
+export async function flushProcedureState(runtime: EngineRuntime, reason = "Engine shutting down"): Promise<void> {
+  for (const agent of sessionAgents.values()) {
+    agent.abort();
+  }
+
+  for (const sessionId of sessionAgents.keys()) {
+    await persistSessionArchiveForRuntime(runtime, sessionId);
+  }
+
+  for (const [toolCallId, resolve] of pendingApprovals.entries()) {
+    resolve(false);
+    pendingApprovals.delete(toolCallId);
+    pendingApprovalMeta.delete(toolCallId);
+  }
+
+  for (const [escalationId, pending] of pendingEscalations.entries()) {
+    pending.resolve("deny");
+    pendingEscalations.delete(escalationId);
+  }
+
+  for (const [questionId, pending] of pendingQuestions.entries()) {
+    pending.reject(new Error(reason));
+    pendingQuestions.delete(questionId);
+  }
+}
+
+async function persistSessionArchiveForRuntime(runtime: EngineRuntime, sessionId: string): Promise<void> {
+  const session = runtime.sessions.getSession(sessionId);
+  const agent = sessionAgents.get(sessionId);
+  if (!session || !agent) return;
+  await runtime.archive.syncSession(session, agent.getMessages());
 }
 
 /** Create the tRPC router bound to a runtime instance */
@@ -339,10 +155,99 @@ export function createAppRouter(runtime: EngineRuntime) {
     if (!entry) {
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid auth token" });
     }
-    return next({ ctx: { ...ctx, connectorId: entry.connectorId } });
+    if (entry.type === "webhook") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Webhook tokens cannot access the tRPC API" });
+    }
+    return next({
+      ctx: {
+        ...ctx,
+        connectorId: entry.connectorId,
+        connectorType: entry.connectorType,
+        tokenType: entry.type,
+      },
+    });
   });
 
   const protectedProcedure = publicProcedure.use(authMiddleware);
+  const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+    if (ctx.tokenType !== "master") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "This procedure requires the master token" });
+    }
+    return next();
+  });
+
+  function isMasterCall(ctx: { tokenType: string | null }): boolean {
+    return ctx.tokenType === "master";
+  }
+
+  function requireOwnedSession(
+    ctx: { tokenType: string | null; connectorId: string | null; connectorType: string | null },
+    sessionId: string,
+  ) {
+    const session = runtime.sessions.getSession(sessionId);
+    if (!session) {
+      throw new TRPCError({ code: "NOT_FOUND", message: `Session not found: ${sessionId}` });
+    }
+    if (isMasterCall(ctx)) {
+      return session;
+    }
+    if (ctx.tokenType !== "session") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Session token required" });
+    }
+    if (session.connectorType !== ctx.connectorType || session.connectorId !== ctx.connectorId) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "You do not own this session" });
+    }
+    return session;
+  }
+
+  function requireOwnedPrefix(
+    ctx: { tokenType: string | null; connectorId: string | null; connectorType: string | null },
+    prefix: string,
+    connectorType?: string,
+  ): void {
+    if (isMasterCall(ctx)) {
+      return;
+    }
+    if (ctx.tokenType !== "session") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Session token required" });
+    }
+    if (connectorType && connectorType !== ctx.connectorType) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Connector type mismatch" });
+    }
+    if (prefix !== ctx.connectorId) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "You can only operate on your own connector prefix" });
+    }
+  }
+
+  function filterOwnedRecords<T extends { connectorType: string; connectorId: string }>(
+    ctx: { tokenType: string | null; connectorId: string | null; connectorType: string | null },
+    entries: T[],
+  ): T[] {
+    if (isMasterCall(ctx)) {
+      return entries;
+    }
+    return entries.filter((entry) => entry.connectorType === ctx.connectorType && entry.connectorId === ctx.connectorId);
+  }
+
+  async function requireOwnedArchivedSession(
+    ctx: { tokenType: string | null; connectorId: string | null; connectorType: string | null },
+    sessionId: string,
+  ) {
+    const record = await runtime.archive.getSessionRecord(sessionId);
+    if (!record) {
+      throw new TRPCError({ code: "NOT_FOUND", message: `Session not found: ${sessionId}` });
+    }
+    if (isMasterCall(ctx)) {
+      return record;
+    }
+    if (ctx.tokenType !== "session") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Session token required" });
+    }
+    if (record.connectorType !== ctx.connectorType || record.connectorId !== ctx.connectorId) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "You do not own this session" });
+    }
+    return record;
+  }
 
   /** Resolve the tool approval mode for a session */
   function getApprovalMode(sessionId: string): ToolApprovalMode {
@@ -354,10 +259,7 @@ export function createAppRouter(runtime: EngineRuntime) {
   }
 
   async function persistSessionArchive(sessionId: string): Promise<void> {
-    const session = runtime.sessions.getSession(sessionId);
-    const agent = sessionAgents.get(sessionId);
-    if (!session || !agent) return;
-    await runtime.archive.syncSession(session, agent.getMessages());
+    await persistSessionArchiveForRuntime(runtime, sessionId);
   }
 
   function resolveWorkingDir(sessionId?: string, workingDir?: string): string {
@@ -396,7 +298,7 @@ export function createAppRouter(runtime: EngineRuntime) {
       agent = new Agent({
         router: runtime.router,
         tools: toolEnvironment.tools,
-        systemPrompt: runtime.systemPrompt,
+        getSystemPrompt: () => runtime.systemPrompt,
         onAskUser,
         onToolApproval: async (toolName, toolCallId, args) => {
         const mode = getApprovalMode(sessionId);
@@ -564,11 +466,8 @@ export function createAppRouter(runtime: EngineRuntime) {
       /** Send a user message and stream back AgentEvents */
       send: protectedProcedure
         .input(z.object({ sessionId: z.string(), message: z.string() }))
-        .mutation(async ({ input }): Promise<{ sessionId: string }> => {
-          const session = runtime.sessions.getSession(input.sessionId);
-          if (!session) {
-            throw new Error(`Session not found: ${input.sessionId}`);
-          }
+        .mutation(async ({ ctx, input }): Promise<{ sessionId: string }> => {
+          requireOwnedSession(ctx, input.sessionId);
           runtime.sessions.touchSession(input.sessionId);
           return { sessionId: input.sessionId };
         }),
@@ -576,10 +475,12 @@ export function createAppRouter(runtime: EngineRuntime) {
       /** Stream AgentEvents for a chat turn */
       stream: protectedProcedure
         .input(z.object({ sessionId: z.string(), message: z.string() }))
-        .subscription(async function* ({ input }): AsyncGenerator<EngineEvent> {
-          const session = runtime.sessions.getSession(input.sessionId);
-          if (!session) {
-            yield { type: "error", message: `Session not found: ${input.sessionId}` };
+        .subscription(async function* ({ ctx, input }): AsyncGenerator<EngineEvent> {
+          let session;
+          try {
+            session = requireOwnedSession(ctx, input.sessionId);
+          } catch (err) {
+            yield { type: "error", message: err instanceof Error ? err.message : String(err) };
             return;
           }
 
@@ -629,7 +530,8 @@ export function createAppRouter(runtime: EngineRuntime) {
       /** Stop a running agent in a specific session */
       stop: protectedProcedure
         .input(z.object({ sessionId: z.string() }))
-        .mutation(async ({ input }): Promise<{ cancelled: boolean }> => {
+        .mutation(async ({ ctx, input }): Promise<{ cancelled: boolean }> => {
+          requireOwnedSession(ctx, input.sessionId);
           const agent = sessionAgents.get(input.sessionId);
           if (!agent) {
             return { cancelled: false };
@@ -679,7 +581,10 @@ export function createAppRouter(runtime: EngineRuntime) {
 
       /** Stop all running agents across all sessions */
       stopAll: protectedProcedure
-        .mutation(async (): Promise<{ cancelled: number; total: number }> => {
+        .mutation(async ({ ctx }): Promise<{ cancelled: number; total: number }> => {
+          if (!isMasterCall(ctx)) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "stopAll requires the master token" });
+          }
           let cancelled = 0;
           const total = sessionAgents.size;
 
@@ -734,9 +639,11 @@ export function createAppRouter(runtime: EngineRuntime) {
       /** Get conversation history for a session */
       history: protectedProcedure
         .input(z.object({ sessionId: z.string() }))
-        .query(async ({ input }): Promise<{ sessionId: string; messages: unknown[]; archived: boolean }> => {
+        .query(async ({ ctx, input }): Promise<{ sessionId: string; messages: unknown[]; archived: boolean }> => {
+          const liveSession = runtime.sessions.getSession(input.sessionId);
           const agent = sessionAgents.get(input.sessionId);
           if (agent) {
+            requireOwnedSession(ctx, input.sessionId);
             await persistSessionArchive(input.sessionId);
             return {
               sessionId: input.sessionId,
@@ -745,6 +652,11 @@ export function createAppRouter(runtime: EngineRuntime) {
             };
           }
 
+          if (liveSession) {
+            requireOwnedSession(ctx, input.sessionId);
+          } else {
+            await requireOwnedArchivedSession(ctx, input.sessionId);
+          }
           const messages = await runtime.archive.getHistory(input.sessionId);
           return {
             sessionId: input.sessionId,
@@ -760,10 +672,12 @@ export function createAppRouter(runtime: EngineRuntime) {
           audio: z.string(), // base64-encoded audio
           format: z.string(), // e.g. "ogg", "mp3", "wav", "m4a"
         }))
-        .subscription(async function* ({ input }): AsyncGenerator<EngineEvent & { transcript?: string }> {
-          const session = runtime.sessions.getSession(input.sessionId);
-          if (!session) {
-            yield { type: "error", message: `Session not found: ${input.sessionId}` };
+        .subscription(async function* ({ ctx, input }): AsyncGenerator<EngineEvent & { transcript?: string }> {
+          let session;
+          try {
+            session = requireOwnedSession(ctx, input.sessionId);
+          } catch (err) {
+            yield { type: "error", message: err instanceof Error ? err.message : String(err) };
             return;
           }
 
@@ -821,7 +735,8 @@ export function createAppRouter(runtime: EngineRuntime) {
             prefix: z.string(),
           }),
         )
-        .mutation(({ input }) => {
+        .mutation(({ ctx, input }) => {
+          requireOwnedPrefix(ctx, input.prefix, input.connectorType);
           const session = runtime.sessions.create(input.prefix, input.connectorType);
           auditLog(runtime, {
             session: session.id,
@@ -834,20 +749,21 @@ export function createAppRouter(runtime: EngineRuntime) {
       /** Get the most recently active session for a prefix */
       getLatest: protectedProcedure
         .input(z.object({ prefix: z.string() }))
-        .query(({ input }) => {
+        .query(({ ctx, input }) => {
+          requireOwnedPrefix(ctx, input.prefix);
           return runtime.sessions.getLatest(input.prefix) ?? null;
         }),
 
       /** List active sessions */
-      list: protectedProcedure.query(() => {
-        return runtime.sessions.listSessions();
+      list: protectedProcedure.query(({ ctx }) => {
+        return filterOwnedRecords(ctx, runtime.sessions.listSessions());
       }),
 
       /** List recently archived sessions */
       listArchived: protectedProcedure
         .input(z.object({ limit: z.number().int().min(1).max(100).optional() }).optional())
-        .query(async ({ input }) => {
-          return runtime.archive.listRecent(input?.limit ?? 20);
+        .query(async ({ ctx, input }) => {
+          return filterOwnedRecords(ctx, await runtime.archive.listRecent(input?.limit ?? 20));
         }),
 
       /** Search archived sessions by content and summary */
@@ -856,15 +772,19 @@ export function createAppRouter(runtime: EngineRuntime) {
           query: z.string().min(1),
           limit: z.number().int().min(1).max(50).optional(),
         }))
-        .query(async ({ input }) => {
-          return runtime.archive.search(input.query, input.limit ?? 10);
+        .query(async ({ ctx, input }) => {
+          return filterOwnedRecords(ctx, await runtime.archive.search(input.query, input.limit ?? 10));
         }),
 
       /** Destroy a session and its Agent */
       destroy: protectedProcedure
         .input(z.object({ sessionId: z.string() }))
-        .mutation(async ({ input }): Promise<{ destroyed: boolean }> => {
-          const session = runtime.sessions.getSession(input.sessionId);
+        .mutation(async ({ ctx, input }): Promise<{ destroyed: boolean }> => {
+          const existing = runtime.sessions.getSession(input.sessionId);
+          if (!existing) {
+            return { destroyed: false };
+          }
+          const session = requireOwnedSession(ctx, input.sessionId);
           await persistSessionArchive(input.sessionId);
           auditLog(runtime, {
             session: input.sessionId,
@@ -894,7 +814,15 @@ export function createAppRouter(runtime: EngineRuntime) {
           sessionId: z.string().optional(),
           workingDir: z.string().optional(),
         }).optional())
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
+          if (!isMasterCall(ctx) && input?.workingDir) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "workingDir overrides require the master token" });
+          }
+          if (input?.sessionId) {
+            requireOwnedSession(ctx, input.sessionId);
+          } else if (!isMasterCall(ctx)) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "sessionId is required for checkpoint access" });
+          }
           const workingDir = resolveWorkingDir(input?.sessionId, input?.workingDir);
           const checkpoints = await runtime.checkpoints.listCheckpoints(workingDir);
           return { workingDir, checkpoints };
@@ -906,7 +834,15 @@ export function createAppRouter(runtime: EngineRuntime) {
           sessionId: z.string().optional(),
           workingDir: z.string().optional(),
         }))
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
+          if (!isMasterCall(ctx) && input.workingDir) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "workingDir overrides require the master token" });
+          }
+          if (input.sessionId) {
+            requireOwnedSession(ctx, input.sessionId);
+          } else if (!isMasterCall(ctx)) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "sessionId is required for checkpoint access" });
+          }
           const workingDir = resolveWorkingDir(input.sessionId, input.workingDir);
           const result = await runtime.checkpoints.diff(workingDir, input.commitHash);
           return { workingDir, ...result };
@@ -919,39 +855,47 @@ export function createAppRouter(runtime: EngineRuntime) {
           sessionId: z.string().optional(),
           workingDir: z.string().optional(),
         }))
-        .mutation(async ({ input }) => {
+        .mutation(async ({ ctx, input }) => {
+          if (!isMasterCall(ctx) && input.workingDir) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "workingDir overrides require the master token" });
+          }
+          if (input.sessionId) {
+            requireOwnedSession(ctx, input.sessionId);
+          } else if (!isMasterCall(ctx)) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "sessionId is required for checkpoint access" });
+          }
           const workingDir = resolveWorkingDir(input.sessionId, input.workingDir);
           const result = await runtime.checkpoints.restore(workingDir, input.commitHash, input.filePath);
           return { workingDir, ...result };
         }),
     }),
 
-    /** Toolset metadata */
-    toolset: router({
-      list: protectedProcedure.query(() => {
+      /** Toolset metadata */
+      toolset: router({
+      list: adminProcedure.query(() => {
         return listToolsets(runtime.tools);
       }),
     }),
 
     /** MCP metadata and non-tool surfaces */
     mcp: router({
-      listServers: protectedProcedure.query(() => {
+      listServers: adminProcedure.query(() => {
         return runtime.mcp.listServers();
       }),
 
-      listTools: protectedProcedure
+      listTools: adminProcedure
         .input(z.object({ server: z.string().optional() }).optional())
         .query(({ input }) => {
           return runtime.mcp.listTools(input?.server);
         }),
 
-      listPrompts: protectedProcedure
+      listPrompts: adminProcedure
         .input(z.object({ server: z.string() }))
         .query(async ({ input }) => {
           return runtime.mcp.listPrompts(input.server);
         }),
 
-      getPrompt: protectedProcedure
+      getPrompt: adminProcedure
         .input(z.object({
           server: z.string(),
           name: z.string(),
@@ -965,7 +909,7 @@ export function createAppRouter(runtime: EngineRuntime) {
           };
         }),
 
-      listResources: protectedProcedure
+      listResources: adminProcedure
         .input(z.object({
           server: z.string(),
           cursor: z.string().optional(),
@@ -974,7 +918,7 @@ export function createAppRouter(runtime: EngineRuntime) {
           return runtime.mcp.listResources(input.server, input.cursor);
         }),
 
-      readResource: protectedProcedure
+      readResource: adminProcedure
         .input(z.object({
           server: z.string(),
           uri: z.string(),
@@ -993,7 +937,8 @@ export function createAppRouter(runtime: EngineRuntime) {
       /** Get the tool approval mode for a session */
       config: protectedProcedure
         .input(z.object({ sessionId: z.string() }))
-        .query(({ input }): { mode: ToolApprovalMode } => {
+        .query(({ ctx, input }): { mode: ToolApprovalMode } => {
+          requireOwnedSession(ctx, input.sessionId);
           return { mode: getApprovalMode(input.sessionId) };
         }),
 
@@ -1005,11 +950,14 @@ export function createAppRouter(runtime: EngineRuntime) {
             approved: z.boolean(),
           }),
         )
-        .mutation(({ input }): { acknowledged: boolean } => {
+        .mutation(({ ctx, input }): { acknowledged: boolean } => {
           const resolver = pendingApprovals.get(input.toolCallId);
           const meta = pendingApprovalMeta.get(input.toolCallId);
           if (!resolver) {
             return { acknowledged: false };
+          }
+          if (meta) {
+            requireOwnedSession(ctx, meta.sessionId);
           }
           pendingApprovals.delete(input.toolCallId);
           pendingApprovalMeta.delete(input.toolCallId);
@@ -1036,12 +984,13 @@ export function createAppRouter(runtime: EngineRuntime) {
             toolCallId: z.string(),
           }),
         )
-        .mutation(({ input }): { acknowledged: boolean } => {
+        .mutation(({ ctx, input }): { acknowledged: boolean } => {
           const meta = pendingApprovalMeta.get(input.toolCallId);
           const resolver = pendingApprovals.get(input.toolCallId);
           if (!resolver || !meta) {
             return { acknowledged: false };
           }
+          requireOwnedSession(ctx, meta.sessionId);
 
           // Add tool to session overrides
           let overrides = sessionToolOverrides.get(meta.sessionId);
@@ -1067,11 +1016,12 @@ export function createAppRouter(runtime: EngineRuntime) {
           id: z.string(),
           choice: z.enum(["allow_once", "allow_session", "add_persistent", "deny"]),
         }))
-        .mutation(async ({ input }): Promise<{ acknowledged: boolean }> => {
+        .mutation(async ({ ctx, input }): Promise<{ acknowledged: boolean }> => {
           const pending = pendingEscalations.get(input.id);
           if (!pending) {
             return { acknowledged: false };
           }
+          requireOwnedSession(ctx, pending.sessionId);
           pendingEscalations.delete(input.id);
 
           // Audit: escalation response
@@ -1101,11 +1051,12 @@ export function createAppRouter(runtime: EngineRuntime) {
           id: z.string(),
           answer: z.string(),
         }))
-        .mutation(({ input }): { acknowledged: boolean } => {
+        .mutation(({ ctx, input }): { acknowledged: boolean } => {
           const pending = pendingQuestions.get(input.id);
           if (!pending) {
             return { acknowledged: false };
           }
+          requireOwnedSession(ctx, pending.sessionId);
           pendingQuestions.delete(input.id);
           pending.resolve(input.answer);
           return { acknowledged: true };
@@ -1113,11 +1064,12 @@ export function createAppRouter(runtime: EngineRuntime) {
     }),
 
     /** Security mode management */
-    securityMode: router({
+      securityMode: router({
       /** Get the current security mode for a session */
       get: protectedProcedure
         .input(z.object({ sessionId: z.string() }))
-        .query(({ input }) => {
+        .query(({ ctx, input }) => {
+          requireOwnedSession(ctx, input.sessionId);
           const mode = runtime.securityMode.getMode(input.sessionId);
           const remainingTTL = runtime.securityMode.getRemainingTTL(input.sessionId);
           return { mode, remainingTTL };
@@ -1129,8 +1081,8 @@ export function createAppRouter(runtime: EngineRuntime) {
           sessionId: z.string(),
           mode: z.enum(["default", "trusted", "unrestricted"]),
         }))
-        .mutation(({ input }) => {
-          const session = runtime.sessions.getSession(input.sessionId);
+        .mutation(({ ctx, input }) => {
+          const session = requireOwnedSession(ctx, input.sessionId);
           const connectorType = session?.connectorType ?? "unknown";
           const isIM = connectorType !== "tui" && connectorType !== "engine";
           const previousMode = runtime.securityMode.getMode(input.sessionId);
@@ -1157,17 +1109,17 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Model management */
     model: router({
       /** List all model configurations */
-      list: protectedProcedure.query((): ModelConfig[] => {
+      list: adminProcedure.query((): ModelConfig[] => {
         return runtime.router.listModelConfigs();
       }),
 
       /** Get the active model name */
-      active: protectedProcedure.query((): { name: string } => {
+      active: adminProcedure.query((): { name: string } => {
         return { name: runtime.router.getActiveModelName() };
       }),
 
       /** Switch the active model (supports aliases) */
-      switch: protectedProcedure
+      switch: adminProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }): Promise<{ name: string }> => {
           const resolved = runtime.router.resolveAlias(input.name);
@@ -1176,7 +1128,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Add a model configuration */
-      add: protectedProcedure
+      add: adminProcedure
         .input(
           z.object({
             name: z.string(),
@@ -1192,7 +1144,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Remove a model configuration */
-      remove: protectedProcedure
+      remove: adminProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }): Promise<{ removed: boolean }> => {
           await runtime.router.removeModel(input.name);
@@ -1200,12 +1152,12 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Get the current tier-to-model mapping */
-      tiers: protectedProcedure.query(() => {
+      tiers: adminProcedure.query(() => {
         return runtime.router.getTierConfig();
       }),
 
       /** Set a tier's model */
-      setTier: protectedProcedure
+      setTier: adminProcedure
         .input(z.object({
           tier: z.enum(["performance", "normal", "eco"]),
           modelName: z.string(),
@@ -1216,7 +1168,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Get full routing state (tiers, aliases, active/default model) */
-      routing: protectedProcedure.query(() => {
+      routing: adminProcedure.query(() => {
         return runtime.router.getRoutingState();
       }),
     }),
@@ -1224,12 +1176,12 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Provider management */
     provider: router({
       /** List all configured providers */
-      list: protectedProcedure.query((): ProviderConfig[] => {
+      list: adminProcedure.query((): ProviderConfig[] => {
         return runtime.router.listProviders();
       }),
 
       /** Add a provider configuration */
-      add: protectedProcedure
+      add: adminProcedure
         .input(
           z.object({
             id: z.string(),
@@ -1244,7 +1196,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Remove a provider configuration */
-      remove: protectedProcedure
+      remove: adminProcedure
         .input(z.object({ id: z.string() }))
         .mutation(async ({ input }): Promise<{ removed: boolean }> => {
           await runtime.router.removeProvider(input.id);
@@ -1255,7 +1207,7 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Skills */
     skill: router({
       /** List loaded skills */
-      list: protectedProcedure.query((): SkillInfo[] => {
+      list: adminProcedure.query((): SkillInfo[] => {
         return runtime.skills.getMetadataList().map((s) => ({
           name: s.name,
           description: s.description,
@@ -1264,16 +1216,17 @@ export function createAppRouter(runtime: EngineRuntime) {
       }),
 
       /** Manually activate a skill */
-      activate: protectedProcedure
+      activate: adminProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }): Promise<{ activated: boolean }> => {
           return { activated: await runtime.skills.activate(input.name) };
         }),
 
       /** Reload all skills from disk (used after skill install/update) */
-      reload: protectedProcedure
+      reload: adminProcedure
         .mutation(async (): Promise<{ reloaded: boolean; count: number }> => {
           await runtime.skills.loadAll();
+          await runtime.refreshSystemPrompt();
           return { reloaded: true, count: runtime.skills.size };
         }),
 
@@ -1321,12 +1274,12 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Cron scheduler */
     cron: router({
       /** List all scheduled tasks */
-      list: protectedProcedure.query(() => {
+      list: adminProcedure.query(() => {
         return runtime.scheduler.list();
       }),
 
       /** Add a user-defined scheduled task with real agent dispatch */
-      add: protectedProcedure
+      add: adminProcedure
         .input(z.object({
           name: z.string(),
           schedule: z.string(),
@@ -1338,7 +1291,6 @@ export function createAppRouter(runtime: EngineRuntime) {
           skills: z.array(z.string()).optional(),
           delivery: z.object({
             connector: z.string().optional(),
-            sessionId: z.string().optional(),
           }).optional(),
         }))
         .mutation(async ({ input }) => {
@@ -1382,7 +1334,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Update a scheduled task in place */
-      update: protectedProcedure
+      update: adminProcedure
         .input(z.object({
           name: z.string(),
           schedule: z.string().optional(),
@@ -1396,7 +1348,6 @@ export function createAppRouter(runtime: EngineRuntime) {
           skills: z.array(z.string()).optional(),
           delivery: z.object({
             connector: z.string().optional(),
-            sessionId: z.string().optional(),
           }).optional(),
         }))
         .mutation(async ({ input }) => {
@@ -1433,7 +1384,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Pause a task without deleting it */
-      pause: protectedProcedure
+      pause: adminProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }) => {
           const updated = runtime.scheduler.setPaused(input.name, true);
@@ -1444,7 +1395,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Resume a paused task */
-      resume: protectedProcedure
+      resume: adminProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }) => {
           const updated = runtime.scheduler.setPaused(input.name, false);
@@ -1459,7 +1410,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Trigger a task immediately */
-      run: protectedProcedure
+      run: adminProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }) => {
           const triggered = await runtime.scheduler.runTask(input.name);
@@ -1467,7 +1418,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Remove a user-defined scheduled task */
-      remove: protectedProcedure
+      remove: adminProcedure
         .input(z.object({ name: z.string() }))
         .mutation(async ({ input }) => {
           const removed = runtime.scheduler.unregister(input.name);
@@ -1481,13 +1432,13 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Webhook task management */
     webhookTask: router({
       /** List configured webhook tasks */
-      list: protectedProcedure.query(() => {
+      list: adminProcedure.query(() => {
         const configFile = runtime.config.getConfigFile();
         return configFile.runtime.automation?.webhookTasks ?? [];
       }),
 
       /** Add a new webhook task */
-      add: protectedProcedure
+      add: adminProcedure
         .input(z.object({
           name: z.string(),
           slug: z.string().regex(/^[a-zA-Z0-9_-]+$/),
@@ -1500,7 +1451,6 @@ export function createAppRouter(runtime: EngineRuntime) {
           skills: z.array(z.string()).optional(),
           delivery: z.object({
             connector: z.string().optional(),
-            sessionId: z.string().optional(),
           }).optional(),
         }))
         .mutation(async ({ input }) => {
@@ -1542,7 +1492,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Update an existing webhook task */
-      update: protectedProcedure
+      update: adminProcedure
         .input(z.object({
           slug: z.string(),
           name: z.string().optional(),
@@ -1555,7 +1505,6 @@ export function createAppRouter(runtime: EngineRuntime) {
           skills: z.array(z.string()).optional(),
           delivery: z.object({
             connector: z.string().optional(),
-            sessionId: z.string().optional(),
           }).optional(),
         }))
         .mutation(async ({ input }) => {
@@ -1592,7 +1541,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Remove a webhook task */
-      remove: protectedProcedure
+      remove: adminProcedure
         .input(z.object({ slug: z.string() }))
         .mutation(async ({ input }) => {
           const configFile = runtime.config.getConfigFile();
@@ -1623,7 +1572,7 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Heartbeat management */
     heartbeat: router({
       /** Get heartbeat status */
-      status: protectedProcedure.query(() => {
+      status: adminProcedure.query(() => {
         return {
           config: heartbeatState.config,
           lastResult: heartbeatState.lastResult,
@@ -1632,7 +1581,7 @@ export function createAppRouter(runtime: EngineRuntime) {
       }),
 
       /** Update heartbeat configuration (in-memory only — persisting requires config save) */
-      configure: protectedProcedure
+      configure: adminProcedure
         .input(z.object({
           enabled: z.boolean().optional(),
           intervalMinutes: z.number().min(1).max(1440).optional(),
@@ -1649,7 +1598,7 @@ export function createAppRouter(runtime: EngineRuntime) {
         }),
 
       /** Manually trigger a heartbeat check (runs only heartbeat, not all cron jobs) */
-      trigger: protectedProcedure.mutation(async () => {
+      trigger: adminProcedure.mutation(async () => {
         await runtime.scheduler.runTask("heartbeat");
         return { triggered: true, lastResult: heartbeatState.lastResult };
       }),
@@ -1658,22 +1607,8 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Engine lifecycle */
     engine: router({
       /** Shut down the engine process (no restart) */
-      shutdown: protectedProcedure.mutation((): { shuttingDown: boolean } => {
-        // Stop all running agents first
-        for (const [sid, agent] of sessionAgents.entries()) {
-          agent.abort();
-          for (const [toolCallId, meta] of pendingApprovalMeta.entries()) {
-            if (meta.sessionId === sid) {
-              const resolver = pendingApprovals.get(toolCallId);
-              if (resolver) {
-                resolver(false);
-                pendingApprovals.delete(toolCallId);
-              }
-              pendingApprovalMeta.delete(toolCallId);
-            }
-          }
-        }
-
+      shutdown: adminProcedure.mutation(async (): Promise<{ shuttingDown: boolean }> => {
+        await flushProcedureState(runtime, "Engine shutdown requested");
         auditLog(runtime, {
           session: "global",
           connector: "engine",
@@ -1691,23 +1626,8 @@ export function createAppRouter(runtime: EngineRuntime) {
       }),
 
       /** Restart the engine process */
-      restart: protectedProcedure.mutation((): { restarting: boolean } => {
-        // Stop all running agents first
-        for (const [sid, agent] of sessionAgents.entries()) {
-          agent.abort();
-          // Reject pending approvals
-          for (const [toolCallId, meta] of pendingApprovalMeta.entries()) {
-            if (meta.sessionId === sid) {
-              const resolver = pendingApprovals.get(toolCallId);
-              if (resolver) {
-                resolver(false);
-                pendingApprovals.delete(toolCallId);
-              }
-              pendingApprovalMeta.delete(toolCallId);
-            }
-          }
-        }
-
+      restart: adminProcedure.mutation(async (): Promise<{ restarting: boolean }> => {
+        await flushProcedureState(runtime, "Engine restart requested");
         auditLog(runtime, {
           session: "global",
           connector: "engine",
@@ -1731,7 +1651,7 @@ export function createAppRouter(runtime: EngineRuntime) {
     /** Main session info */
     mainSession: router({
       /** Get main session metadata */
-      info: protectedProcedure.query(() => {
+      info: adminProcedure.query(() => {
         const session = runtime.sessions.getSession(runtime.mainSessionId);
         return {
           sessionId: runtime.mainSessionId,

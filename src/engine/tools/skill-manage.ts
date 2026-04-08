@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { Type } from "@sinclair/typebox";
 import type { ToolImpl } from "../agent/types.js";
 import type { SkillRegistry } from "../skills/index.js";
+import { isPathInside } from "../path-boundary.js";
 
 const MAX_SKILL_CONTENT_CHARS = 100_000;
 const ALLOWED_SUBDIRS = new Set(["references", "templates", "scripts", "assets"]);
@@ -11,6 +12,7 @@ const VALID_NAME_RE = /^[a-z0-9][a-z0-9._-]*$/;
 interface SkillManageDeps {
   homeDir: string;
   registry: SkillRegistry;
+  onMutate?: () => Promise<void>;
 }
 
 function validateSkillName(name: string): string | null {
@@ -27,7 +29,7 @@ function skillsRoot(homeDir: string): string {
 
 function ensureInsideSkillsRoot(rootDir: string, targetPath: string): string | null {
   const resolved = resolve(targetPath);
-  return resolved.startsWith(rootDir) ? resolved : null;
+  return isPathInside(rootDir, resolved) ? resolved : null;
 }
 
 function buildSkillDir(homeDir: string, name: string, category?: string): string {
@@ -122,6 +124,7 @@ export function createSkillManageTool(deps: SkillManageDeps): ToolImpl {
           await mkdir(skillDir, { recursive: true });
           await writeFile(skillFile, content);
           await deps.registry.loadAll(deps.homeDir);
+          await deps.onMutate?.();
           return { content: `Created skill: ${name}` };
         }
 
@@ -137,6 +140,7 @@ export function createSkillManageTool(deps: SkillManageDeps): ToolImpl {
           }
           await writeFile(skillPath, content);
           await deps.registry.loadAll(deps.homeDir);
+          await deps.onMutate?.();
           return { content: `Updated skill: ${name}` };
         }
 
@@ -158,6 +162,7 @@ export function createSkillManageTool(deps: SkillManageDeps): ToolImpl {
           }
           await writeFile(skillPath, updated);
           await deps.registry.loadAll(deps.homeDir);
+          await deps.onMutate?.();
           return { content: `Patched skill: ${name}` };
         }
 
@@ -168,6 +173,7 @@ export function createSkillManageTool(deps: SkillManageDeps): ToolImpl {
           }
           await rm(dirname(skillPath), { recursive: true, force: true });
           await deps.registry.loadAll(deps.homeDir);
+          await deps.onMutate?.();
           return { content: `Deleted skill: ${name}` };
         }
 
@@ -190,6 +196,7 @@ export function createSkillManageTool(deps: SkillManageDeps): ToolImpl {
           await mkdir(dirname(targetPath), { recursive: true });
           await writeFile(targetPath, fileContent);
           await deps.registry.loadAll(deps.homeDir);
+          await deps.onMutate?.();
           return { content: `Wrote skill file: ${name}/${relativePath}` };
         }
 
@@ -210,6 +217,7 @@ export function createSkillManageTool(deps: SkillManageDeps): ToolImpl {
           }
           await rm(targetPath, { force: true });
           await deps.registry.loadAll(deps.homeDir);
+          await deps.onMutate?.();
           return { content: `Removed skill file: ${name}/${relativePath}` };
         }
 

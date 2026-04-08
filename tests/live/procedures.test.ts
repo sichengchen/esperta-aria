@@ -87,8 +87,22 @@ async function createLiveTestRuntime(saHome: string): Promise<EngineRuntime> {
     securityMode: new SecurityModeManager(),
     agentName: "Test",
     mainSessionId: mainSession.id,
+    async refreshSystemPrompt() {
+      return "Reply briefly. When asked to use a tool, use it without explanation.";
+    },
+    async close() {
+      scheduler.stop();
+      archive.close();
+      await auth.cleanup();
+    },
     createAgent(onToolApproval, modelOverride?: string) {
-      return new Agent({ router, tools, systemPrompt: "Reply briefly. Use tools when asked.", onToolApproval, modelOverride });
+      return new Agent({
+        router,
+        tools,
+        getSystemPrompt: () => "Reply briefly. Use tools when asked.",
+        onToolApproval,
+        modelOverride,
+      });
     },
   };
 }

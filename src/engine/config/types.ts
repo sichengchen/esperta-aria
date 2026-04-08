@@ -72,7 +72,6 @@ export interface MCPServerConfig {
 
 export interface DeliveryTarget {
   connector?: string;
-  sessionId?: string;
 }
 
 /** A user-defined scheduled task */
