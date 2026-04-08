@@ -53,4 +53,4 @@ Aria breaks compatibility freely when compatibility preserves the wrong architec
 
 ## Implementation Note
 
-When supporting docs or older implementation details diverge, prefer this platform spec and the canonical Aria subsystem specs. New work should make the runtime more coherent, more durable, and more policy-driven, not preserve outdated shapes.
+When supporting docs or older implementation details diverge, prefer this platform guide and the canonical Aria subsystem docs. New work should make the runtime more coherent, more durable, and more policy-driven, not preserve outdated shapes.

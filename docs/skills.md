@@ -43,7 +43,7 @@ Ship with Esperta Aria at `src/engine/skills/bundled/`. Each subdirectory contai
 
 | Skill                | Purpose                                        |
 |----------------------|------------------------------------------------|
-| `aria`               | Knowledge about Esperta Aria itself (spec index) |
+| `aria`               | Knowledge about Esperta Aria itself (documentation index) |
 | `coding-agents`      | Delegate tasks to Claude Code / Codex CLI agents, esperkit integration |
 | `clawhub`            | Search, install, update skills from ClawHub    |
 | `skill-creator`      | Scaffold new custom skills                     |

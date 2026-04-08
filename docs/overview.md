@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Esperta Aria is a personal AI agent assistant. It runs as a **daemon (Engine)** that owns all state -- config, model router, tools, memory, skills, sessions, auth, and scheduler. Frontends (TUI, Telegram, Slack, Teams, Google Chat, Discord, GitHub, Linear, Webhook) are stateless **Connectors** that communicate with the Engine over **tRPC** (HTTP + WebSocket) on `127.0.0.1:7420/7421`.
+Esperta Aria is a local-first agent platform. It runs as a durable **runtime daemon** that owns prompt assembly, tools, approvals, sessions, MCP connectivity, automation, and connector-facing interaction streams. Frontends (TUI, Telegram, Slack, Teams, Google Chat, Discord, GitHub, Linear, Webhook) are thin **surfaces** that communicate with the runtime over **tRPC** (HTTP + WebSocket) on `127.0.0.1:7420/7421`.
 
 ---
 
@@ -40,8 +40,8 @@ Esperta Aria is a personal AI agent assistant. It runs as a **daemon (Engine)** 
                     |  +-----------------+   |
                     +------------------------+
                               |
-                      ~/.aria/  (file-based state)
-                      config.json, secrets.enc,
+                      ~/.aria/  (runtime home)
+                      aria.db, config.json, secrets.enc,
                       IDENTITY.md, USER.md,
                       HEARTBEAT.md, memory/,
                       skills/, engine.*
@@ -54,12 +54,14 @@ Esperta Aria is a personal AI agent assistant. It runs as a **daemon (Engine)** 
 | Subsystem | Path | Responsibility |
 |---|---|---|
 | Engine core | `src/engine/` | Runtime bootstrap, tRPC procedures, HTTP+WS server, auth, sessions, scheduler |
+| Prompt engine | `src/engine/prompt-engine.ts` | Assemble identity, policy, layered memory, toolset affordances, context files, and session overlays |
 | Agent | `src/engine/agent/` | Conversation loop, streaming events, tool dispatch, tool approval, loop detection, result size guard |
 | Model Router | `src/engine/router/` | Provider/model config, active model switching, tier-based routing, alias resolution, fallback chains. Wraps `@mariozechner/pi-ai` |
 | Config | `src/engine/config/` | `IDENTITY.md`, `config.json` (v3), `USER.md`, `secrets.enc` loading/saving/migration |
 | Tools | `src/engine/tools/` | 23 built-in tools plus dynamic `mcp_*` tools. Exec classifier, tool policy manager, background process management, coding agent subprocess infra |
-| Memory | `src/engine/memory/` | Memory directory init, persistence helpers, context loading for system prompt |
-| Session archive | `src/engine/session-archive.ts` | Persist session transcripts, compact summaries, archive-backed history lookup, FTS search |
+| Memory | `src/engine/memory/` | Layered memory files, retrieval indexing, embeddings, and prompt-context loading |
+| Operational store | `src/engine/operational-store.ts` | Durable SQLite store for sessions, messages, runs, tool calls, approvals, prompt cache, and automation state |
+| Session archive | `src/engine/session-archive.ts` | Long-form transcript archive, compact summaries, archive-backed history lookup, FTS search |
 | Checkpoints | `src/engine/checkpoints.ts` | Shadow-git filesystem snapshots, diff, and rollback for mutating tool calls |
 | Skills | `src/engine/skills/` | Skill discovery, loading (bundled + user), activation, prompt integration via `SKILL.md` |
 | MCP | `src/engine/mcp.ts` | Connect configured MCP servers, surface remote tools, resources, and prompts |
@@ -76,23 +78,24 @@ Esperta Aria is a personal AI agent assistant. It runs as a **daemon (Engine)** 
 2. `ConfigManager.load()` -- load or create `~/.aria/config.json` (v3), `IDENTITY.md`
 3. `MemoryManager.init()` -- ensure `~/.aria/memory/` exists
 4. `SessionArchiveManager.init()` -- open `~/.aria/session-archive.sqlite`
-5. Inject `runtime.env` -- plain env vars from config (env vars take precedence)
-6. `config.loadSecrets()` -- decrypt `secrets.enc`, inject API keys into `process.env`
-7. Validate provider API keys -- warn if any `apiKeyEnvVar` is missing
-8. `ModelRouter.fromConfig()` -- build provider/model registry, set default model, init tiers/aliases/fallbacks
-9. `SkillRegistry.loadAll()` -- load bundled + user-installed skills
-10. `CheckpointManager()` -- prepare per-turn snapshotting for mutating tools
-11. `MCPManager.init()` -- connect configured MCP servers and discover remote tools/resources/prompts
-12. Build tools (23 built-ins + any dynamic `mcp_*` tools)
-13. Assemble system prompt (12 components, see below)
-14. `createTranscriber()` -- local Whisper if available, else cloud API
-15. `SessionManager()` + `AuthManager.init()` -- generate master token
-16. Create main session (`main:<uuid8>`) and main agent
-17. Ensure `HEARTBEAT.md` exists
-18. `Scheduler.start()` -- register built-in heartbeat task
-19. Restore persisted cron tasks from `config.json`
-20. `startServer()` -- bind HTTP (7420) + WS (7421) listeners
-21. Auto-start connectors (Telegram, Slack, Teams, Google Chat, Discord, GitHub, Linear) if tokens configured
+5. `OperationalStore.init()` -- open `~/.aria/aria.db` with restart-safe operational state
+6. Inject `runtime.env` -- plain env vars from config (env vars take precedence)
+7. `config.loadSecrets()` -- decrypt `secrets.enc`, inject API keys into `process.env`
+8. Validate provider API keys -- warn if any `apiKeyEnvVar` is missing
+9. `ModelRouter.fromConfig()` -- build provider/model registry, set default model, init tiers/aliases/fallbacks
+10. `SkillRegistry.loadAll()` -- load bundled + user-installed skills
+11. `CheckpointManager()` -- prepare per-turn snapshotting for mutating tools
+12. `MCPManager.init()` -- connect configured MCP servers and discover remote tools/resources/prompts
+13. Build tools (23 built-ins + any dynamic `mcp_*` tools)
+14. `PromptEngine.buildBasePrompt()` -- compose identity, policy, memory, toolsets, skills, and context files
+15. `createTranscriber()` -- local Whisper if available, else cloud API
+16. `SessionManager()` + `AuthManager.init()` -- generate master token
+17. Create main session (`main:<uuid8>`) and main agent
+18. Ensure `HEARTBEAT.md` exists
+19. `Scheduler.start()` -- register built-in heartbeat task
+20. Restore persisted cron and webhook task records
+21. `startServer()` -- bind HTTP (7420) + WS (7421) listeners
+22. Auto-start connectors (Telegram, Slack, Teams, Google Chat, Discord, GitHub, Linear) if tokens configured
 
 ---
 
