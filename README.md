@@ -33,15 +33,15 @@ On first run, the onboarding flow writes runtime state under `~/.aria/`.
 | `aria shutdown` | Shut the runtime down gracefully |
 | `aria audit` | Inspect the audit log |
 
-## Specs
+## Documentation
 
-The canonical Aria architecture now lives in [`specs/`](specs/README.md):
+The canonical Aria documentation now lives in [`docs/`](docs/README.md):
 
-- [`specs/product/aria-platform.md`](specs/product/aria-platform.md)
-- [`specs/system/runtime-model.md`](specs/system/runtime-model.md)
-- [`specs/system/prompt-engine.md`](specs/system/prompt-engine.md)
-- [`specs/system/tool-runtime.md`](specs/system/tool-runtime.md)
-- [`specs/system/automation.md`](specs/system/automation.md)
-- [`specs/interfaces/interaction-protocol.md`](specs/interfaces/interaction-protocol.md)
+- [`docs/product/aria-platform.md`](docs/product/aria-platform.md)
+- [`docs/system/runtime-model.md`](docs/system/runtime-model.md)
+- [`docs/system/prompt-engine.md`](docs/system/prompt-engine.md)
+- [`docs/system/tool-runtime.md`](docs/system/tool-runtime.md)
+- [`docs/system/automation.md`](docs/system/automation.md)
+- [`docs/interfaces/interaction-protocol.md`](docs/interfaces/interaction-protocol.md)
 
-Additional docs remain under `specs/` for subsystem detail, but the canonical entry points are the Aria product, system, and interface specs listed above.
+Supporting design, operator, security, and tool documentation also lives under `docs/`, with the product, system, and interface pages above serving as the primary Aria entry points.

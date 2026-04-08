@@ -17,7 +17,7 @@ definitions; connectors never invoke tools directly.
 | 7  | web_fetch        | safe       | Fetch a URL                          |
 | 8  | web_search       | safe       | Web search via Brave or Perplexity   |
 | 9  | reaction         | safe       | React with emoji                     |
-| 10 | memory_write     | safe       | Write to memory (topics or journal)  |
+| 10 | memory_write     | safe       | Write to layered memory or journal   |
 | 11 | memory_search    | safe       | Search memory (BM25 + vector)        |
 | 12 | memory_read      | safe       | Read memory entry by key or date     |
 | 13 | memory_delete    | safe       | Delete topic memory entry            |
@@ -68,7 +68,7 @@ Notes:
 - `exec` uses hybrid classification: the effective danger level is determined
   at runtime by `classifyExecCommand()` after the agent declares its own
   assessment. See [exec.md](exec.md) for the full algorithm.
-- Full approval flow details: `specs/security/approval-flow.md`.
+- Full approval flow details: `docs/security/approval-flow.md`.
 
 ---
 

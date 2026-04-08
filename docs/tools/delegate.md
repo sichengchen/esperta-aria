@@ -100,7 +100,7 @@ Key restrictions:
 - `exec` commands inherit the parent's working directory fence
 - Memory writes follow the configured memory policy
 
-Full sub-agent security model: `specs/subagents.md`.
+Full sub-agent security model: `docs/subagents.md`.
 
 ---
 

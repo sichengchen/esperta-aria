@@ -118,7 +118,7 @@ The exec tool enforces a working directory policy to prevent filesystem escape.
 - **alwaysDeny** — paths that are always blocked regardless of fence:
   `~/.aria`, `~/.ssh`, `~/.gnupg`, `~/.config/op`, etc.
 
-Full details: `specs/security/exec-fence.md`.
+Full details: `docs/security/exec-fence.md`.
 
 ---
 
@@ -139,4 +139,4 @@ On supported platforms, exec runs commands inside an OS-level sandbox
 (macOS Seatbelt) that restricts filesystem and network access beyond the
 working directory fence.
 
-Full details: `specs/security/sandbox.md`.
+Full details: `docs/security/sandbox.md`.
