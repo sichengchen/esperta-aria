@@ -1,5 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
+import { isPathInside, toRelativeIfInside } from "./path-boundary.js";
 
 const REFERENCE_PATTERN = /(?<![\w/])@(?:(?<simple>diff|staged)\b|(?<kind>file|folder|url):(?<value>\S+))/g;
 const TRAILING_PUNCTUATION = /[.,;!?]+$/;
@@ -43,7 +44,7 @@ function normalizePath(baseDir: string, rawPath: string): string {
 }
 
 function ensurePathAllowed(path: string, allowedRoot: string): void {
-  if (!path.startsWith(allowedRoot)) {
+  if (!isPathInside(allowedRoot, path)) {
     throw new Error("path escapes the active workspace");
   }
   for (const fragment of SECRET_PATH_FRAGMENTS) {
@@ -149,7 +150,7 @@ async function walkFolder(dirPath: string, root: string, depth = 0): Promise<str
 }
 
 function relativePath(root: string, target: string): string {
-  return target.startsWith(root) ? target.slice(root.length).replace(/^\/+/, "") || "." : target;
+  return toRelativeIfInside(root, target) ?? target;
 }
 
 async function expandFolderReference(ref: ContextReference, cwd: string, allowedRoot: string): Promise<string> {

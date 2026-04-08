@@ -96,8 +96,16 @@ async function createTestRuntime(saHome: string): Promise<EngineRuntime> {
     securityMode: new SecurityModeManager(),
     agentName: "Test",
     mainSessionId: mainSession.id,
+    async refreshSystemPrompt() {
+      return "Test agent.";
+    },
+    async close() {
+      scheduler.stop();
+      archive.close();
+      await auth.cleanup();
+    },
     createAgent(_onToolApproval?: any, modelOverride?: string) {
-      return new Agent({ router, tools: [], systemPrompt: "Test", modelOverride });
+      return new Agent({ router, tools: [], getSystemPrompt: () => "Test", modelOverride });
     },
   };
 }
@@ -117,6 +125,15 @@ afterEach(async () => {
 function createCaller() {
   const appRouter = createAppRouter(runtime);
   return appRouter.createCaller(createContext({ rawToken: masterToken }));
+}
+
+function createSessionCaller(connectorId = "telegram:123", connectorType = "telegram") {
+  const paired = runtime.auth.pair(masterToken, connectorId, connectorType);
+  if (!paired.success || !paired.token) {
+    throw new Error("Failed to create a session token for tests");
+  }
+  const appRouter = createAppRouter(runtime);
+  return appRouter.createCaller(createContext({ rawToken: paired.token }));
 }
 
 describe("tRPC procedures (non-live)", () => {
@@ -158,6 +175,55 @@ describe("tRPC procedures (non-live)", () => {
       const sessions = await caller.session.list();
       // main + 2 new ones
       expect(sessions.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe("session token authorization", () => {
+    test("session tokens can only create sessions for their own connector scope", async () => {
+      const caller = createSessionCaller("telegram:123", "telegram");
+
+      const created = await caller.session.create({
+        connectorType: "telegram",
+        prefix: "telegram:123",
+      });
+      expect(created.session.id).toStartWith("telegram:123:");
+
+      await expect(caller.session.create({
+        connectorType: "telegram",
+        prefix: "telegram:999",
+      })).rejects.toThrow("own connector prefix");
+
+      await expect(caller.session.create({
+        connectorType: "tui",
+        prefix: "telegram:123",
+      })).rejects.toThrow("Connector type mismatch");
+    });
+
+    test("session tokens cannot access sessions owned by another connector", async () => {
+      const masterCaller = createCaller();
+      const ownCaller = createSessionCaller("telegram:123", "telegram");
+
+      const owned = await ownCaller.session.create({
+        connectorType: "telegram",
+        prefix: "telegram:123",
+      });
+      const other = await masterCaller.session.create({
+        connectorType: "telegram",
+        prefix: "telegram:999",
+      });
+
+      const visibleSessions = await ownCaller.session.list();
+      expect(visibleSessions.some((session) => session.id === owned.session.id)).toBe(true);
+      expect(visibleSessions.some((session) => session.id === other.session.id)).toBe(false);
+
+      await expect(ownCaller.chat.history({ sessionId: other.session.id })).rejects.toThrow("do not own this session");
+    });
+
+    test("session tokens cannot call admin-only procedures", async () => {
+      const caller = createSessionCaller("telegram:123", "telegram");
+
+      await expect(caller.cron.list()).rejects.toThrow("requires the master token");
+      await expect(caller.engine.shutdown()).rejects.toThrow("requires the master token");
     });
   });
 

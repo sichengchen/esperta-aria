@@ -295,6 +295,40 @@ export class SessionArchiveManager {
     }));
   }
 
+  async getSessionRecord(sessionId: string): Promise<ArchivedSessionRecord | null> {
+    if (!this.db) return null;
+
+    const row = this.db.prepare(`
+      SELECT session_id, connector_type, connector_id, created_at, last_active_at,
+             message_count, preview, summary
+      FROM sessions
+      WHERE session_id = ?
+      LIMIT 1
+    `).get(sessionId) as {
+      session_id: string;
+      connector_type: string;
+      connector_id: string;
+      created_at: number;
+      last_active_at: number;
+      message_count: number;
+      preview: string;
+      summary: string;
+    } | null;
+
+    if (!row) return null;
+
+    return {
+      sessionId: row.session_id,
+      connectorType: row.connector_type,
+      connectorId: row.connector_id,
+      createdAt: row.created_at,
+      lastActiveAt: row.last_active_at,
+      messageCount: row.message_count,
+      preview: row.preview,
+      summary: row.summary,
+    };
+  }
+
   async listRecent(limit = 20): Promise<ArchivedSessionRecord[]> {
     if (!this.db) return [];
 
@@ -379,5 +413,10 @@ export class SessionArchiveManager {
     } catch {
       return [];
     }
+  }
+
+  close(): void {
+    this.db?.close();
+    this.db = null;
   }
 }

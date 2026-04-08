@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
+import { toRelativeIfInside } from "./path-boundary.js";
 
 const DEFAULT_EXCLUDES = [
   "node_modules/",
@@ -270,8 +271,17 @@ export class CheckpointManager {
     }
 
     const args = filePath
-      ? ["checkout", commitHash, "--", relativeToDir(absDir, resolve(absDir, filePath))]
+      ? (() => {
+          const relativePath = relativeToDir(absDir, resolve(absDir, filePath));
+          if (!relativePath) {
+            return null;
+          }
+          return ["checkout", commitHash, "--", relativePath];
+        })()
       : ["checkout", commitHash, "--", "."];
+    if (!args) {
+      return { success: false, error: "filePath escapes the working directory." };
+    }
     const restore = this.runGit(args, shadowRepo, absDir);
     if (!restore.ok) {
       return { success: false, error: restore.stderr || "Restore failed." };
@@ -280,11 +290,8 @@ export class CheckpointManager {
   }
 }
 
-function relativeToDir(baseDir: string, targetPath: string): string {
-  if (!targetPath.startsWith(baseDir)) {
-    return targetPath;
-  }
-  return targetPath.slice(baseDir.length).replace(/^\/+/, "") || ".";
+function relativeToDir(baseDir: string, targetPath: string): string | null {
+  return toRelativeIfInside(baseDir, targetPath);
 }
 
 export function checkpointWorkdirForArgs(toolName: string, args: Record<string, unknown>, fallbackWorkingDir: string): string | null {
