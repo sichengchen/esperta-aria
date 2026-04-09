@@ -1874,7 +1874,11 @@ export function createAppRouter(runtime: EngineRuntime) {
             throw new TRPCError({ code: "CONFLICT", message: `Webhook task with slug "${input.slug}" already exists` });
           }
 
-          tasks.push({
+          if (tasks.some((t) => t.name === input.name)) {
+            throw new TRPCError({ code: "CONFLICT", message: `Webhook task "${input.name}" already exists` });
+          }
+
+          const createdTask = {
             id: crypto.randomUUID(),
             name: input.name,
             slug: input.slug,
@@ -1886,7 +1890,8 @@ export function createAppRouter(runtime: EngineRuntime) {
             skills: input.skills,
             retryPolicy: input.retryPolicy,
             delivery: input.delivery,
-          });
+          };
+          const nextTasks = [...tasks, createdTask];
 
           await runtime.config.saveConfig({
             ...configFile,
@@ -1895,11 +1900,11 @@ export function createAppRouter(runtime: EngineRuntime) {
               automation: {
                 ...configFile.runtime.automation,
                 cronTasks: configFile.runtime.automation?.cronTasks ?? [],
-                webhookTasks: tasks,
+                webhookTasks: nextTasks,
               },
             },
           });
-          upsertWebhookTaskRecord(runtime, tasks[tasks.length - 1]!);
+          upsertWebhookTaskRecord(runtime, createdTask);
 
           return { added: true, slug: input.slug };
         }),
@@ -1928,15 +1933,27 @@ export function createAppRouter(runtime: EngineRuntime) {
             throw new TRPCError({ code: "NOT_FOUND", message: `Webhook task not found: ${input.slug}` });
           }
 
-          if (input.name !== undefined) task.name = input.name;
-          if (input.prompt !== undefined) task.prompt = input.prompt;
-          if (input.enabled !== undefined) task.enabled = input.enabled;
-          if (input.model !== undefined) task.model = input.model;
-          if (input.allowedTools !== undefined) task.allowedTools = input.allowedTools;
-          if (input.allowedToolsets !== undefined) task.allowedToolsets = input.allowedToolsets;
-          if (input.skills !== undefined) task.skills = input.skills;
-          if (input.retryPolicy !== undefined) task.retryPolicy = input.retryPolicy;
-          if (input.delivery !== undefined) task.delivery = input.delivery;
+          const nextName = input.name ?? task.name;
+          if (tasks.some((existingTask) => existingTask !== task && existingTask.name === nextName)) {
+            throw new TRPCError({ code: "CONFLICT", message: `Webhook task "${nextName}" already exists` });
+          }
+
+          const updatedTask = {
+            ...task,
+            name: nextName,
+            prompt: input.prompt ?? task.prompt,
+            enabled: input.enabled ?? task.enabled,
+            model: input.model ?? task.model,
+            allowedTools: input.allowedTools ?? task.allowedTools,
+            allowedToolsets: input.allowedToolsets ?? task.allowedToolsets,
+            skills: input.skills ?? task.skills,
+            retryPolicy: input.retryPolicy ?? task.retryPolicy,
+            delivery: input.delivery ?? task.delivery,
+          };
+
+          const nextTasks = tasks.map((existingTask) => (
+            existingTask.slug === input.slug ? updatedTask : existingTask
+          ));
 
           await runtime.config.saveConfig({
             ...configFile,
@@ -1945,11 +1962,11 @@ export function createAppRouter(runtime: EngineRuntime) {
               automation: {
                 ...configFile.runtime.automation,
                 cronTasks: configFile.runtime.automation?.cronTasks ?? [],
-                webhookTasks: tasks,
+                webhookTasks: nextTasks,
               },
             },
           });
-          upsertWebhookTaskRecord(runtime, task);
+          upsertWebhookTaskRecord(runtime, updatedTask);
 
           return { updated: true, slug: input.slug };
         }),
