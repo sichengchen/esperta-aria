@@ -8,19 +8,19 @@ import { getRuntimeSessionCoordinator } from "./session-coordinator.js";
 import { Agent } from "../../../src/engine/agent/index.js";
 import type { AgentEvent } from "../../../src/engine/agent/index.js";
 import type { DangerLevel } from "../../../src/engine/agent/types.js";
-import { classifyExecCommand } from "../../../src/engine/tools/exec-classifier.js";
-import { ToolPolicyManager, type ToolEventContext } from "../../../src/engine/tools/policy.js";
+import { classifyExecCommand } from "./tools/exec-classifier.js";
+import { ToolPolicyManager, type ToolEventContext } from "./tools/policy.js";
 import { ConnectorTypeSchema } from "@aria/shared/types.js";
 import type { EngineEvent, SkillInfo, ConnectorType, ToolApprovalMode, EscalationChoice } from "@aria/shared/types.js";
 import type { ModelConfig, ProviderConfig } from "../../../src/engine/router/types.js";
 import { heartbeatState, createHeartbeatTask } from "./scheduler.js";
 import { describeModeEffects } from "./security-mode.js";
-import { createSessionToolEnvironment } from "../../../src/engine/session-tool-environment.js";
-import { preprocessContextReferences } from "../../../src/engine/context-references.js";
+import { createSessionToolEnvironment } from "./session-tool-environment.js";
+import { preprocessContextReferences } from "./context-references.js";
 import type { CronTask } from "./config/types.js";
 import { computeNextRunAt, parseScheduleInput } from "./automation-schedule.js";
-import { listToolsets } from "../../../src/engine/toolsets.js";
-import { buildToolCapabilityCatalog, resolveCapabilityPolicyDecision } from "../../../src/engine/capability-policy.js";
+import { listToolsets } from "./toolsets.js";
+import { buildToolCapabilityCatalog, resolveCapabilityPolicyDecision } from "./capability-policy.js";
 import {
   buildDelegationOptions,
   deleteWebhookTaskRecord,
