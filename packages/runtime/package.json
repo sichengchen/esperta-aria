@@ -16,9 +16,13 @@
     "./checkpoints": "./src/checkpoints.ts",
     "./config": "./src/config/index.ts",
     "./context": "./src/context.ts",
+    "./context-files": "./src/context-files.ts",
+    "./context-references": "./src/context-references.ts",
     "./engine": "./src/engine.ts",
+    "./memory": "./src/memory/index.ts",
     "./mcp": "./src/mcp.ts",
     "./operational-store": "./src/operational-store.ts",
+    "./path-boundary": "./src/path-boundary.ts",
     "./router": "./src/router/index.ts",
     "./runtime": "./src/runtime.ts",
     "./scheduler": "./src/scheduler.ts",
@@ -26,7 +30,12 @@
     "./server": "./src/server.ts",
     "./session-archive": "./src/session-archive.ts",
     "./sessions": "./src/sessions.ts",
+    "./skills": "./src/skills/index.ts",
     "./procedures": "./src/procedures.ts",
+    "./tools": "./src/tools/index.ts",
+    "./toolsets": "./src/toolsets.ts",
+    "./capability-policy": "./src/capability-policy.ts",
+    "./session-tool-environment": "./src/session-tool-environment.ts",
     "./trpc": "./src/trpc.ts"
   }
 }
