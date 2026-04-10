@@ -1,8 +1,8 @@
 import { join } from "node:path";
 import { ConfigManager } from "./config/index.js";
 import { ModelRouter } from "./router/index.js";
-import { Agent } from "../../../src/engine/agent/index.js";
-import type { ToolImpl, ToolApprovalCallback, AskUserCallback } from "../../../src/engine/agent/index.js";
+import { Agent } from "./agent/index.js";
+import type { ToolImpl, ToolApprovalCallback, AskUserCallback } from "./agent/index.js";
 import { MemoryManager } from "./memory/index.js";
 import { getBuiltinTools, createWebFetchTool, createDelegateTool, createDelegateStatusTool, createClaudeCodeTool, createCodexTool, askUserTool } from "./tools/index.js";
 import { Orchestrator } from "../../../src/engine/agent/orchestrator.js";
@@ -30,7 +30,7 @@ import { createSkillManageTool } from "./tools/skill-manage.js";
 import { MCPManager } from "./mcp.js";
 import { registerCronTask, upsertCronTaskRecord, upsertHeartbeatTaskRecord, upsertWebhookTaskRecord } from "./automation.js";
 import { OperationalStore } from "./operational-store.js";
-import { PromptEngine } from "../../../src/engine/prompt-engine.js";
+import { PromptEngine } from "./prompt-engine.js";
 import { CLI_NAME, getRuntimeHome } from "@aria/shared/brand.js";
 
 /** Engine runtime — holds all bootstrapped subsystems */

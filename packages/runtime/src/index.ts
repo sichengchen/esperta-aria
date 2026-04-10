@@ -1,3 +1,4 @@
+export * from "./agent/index.js";
 export * from "./automation-schedule.js";
 export * from "./automation.js";
 export * from "./audio/index.js";
@@ -12,6 +13,7 @@ export * from "./memory/index.js";
 export * from "./mcp.js";
 export * from "./operational-store.js";
 export * from "./path-boundary.js";
+export * from "./prompt-engine.js";
 export * from "./router/index.js";
 export * from "./runtime.js";
 export * from "./scheduler.js";
