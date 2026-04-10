@@ -13,17 +13,22 @@
     "declarationMap": false,
     "sourceMap": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "types": ["bun-types"],
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@aria/engine/*": ["src/engine/*"],
-      "@aria/connectors/*": ["src/connectors/*"],
-      "@aria/shared/*": ["src/shared/*"],
+      "@aria/connectors/*": ["packages/connectors/src/*", "src/connectors/*"],
+      "@aria/shared/*": ["packages/shared-types/src/*", "src/shared/*"],
       "@aria/cli/*": ["src/cli/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "packages/**/*.ts",
+    "packages/**/*.tsx"
+  ],
   "exclude": ["node_modules", "dist"]
 }
