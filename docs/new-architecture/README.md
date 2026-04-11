@@ -6,10 +6,10 @@ It is intentionally forward-looking. It does not describe the current repo as-is
 
 - `Aria Server` hosts `Aria Agent`
 - `Aria Agent` is the only component that owns Aria-managed memory, context, IM connectors, and automation
+- `Aria Agent` can manage projects through a dedicated project control layer
 - `Aria Desktop` is a multi-surface client for:
   - server-hosted `Aria`
-  - remote project work on `Aria Server`
-  - local project work with local coding agents
+  - unified `Projects` with local and remote environments
 - `Aria Mobile` is a thin client for server-hosted Aria and remote project work
 - `Aria Relay` is the secure access and optional hosted-runtime layer
 

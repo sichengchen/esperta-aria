@@ -16,6 +16,7 @@ flowchart LR
         direction TB
         Gateway["Gateway API + Realtime"]
         Runtime["Aria Runtime"]
+        Projects["Projects Control"]
 
         subgraph AriaSpace["Aria Space"]
             direction LR
@@ -41,6 +42,7 @@ flowchart LR
     Gateway --> Runtime
 
     Runtime --> AriaAgent
+    Runtime --> Projects
     Runtime --> Jobs
     Runtime --> Store
 
@@ -48,8 +50,12 @@ flowchart LR
     AriaAgent --> Automation
     AriaAgent --> Connectors
     AriaAgent --> Inbox
+    AriaAgent --> Projects
     AriaAgent --> Store
 
+    Projects --> Workspaces
+    Projects --> Jobs
+    Projects --> Store
     Jobs --> Workspaces
     Jobs --> Coding
     Jobs --> Store
@@ -64,6 +70,7 @@ flowchart LR
 | `Gateway API + Realtime` | Authenticates clients, exposes request APIs, streams live thread/run events |
 | `Aria Runtime` | Shared runtime kernel for routing, persistence, policy, execution, and orchestration |
 | `Aria Agent` | Personal assistant agent and sole owner of Aria-managed memory, connectors, and automation |
+| `Projects Control` | Project registry, project-thread coordination, environment switching, and Aria-to-coding-agent orchestration |
 | `Aria Memory` | Memory layers, context assembly inputs, skills, and durable assistant knowledge |
 | `Aria Automation` | Heartbeat, cron, and webhook automation owned by Aria |
 | `IM Connector Runtime` | Slack/Telegram/Discord/Teams style connector processes and adapter logic |
@@ -83,6 +90,16 @@ flowchart LR
 - skill loading for Aria
 - heartbeat / cron / webhook definitions
 - inbox items caused by Aria and automation
+- project-management decisions and orchestration through `Projects Control`
+
+### `Projects Control` owns
+
+- project registry and metadata
+- project-thread registration
+- active environment selection for project threads
+- thread-to-environment reassignment history
+- dispatch to local or remote execution targets
+- Aria-managed project orchestration APIs
 
 ### `Remote Job Orchestrator` owns
 
@@ -110,6 +127,8 @@ That keeps the assistant boundary clean:
 
 - Aria is the personal assistant
 - coding agents are project workers
+
+`Aria Agent` can still manage projects. It does so through `Projects Control`, not by collapsing coding-agent workers into the assistant itself.
 
 ## Primary Flows
 
@@ -143,10 +162,21 @@ That keeps the assistant boundary clean:
 
 1. desktop or mobile opens a remote project thread
 2. `Gateway API + Realtime` routes it to `Aria Runtime`
-3. `Aria Runtime` invokes `Remote Job Orchestrator`
-4. orchestrator resolves workspace and environment
-5. selected coding agent adapter executes in the remote environment
-6. run state, tool state, and results are persisted to the store
+3. `Aria Runtime` resolves project state through `Projects Control`
+4. `Projects Control` resolves the active environment
+5. `Projects Control` invokes `Remote Job Orchestrator`
+6. selected coding agent adapter executes in the remote environment
+7. run state, tool state, and results are persisted to the store
+
+### 5. Aria-managed project workflow
+
+1. operator asks `Aria Agent` to manage a project
+2. `Aria Agent` calls `Projects Control`
+3. `Projects Control` resolves the project and available environments
+4. Aria selects a local or remote target
+5. if the target is remote, work is dispatched through `Remote Job Orchestrator`
+6. if the target is local, work is dispatched through an explicitly attached desktop bridge session
+7. Aria monitors status, summarizes results, and drives follow-up actions
 
 ## Server-local Console
 
@@ -169,6 +199,7 @@ Recommended behavior:
 | Runtime kernel | `@aria/runtime` |
 | Gateway API and realtime | `@aria/gateway` |
 | Aria assistant agent | `@aria/agent-aria` |
+| Project control | `@aria/projects` |
 | Memory and skills | `@aria/memory` |
 | Automation | `@aria/automation` |
 | IM connectors | `@aria/connectors-im` |

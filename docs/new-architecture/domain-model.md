@@ -9,17 +9,20 @@ flowchart TD
     Server["Server"]
     Workspace["Workspace"]
     Project["Project"]
-    Environment["Environment"]
     Thread["Thread"]
+    Environment["Environment"]
+    Binding["Thread Environment Binding"]
     Session["Session"]
     Run["Run"]
     Job["Job"]
 
     Server --> Workspace
     Workspace --> Project
+    Project --> Thread
     Project --> Environment
-    Environment --> Thread
-    Thread --> Session
+    Thread --> Binding
+    Environment --> Binding
+    Binding --> Session
     Session --> Run
     Thread --> Job
 ```
@@ -33,6 +36,7 @@ flowchart TD
 | `project` | A repo, folder, or logical work unit inside a workspace |
 | `environment` | A concrete execution target such as `main`, worktree, or sandbox |
 | `thread` | A user-visible conversation or job surface |
+| `thread_environment_binding` | The current or historical attachment between a project thread and an execution environment |
 | `session` | Runtime continuity object backing a thread |
 | `run` | One model/tool execution inside a session |
 | `job` | A durable long-running execution owned by a thread |
@@ -48,6 +52,7 @@ flowchart TD
 | User-facing term | Runtime term | Notes |
 | --- | --- | --- |
 | Thread | `thread` + `session` | The user sees a thread, the runtime still needs session continuity |
+| Active environment | `thread_environment_binding` | The UI can show an environment switch without making environments the primary sidebar object |
 | Remote job | `job` + `run` | Jobs may span many runs |
 | Project environment | `environment` | Includes main branch, worktree, or sandbox |
 | Aria chat | `thread` bound to `Aria Agent` | Server-hosted only |
@@ -63,6 +68,7 @@ The UI should prefer `thread` over `session`.
 | `project` | yes | yes | Project may be local or remote |
 | `environment` | yes | yes | Local worktree or remote worktree |
 | `thread` | yes | yes | Local project threads on desktop, Aria/remote threads on server |
+| `thread_environment_binding` | yes | yes | Needed to support explicit environment switching |
 | `session` | yes | yes | Runtime-internal continuity object |
 | `run` | yes | yes | Execution record |
 | `job` | local optional | yes | Remote jobs must live on server |
@@ -95,6 +101,18 @@ Examples:
 - `local_project` -> `codex`, `claude-code`, or `opencode`
 
 This should be modeled directly rather than inferred from connector type.
+
+## Project Management By Aria
+
+`Aria Agent` can manage projects, but it should not own every project run directly.
+
+Recommended split:
+
+- `Aria Agent` owns project-management intent, planning, coordination, and summaries
+- coding agent adapters own concrete local or remote implementation runs
+- `Projects Control` owns thread/environment dispatch rules
+
+This allows Aria to manage a project without collapsing the worker model.
 
 ## Recommended Identity Fields
 
@@ -154,6 +172,7 @@ Recommended top-level logical groups:
 - `projects`
 - `environments`
 - `threads`
+- `thread_environment_bindings`
 - `sessions`
 - `runs`
 - `jobs`
@@ -186,6 +205,16 @@ Project threads can use:
 - local or remote environment execution
 
 Project threads must not silently inherit Aria-managed memory. If Aria is involved, the handoff must be explicit.
+
+## Environment Switching Rules
+
+To support a unified project sidebar with environment switching in the thread view:
+
+1. a project thread belongs to a `project`, not directly to an `environment`
+2. the thread has one active `thread_environment_binding`
+3. switching environments creates a durable binding event or new binding record
+4. each run stores the concrete environment it used
+5. the UI may present the switch inline without losing auditability
 
 ## Explicit Handoff
 

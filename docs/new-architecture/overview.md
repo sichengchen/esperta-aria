@@ -22,11 +22,12 @@ Everything else follows from that.
 
 1. `Aria Agent` is server-only.
 2. Aria-managed memory, context, connectors, and automation are server-only.
-3. Desktop local coding work is a separate execution plane from Aria-managed assistant state.
-4. Remote jobs always run on `Aria Server`.
-5. Clients stay thin relative to durable assistant state.
-6. The same identity model should span chat, jobs, automation, approvals, and audit.
-7. `Aria Relay` is an access and hosting layer, not the owner of assistant behavior.
+3. `Aria Agent` can manage projects through an explicit project control plane.
+4. Desktop local coding work is a separate execution plane from Aria-managed assistant state.
+5. Remote jobs always run on `Aria Server`.
+6. Clients stay thin relative to durable assistant state.
+7. The same identity model should span chat, jobs, automation, approvals, and audit.
+8. `Aria Relay` is an access and hosting layer, not the owner of assistant behavior.
 
 ## System Landscape
 
@@ -46,14 +47,18 @@ flowchart LR
         Gateway["Gateway API + Realtime"]
         Runtime["Aria Runtime"]
         Agent["Aria Agent"]
+        Projects["Projects Control"]
         Jobs["Remote Job Orchestrator"]
         Store["Operational Store"]
 
         Console --> Agent
         Gateway --> Runtime
         Runtime --> Agent
+        Runtime --> Projects
         Runtime --> Jobs
         Runtime --> Store
+        Agent --> Projects
+        Projects --> Jobs
     end
 
     subgraph DesktopLocal["Desktop Local Project Mode"]
@@ -82,10 +87,26 @@ The desktop product should present three distinct spaces.
 | Space | Hosted by | What lives there |
 | --- | --- | --- |
 | `Aria` | `Aria Server` | Aria chat, connector threads, automations, inbox, approvals |
-| `Remote Projects` | `Aria Server` | Remote project threads backed by remote coding agents and remote workspaces |
-| `Local Projects` | `Aria Desktop` | Local project threads backed by local coding agents and local folders/worktrees |
+| `Projects` | `Aria Desktop` plus `Aria Server` | Unified project threads with environment switching between local and remote targets |
+| `Local execution plane` | `Aria Desktop` | Local folders, local worktrees, local coding agents |
 
 This separation is not cosmetic. It enforces the correct ownership model.
+
+## UI Direction
+
+Desktop and mobile should use a shared interaction model:
+
+- one unified project-thread sidebar
+- a central conversation and run stream
+- a contextual right-side pane for reviews, diffs, environment details, or task state
+- mobile layouts that preserve the same thread model while collapsing secondary panels into sheets or stacked views
+
+The right product split for Aria remains:
+
+- `Aria`
+- `Projects`
+
+not a generic flat “sessions only” surface.
 
 ## Top-Level Responsibility Split
 
@@ -95,6 +116,7 @@ This separation is not cosmetic. It enforces the correct ownership model.
 - stores canonical Aria memory and context
 - owns IM connectors
 - owns automation
+- owns project control for Aria-managed project workflows
 - hosts remote project jobs
 - stores durable run, thread, audit, and checkpoint state for server-hosted work
 
@@ -104,7 +126,7 @@ This separation is not cosmetic. It enforces the correct ownership model.
 - provides the local project execution bridge
 - runs local coding agents
 - stores local project thread cache and local UI state
-- connects to one or more Aria Servers for Aria and remote project spaces
+- connects to one or more Aria Servers for Aria and project management
 
 ### `Aria Mobile`
 
@@ -130,6 +152,7 @@ The following rules are architectural, not optional UX choices.
 - skill management for Aria
 - IM connectors
 - heartbeat / cron / webhook automation
+- project control for Aria-managed project workflows
 - remote job orchestration
 - server-hosted inbox and approvals
 
@@ -157,25 +180,19 @@ The user can:
 - review inbox items
 - manage automations
 - view IM connector conversations
+- manage projects through Aria
 - approve or reject server-side actions
 
-### Local Projects
+### Projects
 
 The user can:
 
-- open a local folder or git repository
-- choose `main` or a local worktree
-- start a thread with a local coding agent
-- keep that work fully separate from Aria-managed server memory
-
-### Remote Projects
-
-The user can:
-
-- connect to an `Aria Server`
-- choose a remote project and environment
-- run remote coding agents
-- disconnect and reconnect without losing the remote job
+- open a project once in a unified sidebar
+- keep project threads visible without splitting local and remote into separate trees
+- switch the active execution environment in the thread view
+- choose between local environments and remote environments
+- let Aria create, monitor, and coordinate project work
+- disconnect and reconnect without losing remote job state
 
 ## Recommended Reading
 
