@@ -49,10 +49,12 @@ flowchart LR
 
         subgraph RemoteProjects["Remote Project Space"]
             direction TB
+            Projects["Projects Control"]
             Jobs["Remote Job Orchestrator"]
             RemoteAgents["Remote Coding Agents<br/>Codex / Claude Code / OpenCode"]
             RemoteRepos["Remote Repos / Worktrees / Sandboxes"]
 
+            Projects --> Jobs
             Jobs --> RemoteAgents
             Jobs --> RemoteRepos
         end
@@ -61,6 +63,7 @@ flowchart LR
 
         Gateway --> Runtime
         Runtime --> AriaAgent
+        Runtime --> Projects
         Runtime --> Jobs
         Runtime --> Store
     end
@@ -104,6 +107,7 @@ The user runs `Aria Server` on a VPS, bare-metal server, or managed host.
 - no Aria-managed memory
 - no IM connectors
 - no Aria automation
+- no server-side project control authority
 
 This mode is intentionally narrower than server mode.
 
@@ -115,6 +119,7 @@ This mode is intentionally narrower than server mode.
 | Aria-managed memory/context | no | yes | no | no |
 | IM connectors | no | yes | no | no |
 | heartbeat / cron / webhook | no | yes | no | no |
+| project control for Aria-managed workflows | no | yes | no | no |
 | remote coding jobs | no | yes | no | no |
 | local coding jobs | yes | no | no | no |
 | local repo/worktree access | yes | no | no | no |
@@ -169,6 +174,8 @@ The core security boundary is host ownership.
 ### Desktop local boundary
 
 Desktop-local project work can touch local files and local coding agents, but it does not gain automatic access to server-side Aria memory or connectors.
+
+If `Aria Agent` is allowed to manage a local project, it must do so through an explicit desktop bridge session and explicit project attachment.
 
 ### Server boundary
 

@@ -50,6 +50,7 @@ packages/
   runtime/
   protocol/
   gateway/
+  projects/
   prompt/
   tools/
   policy/
@@ -82,6 +83,7 @@ services/
 | `@aria/runtime` | Shared runtime kernel for threads, runs, policy, and orchestration |
 | `@aria/protocol` | Shared request, event, identity, and streaming contracts |
 | `@aria/gateway` | Authenticated API surface and realtime transport handling |
+| `@aria/projects` | Project registry, project-thread coordination, environment switching, and Aria-to-worker orchestration control |
 | `@aria/prompt` | Prompt assembly pipeline and context overlays |
 | `@aria/tools` | Tool runtime, built-in tool definitions, execution adapters |
 | `@aria/policy` | Capability policy, approvals, execution restrictions, trust rules |
@@ -117,6 +119,7 @@ The package graph should stay layered.
 - `@aria/prompt`
 - `@aria/tools`
 - `@aria/policy`
+- `@aria/projects`
 - `@aria/workspaces`
 - `@aria/jobs`
 
@@ -149,6 +152,17 @@ This package should contain only the Aria assistant implementation and Aria-spec
 
 This package should not absorb Aria memory, automation, or connector ownership. It is for remote project execution.
 
+### `@aria/projects`
+
+This package is where Aria-managed project coordination should live. It should own:
+
+- project registry models
+- project-thread metadata
+- environment-switch coordination
+- dispatch to local or remote execution targets
+
+It should not absorb low-level repo/worktree mechanics from `@aria/workspaces`, and it should not absorb worker execution from `@aria/jobs`.
+
 ### `@aria/connectors-im`
 
 This package should be server-only. Do not make it a generic desktop plugin host.
@@ -161,8 +175,8 @@ This package should be desktop-only. It should not be reused for server-hosted r
 
 | App / service | Depends on |
 | --- | --- |
-| `aria-server` | runtime, gateway, agent-aria, memory, automation, connectors-im, jobs, workspaces, store, audit, prompt, tools, policy |
-| `aria-desktop` | access-client, desktop-bridge, agents-coding, ui, protocol |
+| `aria-server` | runtime, gateway, projects, agent-aria, memory, automation, connectors-im, jobs, workspaces, store, audit, prompt, tools, policy |
+| `aria-desktop` | access-client, projects, desktop-bridge, agents-coding, ui, protocol |
 | `aria-mobile` | access-client, ui, protocol |
 | `aria-relay` | protocol, gateway-compatible contracts, relay-specific transport/auth logic |
 | `aria` console | console, access-client or a server-local transport shim, protocol |

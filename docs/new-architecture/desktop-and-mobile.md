@@ -6,8 +6,8 @@ This page defines the client-side architecture.
 
 `Aria Desktop` is the primary operator client. It has two fundamentally different execution modes:
 
-- server-connected mode for `Aria` and `Remote Projects`
-- local execution mode for `Local Projects`
+- server-connected mode for `Aria` and project management
+- local execution mode for local project environments
 
 ## Desktop Component Diagram
 
@@ -50,29 +50,65 @@ flowchart LR
 | `Local Coding Agent Adapters` | Codex, Claude Code, OpenCode on the current machine |
 | `Local Thread Store + UI Cache` | Local project thread state, UI cache, local run history, server metadata cache |
 
+## Desktop Layout Model
+
+Aria Desktop should use a three-pane productivity layout:
+
+1. left sidebar for global navigation plus project/thread selection
+2. center pane for the active thread stream
+3. right-side contextual pane for review, changes, environment details, or task state
+4. persistent bottom composer tied to the active thread
+
+Recommended Aria layout:
+
+```text
++---------------------------------------------------------------+
+| Sidebar           | Active Thread                | Context    |
+|                   |                              | Panel      |
+| Aria              | header                       |            |
+| Projects          |   thread title               | Review     |
+|   Project A       |   environment switch         | Changes    |
+|   Project B       |                              | Job State  |
+|                   | stream                       | Artifacts  |
+|                   |                              |            |
+|                   | composer                     |            |
++---------------------------------------------------------------+
+```
+
+This layout fits both Aria comments you raised:
+
+- the sidebar does not split local and remote projects
+- the environment switch lives in the active thread area, not in the tree
+
 ## Desktop Product Spaces
 
 ```mermaid
 flowchart TB
     Desktop["Aria Desktop"] --> Aria["Aria"]
-    Desktop --> Remote["Remote Projects"]
-    Desktop --> Local["Local Projects"]
+    Desktop --> Projects["Projects"]
 
     Aria --> AriaChat["Chat with Aria Agent"]
     Aria --> AriaInbox["Inbox / Approvals"]
     Aria --> AriaAuto["Automations"]
     Aria --> AriaIM["IM Connector Threads"]
 
-    Remote --> RemoteEnv["Remote main / remote worktrees / sandboxes"]
-    RemoteEnv --> RemoteThreads["Remote coding-agent threads"]
-
-    Local --> LocalEnv["Local main / local worktrees"]
-    LocalEnv --> LocalThreads["Local coding-agent threads"]
+    Projects --> ProjectThreads["Unified project threads"]
+    ProjectThreads --> EnvSwitch["Environment switch in thread view"]
+    EnvSwitch --> LocalEnv["Local main / local worktrees"]
+    EnvSwitch --> RemoteEnv["Remote main / remote worktrees / sandboxes"]
 ```
 
 ## Desktop Sidebar Model
 
-The left sidebar should group by execution ownership first, then by project structure.
+The left sidebar should not force a local-vs-remote split for project threads.
+
+Instead:
+
+- keep `Aria` as its own top-level space
+- keep `Projects` as one unified top-level space
+- let each project thread choose its execution environment in the right-side thread view
+
+The execution target is an environment property, not the primary sidebar grouping.
 
 Recommended hierarchy:
 
@@ -83,21 +119,33 @@ Aria
   Automations
   Connectors
 
-Remote Projects
-  <Server A>
-    <Project>
-      main
-      wt/<name>
-  <Server B>
-    <Project>
-      main
-      sandbox/<name>
-
-Local Projects
-  <Local Repo or Folder>
-    main
-    wt/<name>
+Projects
+  <Project A>
+    <Thread 1>
+    <Thread 2>
+  <Project B>
+    <Thread 1>
+    <Thread 2>
 ```
+
+In the thread header or right-side chat area, the user should see an environment selector such as:
+
+```text
+Environment:
+  This Device / main
+  This Device / wt/feature-x
+  Home Server / main
+  Home Server / wt/fix-login
+  Cloud Server / sandbox/pr-128
+```
+
+The context pane should also surface:
+
+- current environment metadata
+- active agent
+- job status
+- review findings or diffs
+- approvals or actions related to the current thread
 
 ## Desktop Thread Rules
 
@@ -109,15 +157,31 @@ Local Projects
 
 ### Remote project threads
 
-- always live on an `Aria Server`
-- always execute through remote coding agent adapters
+- are project threads currently attached to a remote environment
+- execute through remote coding agent adapters
 - can continue running when the desktop disconnects
 
 ### Local project threads
 
-- always live in the desktop-local execution plane
+- are project threads currently attached to a local environment
 - use local coding agents
 - do not automatically share Aria-managed memory
+
+### Unified project threads
+
+A project thread may move between environments over time, but that move should be explicit and recorded.
+
+Recommended rule:
+
+- the thread has one active environment attachment at a time
+- changing the environment is a tracked event
+- runs record the exact environment they executed against
+- Aria can request or perform this switch through `Projects Control`
+
+Recommended UX rule:
+
+- preserve one thread identity while switching execution targets when the user is continuing the same unit of work
+- prompt before switching when the environment change is materially risky, such as moving from local main to a remote sandbox or vice versa
 
 ## Aria Mobile
 
@@ -152,8 +216,28 @@ flowchart LR
 - review inbox items
 - answer approvals and questions
 - inspect automation state
-- view remote project threads
+- view project threads that are attached to remote environments
 - reconnect to ongoing remote jobs
+
+## Mobile Layout Model
+
+Mobile should preserve the same conceptual structure as desktop, but collapse panels into stacked views and sheets.
+
+Recommended model:
+
+1. top-level tabs or navigation for `Aria` and `Projects`
+2. thread list screen
+3. active thread screen with:
+   - thread header
+   - environment switch
+   - message/run stream
+   - composer
+4. review/details presented as:
+   - bottom sheet
+   - push screen
+   - segmented detail view
+
+That keeps the thread model consistent across devices.
 
 ## Mobile Non-responsibilities
 
@@ -179,6 +263,7 @@ Both desktop and mobile should share the same access model:
 | Desktop shell | `@aria/desktop` |
 | Mobile shell | `@aria/mobile` |
 | Shared access client | `@aria/access-client` |
+| Shared project client state | `@aria/projects` or a dedicated client-facing slice of it |
 | Desktop local bridge | `@aria/desktop-bridge` |
 | Local git integration | `@aria/desktop-git` |
 | Local coding agent adapters | `@aria/agents-coding` or `@aria/desktop-agents` |
@@ -193,3 +278,9 @@ That means:
 - desktop can run local project workers
 - desktop can render server-hosted Aria
 - desktop must not become the host of `Aria Agent`
+
+It can still let `Aria Agent` manage projects, but only through:
+
+- explicit project attachment
+- explicit environment selection
+- explicit desktop bridge access for local environments
