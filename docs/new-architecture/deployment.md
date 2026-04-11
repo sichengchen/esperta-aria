@@ -150,6 +150,8 @@ Use this when:
 - the operator does not want to expose the server directly
 - mobile access needs stable brokered connectivity
 
+See [relay.md](./relay.md) for the detailed Relay design.
+
 ## Failure and Disconnect Model
 
 ### Local projects

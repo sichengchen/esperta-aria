@@ -17,8 +17,10 @@ It is intentionally forward-looking. It does not describe the current repo as-is
 
 - [overview.md](./overview.md)
 - [deployment.md](./deployment.md)
+- [relay.md](./relay.md)
 - [server.md](./server.md)
 - [desktop-and-mobile.md](./desktop-and-mobile.md)
+- [tech-decisions.md](./tech-decisions.md)
 - [domain-model.md](./domain-model.md)
 - [packages.md](./packages.md)
 
@@ -51,7 +53,9 @@ That implies:
 
 - Start with [overview.md](./overview.md) for the system map
 - Read [deployment.md](./deployment.md) for where each component runs
+- Read [relay.md](./relay.md) for the secure access and transport model
 - Read [server.md](./server.md) for the server-side ownership model
 - Read [desktop-and-mobile.md](./desktop-and-mobile.md) for the client model
+- Read [tech-decisions.md](./tech-decisions.md) for concrete stack choices
 - Read [domain-model.md](./domain-model.md) for the persistent object model
 - Read [packages.md](./packages.md) for monorepo naming and package ownership

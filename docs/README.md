@@ -17,8 +17,10 @@ This tree is organized by reader intent, not by the old code layout.
 - [new-architecture/README.md](./new-architecture/README.md)
 - [new-architecture/overview.md](./new-architecture/overview.md)
 - [new-architecture/deployment.md](./new-architecture/deployment.md)
+- [new-architecture/relay.md](./new-architecture/relay.md)
 - [new-architecture/server.md](./new-architecture/server.md)
 - [new-architecture/desktop-and-mobile.md](./new-architecture/desktop-and-mobile.md)
+- [new-architecture/tech-decisions.md](./new-architecture/tech-decisions.md)
 - [new-architecture/domain-model.md](./new-architecture/domain-model.md)
 - [new-architecture/packages.md](./new-architecture/packages.md)
 

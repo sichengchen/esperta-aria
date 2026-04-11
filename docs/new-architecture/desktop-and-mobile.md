@@ -9,6 +9,28 @@ This page defines the client-side architecture.
 - server-connected mode for `Aria` and project management
 - local execution mode for local project environments
 
+## Recommended Client Toolchain
+
+Aria should standardize the client and shared-package toolchain on the broader VoidZero stack while using `Vite+` for monorepo management and `bun` as the selected package manager/runtime where supported.
+
+Recommended baseline:
+
+- `bun` as selected package manager/runtime under Vite+
+- `Vite+` where a unified client/web toolchain is applicable
+- `Vite` for dev-server and ecosystem compatibility
+- `Rolldown` for builds and packaging
+- `Oxc` for linting, formatting, and related language tooling
+- `Vitest` for tests
+
+This gives Aria:
+
+- one coherent client and shared-package toolchain
+- fast local development and CI
+- good monorepo ergonomics
+- strong support for AI-assisted workflows
+
+For the concrete shell decisions, see [tech-decisions.md](./tech-decisions.md).
+
 ## Desktop Component Diagram
 
 ```mermaid
@@ -49,6 +71,17 @@ flowchart LR
 | `Local Workspace Bridge` | Local filesystem, git, worktree, shell, and environment integration |
 | `Local Coding Agent Adapters` | Codex, Claude Code, OpenCode on the current machine |
 | `Local Thread Store + UI Cache` | Local project thread state, UI cache, local run history, server metadata cache |
+
+## Desktop Shell Recommendation
+
+Recommended direction:
+
+- React-based desktop UI
+- `bun` for package management/runtime through Vite+
+- VoidZero-stack toolchain for the renderer and shared UI packages
+- desktop-native wrapper chosen separately from the renderer toolchain
+
+The key architectural decision is the toolchain and package boundary, not a specific desktop wrapper first.
 
 ## Desktop Layout Model
 
@@ -247,6 +280,15 @@ That keeps the thread model consistent across devices.
 - no connector hosting
 - no automation hosting
 
+## Mobile Shell Recommendation
+
+Mobile may need a native-oriented shell, but the monorepo should still use the same underlying client-tooling philosophy:
+
+- bun at the repo/runtime layer where supported
+- Oxc and Vitest across shared packages
+- Rolldown-friendly package outputs for shared libraries where appropriate
+- shared client contracts and UI packages with desktop as much as possible
+
 ## Client Access Layer
 
 Both desktop and mobile should share the same access model:
@@ -268,6 +310,15 @@ Both desktop and mobile should share the same access model:
 | Local git integration | `@aria/desktop-git` |
 | Local coding agent adapters | `@aria/agents-coding` or `@aria/desktop-agents` |
 | Shared UI primitives | `@aria/ui` |
+
+## Toolchain References
+
+Official references:
+
+- [Vite+](https://viteplus.dev/)
+- [VoidZero](https://voidzero.dev/)
+
+The VoidZero site describes Vite+ as the entry point that manages runtime, package manager, and frontend tooling, and positions Vite, Rolldown, Oxc, and Vitest as part of the same tooling family. Aria should adopt that toolchain direction while explicitly selecting `bun` as the package manager/runtime choice.
 
 ## Boundary Reminder
 
