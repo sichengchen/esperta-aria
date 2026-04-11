@@ -73,6 +73,21 @@ services/
   aria-relay/
 ```
 
+## Recommended Toolchain
+
+For desktop, shared UI packages, and client-facing libraries, Aria should standardize on the broader VoidZero stack while using `Vite+` for monorepo management and `bun` as the package manager/runtime choice where supported.
+
+Recommended stack:
+
+- `bun` as package manager/runtime
+- `Vite+` where a unified client/web toolchain is applicable
+- `Vite` for dev-server and ecosystem compatibility
+- `Rolldown` for builds and packaging
+- `Oxc` for linting, formatting, and language tooling
+- `Vitest` for tests
+
+For the concrete app-shell decisions and Bun-runtime clarification, see [tech-decisions.md](./tech-decisions.md).
+
 ## Package Ownership
 
 | Package | Responsibility |
@@ -102,6 +117,31 @@ services/
 | `@aria/desktop-git` | Local git and worktree integration helpers |
 | `@aria/ui` | Shared UI primitives and cross-app presentation components |
 | `@aria/relay` | Secure access broker and optional hosted runtime service |
+
+## Tooling Ownership Notes
+
+### Client and shared UI packages
+
+These packages should align with the VoidZero stack first:
+
+- `@aria/desktop`
+- `@aria/mobile`
+- `@aria/ui`
+- `@aria/access-client`
+- client-facing slices of `@aria/projects`
+
+### Runtime and server packages
+
+The server side can still use bun as runtime without every package becoming a Vite+ surface. The important constraint is coherence at the repo level and especially across client-facing packages.
+
+## Monorepo Management Decision
+
+Use:
+
+- `Vite+` as the monorepo-management layer
+- `bun` as the package manager/runtime underneath it
+
+This matches the Vite+ workspace model, which documents `vp run` as workspace-aware and dependency-aware across packages while still operating on the normal package graph declared in `package.json`.
 
 ## Dependency Direction
 
@@ -180,6 +220,11 @@ This package should be desktop-only. It should not be reused for server-hosted r
 | `aria-mobile` | access-client, ui, protocol |
 | `aria-relay` | protocol, gateway-compatible contracts, relay-specific transport/auth logic |
 | `aria` console | console, access-client or a server-local transport shim, protocol |
+
+## Official References
+
+- [Vite+ official site](https://viteplus.dev/)
+- [VoidZero official site](https://voidzero.dev/)
 
 ## Directory Naming Guidance
 
