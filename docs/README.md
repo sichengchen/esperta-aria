@@ -12,6 +12,16 @@ This tree is organized by reader intent, not by the old code layout.
 
 ## Documentation Map
 
+### Target Architecture
+
+- [new-architecture/README.md](./new-architecture/README.md)
+- [new-architecture/overview.md](./new-architecture/overview.md)
+- [new-architecture/deployment.md](./new-architecture/deployment.md)
+- [new-architecture/server.md](./new-architecture/server.md)
+- [new-architecture/desktop-and-mobile.md](./new-architecture/desktop-and-mobile.md)
+- [new-architecture/domain-model.md](./new-architecture/domain-model.md)
+- [new-architecture/packages.md](./new-architecture/packages.md)
+
 ### Product
 
 - [product/README.md](./product/README.md)
