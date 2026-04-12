@@ -33,13 +33,24 @@ const PHASE9_LEDGER_PATH = "docs/development/phase-9-architecture-truth-table.md
 
 describe("Phase 8 client shell packages", () => {
   test("@aria/desktop stays the target desktop shell over shared client, UI, and project seams", () => {
-    const bootstrap = createAriaDesktopBootstrap(
-      { serverId: "desktop", baseUrl: "http://127.0.0.1:7420/" },
-      {
+    const bootstrap = createAriaDesktopBootstrap({
+      target: { serverId: "desktop", baseUrl: "http://127.0.0.1:7420/" },
+      servers: [
+        {
+          label: "Home Server",
+          target: { serverId: "desktop", baseUrl: "http://127.0.0.1:7420/" },
+        },
+        {
+          label: "Relay Mirror",
+          target: { serverId: "relay", baseUrl: "https://relay.example.test/" },
+        },
+      ],
+      activeServerId: "desktop",
+      initialThread: {
         project: { name: "Aria" },
         thread: { threadId: "thread-1", title: "Desktop shell", status: "running", threadType: "local_project", environmentId: "wt/feature-x", agentId: "codex" },
       },
-    );
+    });
 
     expect(ariaDesktopApp.sharedPackages).toEqual([
       "@aria/access-client",
@@ -54,6 +65,7 @@ describe("Phase 8 client shell packages", () => {
       httpUrl: "http://127.0.0.1:7420",
       wsUrl: "ws://127.0.0.1:7420",
     });
+    expect(bootstrap.activeServerLabel).toBe("Home Server");
     expect(bootstrap.initialThread?.status).toBe("Running");
 
     expect(ariaDesktopSpaces).toEqual([
@@ -226,13 +238,24 @@ describe("Phase 8 client shell packages", () => {
   });
 
   test("@aria/mobile stays the remote-first target shell over shared client, UI, and project seams", () => {
-    const bootstrap = createAriaMobileBootstrap(
-      { serverId: "mobile", baseUrl: "https://aria.example.test/" },
-      {
+    const bootstrap = createAriaMobileBootstrap({
+      target: { serverId: "mobile", baseUrl: "https://aria.example.test/" },
+      servers: [
+        {
+          label: "Home Server",
+          target: { serverId: "mobile", baseUrl: "https://aria.example.test/" },
+        },
+        {
+          label: "Relay Mirror",
+          target: { serverId: "relay", baseUrl: "https://relay.example.test/" },
+        },
+      ],
+      activeServerId: "mobile",
+      initialThread: {
         project: { name: "Aria" },
         thread: { threadId: "thread-2", title: "Mobile shell", status: "idle", threadType: "remote_project", agentId: "codex" },
       },
-    );
+    });
 
     expect(ariaMobileApp.sharedPackages).toEqual([
       "@aria/access-client",
@@ -253,6 +276,7 @@ describe("Phase 8 client shell packages", () => {
       httpUrl: "https://aria.example.test",
       wsUrl: "wss://aria.example.test",
     });
+    expect(bootstrap.activeServerLabel).toBe("Home Server");
     expect(bootstrap.initialThread?.projectLabel).toBe("Aria");
 
     expect(ariaMobileTabs).toEqual([
@@ -271,6 +295,17 @@ describe("Phase 8 client shell packages", () => {
       "push-screen",
       "segmented-detail-view",
     ]);
+    expect(ariaMobileApp.serverSwitcher).toEqual(
+      expect.objectContaining({
+        label: "Server",
+        placement: "header",
+        mode: "multi-server",
+      }),
+    );
+    expect(ariaMobileAppFrame.serverSwitcher).toEqual({
+      placement: "header",
+      mode: "multi-server",
+    });
     expect(
       createAriaMobileProjectThreads([
         {
