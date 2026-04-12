@@ -107,6 +107,18 @@ Use the [phase 9 architecture truth table](./phase-9-architecture-truth-table.md
 - which package/app should be edited first when target architecture docs and repo history appear to disagree
 - which earlier phase ledger still governs a surface after the owner classification is known
 
+
+## Phase 13 Relay Service Seam
+
+Phase 13 keeps current relay behavior stable while seeding the target-state relay service surface for `services/aria-relay` over `@aria/relay`.
+
+Use the [phase 13 relay service seam ledger](./phase-13-relay-service-seam-ledger.md) as the source of truth for:
+
+- the current package-owned relay implementation surfaces
+- the new thin service wrapper and repo-layout alignment
+- compatibility constraints that preserve transport/access-only ownership
+- focused verification for relay service bootstrap and docs alignment
+
 ## Cutover Criteria
 
 Before legacy repos are archived:
