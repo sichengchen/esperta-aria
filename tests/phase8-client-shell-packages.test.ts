@@ -4,17 +4,21 @@ import { join } from "node:path";
 
 import {
   ariaDesktopApp,
+  ariaDesktopContextPanels,
   ariaDesktopSpaces,
   createAriaDesktopEnvironmentOption,
   createAriaDesktopBootstrap,
   createAriaDesktopSidebarProjects,
+  createAriaDesktopThreadContext,
 } from "@aria/desktop";
 import {
   ariaMobileApp,
+  ariaMobileActionSections,
   ariaMobileDetailPresentations,
   ariaMobileTabs,
   createAriaMobileBootstrap,
   createAriaMobileProjectThreads,
+  createAriaMobileThreadContext,
 } from "@aria/mobile";
 import * as desktopAppModule from "../apps/aria-desktop/src/index.js";
 import * as mobileAppModule from "../apps/aria-mobile/src/index.js";
@@ -31,7 +35,7 @@ describe("Phase 8 client shell packages", () => {
       { serverId: "desktop", baseUrl: "http://127.0.0.1:7420/" },
       {
         project: { name: "Aria" },
-        thread: { threadId: "thread-1", title: "Desktop shell", status: "running" },
+        thread: { threadId: "thread-1", title: "Desktop shell", status: "running", threadType: "local_project", environmentId: "wt/feature-x", agentId: "codex" },
       },
     );
 
@@ -54,14 +58,22 @@ describe("Phase 8 client shell packages", () => {
       { id: "aria", label: "Aria" },
       { id: "projects", label: "Projects" },
     ]);
+    expect(ariaDesktopContextPanels.map((panel) => panel.id)).toEqual([
+      "review",
+      "changes",
+      "environment",
+      "job",
+      "approvals",
+      "artifacts",
+    ]);
 
     expect(
       createAriaDesktopSidebarProjects([
         {
           project: { name: "Aria" },
           threads: [
-            { threadId: "thread-1", title: "Desktop shell", status: "running" },
-            { threadId: "thread-3", title: "Approvals", status: "idle" },
+            { threadId: "thread-1", title: "Desktop shell", status: "running", threadType: "local_project", environmentId: "wt/feature-x", agentId: "codex" },
+            { threadId: "thread-3", title: "Approvals", status: "idle", threadType: "aria", agentId: "aria-agent" },
           ],
         },
       ]),
@@ -74,16 +86,39 @@ describe("Phase 8 client shell packages", () => {
             title: "Desktop shell",
             projectLabel: "Aria",
             status: "Running",
+            threadType: "local_project",
+            threadTypeLabel: "Local Project",
+            environmentId: "wt/feature-x",
+            agentId: "codex",
           },
           {
             id: "thread-3",
             title: "Approvals",
             projectLabel: "Aria",
             status: "Idle",
+            threadType: "aria",
+            threadTypeLabel: "Aria",
+            environmentId: null,
+            agentId: "aria-agent",
           },
         ],
       },
     ]);
+
+    expect(
+      createAriaDesktopThreadContext({
+        thread: { threadId: "thread-1", threadType: "local_project" },
+        environmentLabel: "This Device / wt/feature-x",
+        agentLabel: "Codex",
+      }),
+    ).toMatchObject({
+      threadId: "thread-1",
+      threadType: "local_project",
+      threadTypeLabel: "Local Project",
+      environmentLabel: "This Device / wt/feature-x",
+      agentLabel: "Codex",
+      panels: ariaDesktopContextPanels,
+    });
 
     expect(
       createAriaDesktopEnvironmentOption({
@@ -109,7 +144,7 @@ describe("Phase 8 client shell packages", () => {
       { serverId: "mobile", baseUrl: "https://aria.example.test/" },
       {
         project: { name: "Aria" },
-        thread: { threadId: "thread-2", title: "Mobile shell", status: "idle" },
+        thread: { threadId: "thread-2", title: "Mobile shell", status: "idle", threadType: "remote_project", agentId: "codex" },
       },
     );
 
@@ -131,6 +166,12 @@ describe("Phase 8 client shell packages", () => {
       { id: "aria", label: "Aria" },
       { id: "projects", label: "Projects" },
     ]);
+    expect(ariaMobileActionSections.map((section) => section.id)).toEqual([
+      "approvals",
+      "automation",
+      "remote-review",
+      "job-status",
+    ]);
     expect(ariaMobileDetailPresentations).toEqual([
       "bottom-sheet",
       "push-screen",
@@ -140,7 +181,7 @@ describe("Phase 8 client shell packages", () => {
       createAriaMobileProjectThreads([
         {
           project: { name: "Aria" },
-          threads: [{ threadId: "thread-2", title: "Mobile shell", status: "idle" }],
+          threads: [{ threadId: "thread-2", title: "Mobile shell", status: "idle", threadType: "remote_project", agentId: "codex" }],
         },
       ]),
     ).toEqual([
@@ -152,10 +193,27 @@ describe("Phase 8 client shell packages", () => {
             title: "Mobile shell",
             projectLabel: "Aria",
             status: "Idle",
+            threadType: "remote_project",
+            threadTypeLabel: "Remote Project",
+            environmentId: null,
+            agentId: "codex",
           },
         ],
       },
     ]);
+
+    expect(
+      createAriaMobileThreadContext({
+        thread: { threadId: "thread-2", threadType: "remote_project" },
+        remoteStatusLabel: "Connected to Home Server",
+      }),
+    ).toMatchObject({
+      threadId: "thread-2",
+      threadType: "remote_project",
+      threadTypeLabel: "Remote Project",
+      remoteStatusLabel: "Connected to Home Server",
+      sections: ariaMobileActionSections,
+    });
   });
 
   test("desktop and mobile app entrypoints stay aligned with the current target shell contracts", () => {

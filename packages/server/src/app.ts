@@ -25,6 +25,24 @@ export const ariaServerApp = {
   cliName: CLI_NAME,
   surface: "server",
   sharedPackages: ["@aria/runtime", "@aria/gateway"],
+  capabilities: [
+    "aria-agent-host",
+    "gateway-api",
+    "project-control",
+    "remote-job-orchestration",
+    "memory",
+    "automation",
+    "connectors",
+    "approvals",
+    "audit",
+  ],
+  ownership: {
+    ariaAgent: "server-only",
+    memory: "server-only",
+    automation: "server-only",
+    connectors: "server-only",
+    projectLocalExecution: "desktop-only",
+  },
 } as const;
 
 export interface AriaServerBootstrap {

@@ -22,6 +22,14 @@ describe("package shell composition", () => {
       cliName: "aria",
       surface: "server",
     });
+    expect(ariaServerApp.capabilities).toContain("aria-agent-host");
+    expect(ariaServerApp.ownership).toMatchObject({
+      ariaAgent: "server-only",
+      memory: "server-only",
+      automation: "server-only",
+      connectors: "server-only",
+      projectLocalExecution: "desktop-only",
+    });
     expect(ariaServerApp.sharedPackages).toEqual([
       "@aria/runtime",
       "@aria/gateway",
@@ -54,12 +62,17 @@ describe("package shell composition", () => {
       projects: [
         {
           project: { name: "Aria" },
-          threads: [{ threadId: "thread-1", title: "Inbox", status: "running" }],
+          threads: [{ threadId: "thread-1", title: "Inbox", status: "running", threadType: "aria", agentId: "aria-agent" }],
         },
       ],
       initialThread: {
         project: { name: "Aria" },
-        thread: { threadId: "thread-1", title: "Inbox", status: "running" },
+        thread: { threadId: "thread-1", title: "Inbox", status: "running", threadType: "aria", agentId: "aria-agent" },
+      },
+      activeThreadContext: {
+        thread: { threadId: "thread-1", threadType: "aria" },
+        environmentLabel: "This Device / wt/main",
+        agentLabel: "Aria Agent",
       },
     });
 
@@ -67,6 +80,15 @@ describe("package shell composition", () => {
       { id: "aria", label: "Aria" },
       { id: "projects", label: "Projects" },
     ]);
+    expect(shell.contextPanels.map((panel) => panel.id)).toEqual([
+      "review",
+      "changes",
+      "environment",
+      "job",
+      "approvals",
+      "artifacts",
+    ]);
+    expect(shell.composerPlacement).toBe("bottom-docked");
     expect(shell.environments).toMatchObject([
       {
         id: "desktop-local:wt/main",
@@ -88,6 +110,10 @@ describe("package shell composition", () => {
             title: "Inbox",
             projectLabel: "Aria",
             status: "Running",
+            threadType: "aria",
+            threadTypeLabel: "Aria",
+            environmentId: null,
+            agentId: "aria-agent",
           },
         ],
       },
@@ -96,6 +122,14 @@ describe("package shell composition", () => {
       id: "thread-1",
       projectLabel: "Aria",
       status: "Running",
+      threadType: "aria",
+    });
+    expect(shell.activeThreadContext).toMatchObject({
+      threadId: "thread-1",
+      threadType: "aria",
+      threadTypeLabel: "Aria",
+      environmentLabel: "This Device / wt/main",
+      agentLabel: "Aria Agent",
     });
   });
 
@@ -105,12 +139,16 @@ describe("package shell composition", () => {
       projects: [
         {
           project: { name: "Aria" },
-          threads: [{ threadId: "thread-2", title: "Review", status: "idle" }],
+          threads: [{ threadId: "thread-2", title: "Review", status: "idle", threadType: "remote_project", agentId: "codex" }],
         },
       ],
       initialThread: {
         project: { name: "Aria" },
-        thread: { threadId: "thread-2", title: "Review", status: "idle" },
+        thread: { threadId: "thread-2", title: "Review", status: "idle", threadType: "remote_project", agentId: "codex" },
+      },
+      activeThreadContext: {
+        thread: { threadId: "thread-2", threadType: "remote_project" },
+        remoteStatusLabel: "Connected to Home Server",
       },
     });
 
@@ -123,6 +161,12 @@ describe("package shell composition", () => {
       "push-screen",
       "segmented-detail-view",
     ]);
+    expect(shell.actionSections.map((section) => section.id)).toEqual([
+      "approvals",
+      "automation",
+      "remote-review",
+      "job-status",
+    ]);
     expect(shell.projectThreads).toEqual([
       {
         projectLabel: "Aria",
@@ -132,6 +176,10 @@ describe("package shell composition", () => {
             title: "Review",
             projectLabel: "Aria",
             status: "Idle",
+            threadType: "remote_project",
+            threadTypeLabel: "Remote Project",
+            environmentId: null,
+            agentId: "codex",
           },
         ],
       },
@@ -140,6 +188,13 @@ describe("package shell composition", () => {
       id: "thread-2",
       projectLabel: "Aria",
       status: "Idle",
+      threadType: "remote_project",
+    });
+    expect(shell.activeThreadContext).toMatchObject({
+      threadId: "thread-2",
+      threadType: "remote_project",
+      threadTypeLabel: "Remote Project",
+      remoteStatusLabel: "Connected to Home Server",
     });
   });
 });

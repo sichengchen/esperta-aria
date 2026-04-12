@@ -5,4 +5,4 @@ export * from "./repository.js";
 export * from "./reviews.js";
 export * from "./schema.js";
 export * from "./store.js";
-export type * from "./types.js";
+export * from "./types.js";

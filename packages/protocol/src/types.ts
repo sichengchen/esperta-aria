@@ -9,14 +9,27 @@ export type SecurityLayer = "url_policy" | "exec_fence" | "tool_restriction";
 /** User choice for a security escalation prompt */
 export type EscalationChoice = "allow_once" | "allow_session" | "add_persistent" | "deny";
 
+export const ThreadTypeSchema = z.enum(["aria", "connector", "automation", "remote_project", "local_project"]);
+export type ThreadType = z.infer<typeof ThreadTypeSchema>;
+
 export interface EngineEventMeta {
+  serverId?: string;
+  workspaceId?: string;
+  projectId?: string;
+  environmentId?: string;
+  threadId?: string;
   sessionId: string;
   timestamp: number;
   runId?: string;
+  jobId?: string;
   parentRunId?: string | null;
   connectorType?: ConnectorType | string;
   source?: string;
   taskId?: string;
+  threadType?: ThreadType;
+  environmentBindingId?: string | null;
+  agentId?: string | null;
+  actorId?: string | null;
 }
 
 export type EngineEvent = EngineEventMeta & (
