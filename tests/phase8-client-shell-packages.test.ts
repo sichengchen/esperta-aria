@@ -4,11 +4,17 @@ import { join } from "node:path";
 
 import {
   ariaDesktopApp,
+  ariaDesktopSpaces,
+  createAriaDesktopEnvironmentOption,
   createAriaDesktopBootstrap,
+  createAriaDesktopSidebarProjects,
 } from "@aria/desktop";
 import {
   ariaMobileApp,
+  ariaMobileDetailPresentations,
+  ariaMobileTabs,
   createAriaMobileBootstrap,
+  createAriaMobileProjectThreads,
 } from "@aria/mobile";
 import * as desktopAppModule from "../apps/aria-desktop/src/index.js";
 import * as mobileAppModule from "../apps/aria-mobile/src/index.js";
@@ -41,6 +47,59 @@ describe("Phase 8 client shell packages", () => {
       wsUrl: "ws://127.0.0.1:7420",
     });
     expect(bootstrap.initialThread?.status).toBe("Running");
+
+    expect(ariaDesktopSpaces).toEqual([
+      { id: "aria", label: "Aria" },
+      { id: "projects", label: "Projects" },
+    ]);
+
+    expect(
+      createAriaDesktopSidebarProjects([
+        {
+          project: { name: "Aria" },
+          threads: [
+            { threadId: "thread-1", title: "Desktop shell", status: "running" },
+            { threadId: "thread-3", title: "Approvals", status: "idle" },
+          ],
+        },
+      ]),
+    ).toEqual([
+      {
+        projectLabel: "Aria",
+        threads: [
+          {
+            id: "thread-1",
+            title: "Desktop shell",
+            projectLabel: "Aria",
+            status: "Running",
+          },
+          {
+            id: "thread-3",
+            title: "Approvals",
+            projectLabel: "Aria",
+            status: "Idle",
+          },
+        ],
+      },
+    ]);
+
+    expect(
+      createAriaDesktopEnvironmentOption({
+        hostLabel: "This Device",
+        environmentLabel: "wt/feature-x",
+        mode: "local",
+        target: { serverId: "desktop-local", baseUrl: "http://127.0.0.1:8123/" },
+      }),
+    ).toMatchObject({
+      id: "desktop-local:wt/feature-x",
+      label: "This Device / wt/feature-x",
+      mode: "local",
+      access: {
+        serverId: "desktop-local",
+        httpUrl: "http://127.0.0.1:8123",
+        wsUrl: "ws://127.0.0.1:8123",
+      },
+    });
   });
 
   test("@aria/mobile stays a remote thin shell over shared client, UI, and project seams", () => {
@@ -65,6 +124,36 @@ describe("Phase 8 client shell packages", () => {
       wsUrl: "wss://aria.example.test",
     });
     expect(bootstrap.initialThread?.projectLabel).toBe("Aria");
+
+    expect(ariaMobileTabs).toEqual([
+      { id: "aria", label: "Aria" },
+      { id: "projects", label: "Projects" },
+    ]);
+    expect(ariaMobileDetailPresentations).toEqual([
+      "bottom-sheet",
+      "push-screen",
+      "segmented-detail-view",
+    ]);
+    expect(
+      createAriaMobileProjectThreads([
+        {
+          project: { name: "Aria" },
+          threads: [{ threadId: "thread-2", title: "Mobile shell", status: "idle" }],
+        },
+      ]),
+    ).toEqual([
+      {
+        projectLabel: "Aria",
+        threads: [
+          {
+            id: "thread-2",
+            title: "Mobile shell",
+            projectLabel: "Aria",
+            status: "Idle",
+          },
+        ],
+      },
+    ]);
   });
 
   test("desktop and mobile apps remain thin wrappers over the new package shells", () => {

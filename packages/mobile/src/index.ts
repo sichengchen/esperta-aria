@@ -21,10 +21,41 @@ export const ariaMobileApp = {
   capabilities: ["server-access", "project-threads", "remote-review"],
 } as const;
 
+export const ariaMobileTabs = [
+  { id: "aria", label: "Aria" },
+  { id: "projects", label: "Projects" },
+] as const;
+
+export const ariaMobileDetailPresentations = [
+  "bottom-sheet",
+  "push-screen",
+  "segmented-detail-view",
+] as const;
+
+export type AriaMobileTab = (typeof ariaMobileTabs)[number];
+export type AriaMobileDetailPresentation = (typeof ariaMobileDetailPresentations)[number];
+
+export interface AriaMobileProjectThreads {
+  projectLabel: string;
+  threads: ProjectThreadListItem[];
+}
+
 export interface AriaMobileBootstrap {
   app: typeof ariaMobileApp;
   access: ReturnType<typeof buildAccessClientConfig>;
   initialThread?: ProjectThreadListItem;
+}
+
+export function createAriaMobileProjectThreads(
+  projects: Array<{
+    project: Pick<ProjectRecord, "name">;
+    threads: Array<Pick<ThreadRecord, "threadId" | "title" | "status">>;
+  }>,
+): AriaMobileProjectThreads[] {
+  return projects.map(({ project, threads }) => ({
+    projectLabel: project.name,
+    threads: threads.map((thread) => createProjectThreadListItem(project, thread)),
+  }));
 }
 
 export function createAriaMobileBootstrap(
