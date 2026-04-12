@@ -26,6 +26,8 @@
       "@aria/runtime/*": ["packages/runtime/src/*"],
       "@aria/server": ["packages/server/src/index.ts"],
       "@aria/server/*": ["packages/server/src/*"],
+      "@aria/access-client": ["packages/access-client/src/index.ts"],
+      "@aria/access-client/*": ["packages/access-client/src/*"],
       "@aria/agents-coding": ["packages/agents-coding/src/index.ts"],
       "@aria/agents-coding/*": ["packages/agents-coding/src/*"],
       "@aria/jobs": ["packages/jobs/src/index.ts"],
@@ -57,7 +59,9 @@
       "@aria/providers-claude-code": ["packages/providers-claude-code/src/index.ts"],
       "@aria/providers-claude-code/*": ["packages/providers-claude-code/src/*"],
       "@aria/providers-opencode": ["packages/providers-opencode/src/index.ts"],
-      "@aria/providers-opencode/*": ["packages/providers-opencode/src/*"]
+      "@aria/providers-opencode/*": ["packages/providers-opencode/src/*"],
+      "@aria/ui": ["packages/ui/src/index.ts"],
+      "@aria/ui/*": ["packages/ui/src/*"]
     }
   },
   "include": [

@@ -1,0 +1,14 @@
+{
+  "name": "@aria/access-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Aria client transport and project-thread seam for desktop and mobile surfaces",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./projects": "./src/projects.ts",
+    "./transport": "./src/transport.ts"
+  }
+}
