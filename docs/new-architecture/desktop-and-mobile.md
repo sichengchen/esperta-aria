@@ -311,6 +311,10 @@ Both desktop and mobile should share the same access model:
 | Local coding agent adapters | `@aria/agents-coding` or `@aria/desktop-agents` |
 | Shared UI primitives | `@aria/ui` |
 
+## Current Repo Migration Note
+
+The target-state package names on this page are ahead of the current implementation. The current client seam wave for `@aria/access-client`, `@aria/ui`, `apps/aria-desktop`, and `apps/aria-mobile` is tracked in [../development/phase-6-client-app-seams-ledger.md](../development/phase-6-client-app-seams-ledger.md), while the server/runtime/project compatibility surfaces remain active behind `@aria/runtime`, `@aria/gateway`, `@aria/projects`, and the current console/CLI flows.
+
 ## Toolchain References
 
 Official references:
