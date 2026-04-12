@@ -6,7 +6,13 @@ import {
   createProjectThreadListItem,
   type ProjectThreadListItem,
 } from "@aria/ui";
-import type { ProjectRecord, ThreadRecord } from "@aria/projects";
+import {
+  describeThreadType,
+  resolveThreadType,
+  type ProjectRecord,
+  type ThreadRecord,
+  type ThreadType,
+} from "@aria/projects";
 
 export const ariaDesktopApp = {
   id: "aria-desktop",
@@ -28,7 +34,17 @@ export const ariaDesktopSpaces = [
   { id: "projects", label: "Projects" },
 ] as const;
 
+export const ariaDesktopContextPanels = [
+  { id: "review", label: "Review" },
+  { id: "changes", label: "Changes" },
+  { id: "environment", label: "Environment" },
+  { id: "job", label: "Job State" },
+  { id: "approvals", label: "Approvals" },
+  { id: "artifacts", label: "Artifacts" },
+] as const;
+
 export type AriaDesktopSpace = (typeof ariaDesktopSpaces)[number];
+export type AriaDesktopContextPanel = (typeof ariaDesktopContextPanels)[number];
 
 export interface AriaDesktopSidebarProject {
   projectLabel: string;
@@ -48,14 +64,23 @@ export interface AriaDesktopBootstrap {
   initialThread?: ProjectThreadListItem;
 }
 
+export interface AriaDesktopThreadContext {
+  threadId: string;
+  threadType: ThreadType;
+  threadTypeLabel: string;
+  environmentLabel?: string;
+  agentLabel?: string;
+  panels: typeof ariaDesktopContextPanels;
+}
+
 export interface AriaDesktopShellProjectInput {
   project: Pick<ProjectRecord, "name">;
-  threads: Array<Pick<ThreadRecord, "threadId" | "title" | "status">>;
+  threads: Array<Pick<ThreadRecord, "threadId" | "title" | "status" | "threadType" | "environmentId" | "agentId">>;
 }
 
 export interface AriaDesktopShellInitialThread {
   project: Pick<ProjectRecord, "name">;
-  thread: Pick<ThreadRecord, "threadId" | "title" | "status">;
+  thread: Pick<ThreadRecord, "threadId" | "title" | "status" | "threadType" | "environmentId" | "agentId">;
 }
 
 export interface CreateAriaDesktopShellOptions {
@@ -68,27 +93,51 @@ export interface CreateAriaDesktopShellOptions {
     target: AccessClientTarget;
   }>;
   initialThread?: AriaDesktopShellInitialThread;
+  activeThreadContext?: {
+    thread: Pick<ThreadRecord, "threadId" | "threadType">;
+    environmentLabel?: string;
+    agentLabel?: string;
+  };
 }
 
 export interface AriaDesktopShell {
   app: typeof ariaDesktopApp;
   spaces: typeof ariaDesktopSpaces;
+  contextPanels: typeof ariaDesktopContextPanels;
+  composerPlacement: "bottom-docked";
   access: ReturnType<typeof buildAccessClientConfig>;
   environments: AriaDesktopEnvironmentOption[];
   sidebarProjects: AriaDesktopSidebarProject[];
   initialThread?: ProjectThreadListItem;
+  activeThreadContext?: AriaDesktopThreadContext;
 }
 
 export function createAriaDesktopSidebarProjects(
   projects: Array<{
     project: Pick<ProjectRecord, "name">;
-    threads: Array<Pick<ThreadRecord, "threadId" | "title" | "status">>;
+    threads: Array<Pick<ThreadRecord, "threadId" | "title" | "status" | "threadType" | "environmentId" | "agentId">>;
   }>,
 ): AriaDesktopSidebarProject[] {
   return projects.map(({ project, threads }) => ({
     projectLabel: project.name,
     threads: threads.map((thread) => createProjectThreadListItem(project, thread)),
   }));
+}
+
+export function createAriaDesktopThreadContext(input: {
+  thread: Pick<ThreadRecord, "threadId" | "threadType">;
+  environmentLabel?: string;
+  agentLabel?: string;
+}): AriaDesktopThreadContext {
+  const threadType = resolveThreadType(input.thread);
+  return {
+    threadId: input.thread.threadId,
+    threadType,
+    threadTypeLabel: describeThreadType(threadType),
+    environmentLabel: input.environmentLabel,
+    agentLabel: input.agentLabel,
+    panels: ariaDesktopContextPanels,
+  };
 }
 
 export function createAriaDesktopEnvironmentOption(input: {
@@ -109,7 +158,7 @@ export function createAriaDesktopBootstrap(
   target: AccessClientTarget,
   initialThread?: {
     project: Pick<ProjectRecord, "name">;
-    thread: Pick<ThreadRecord, "threadId" | "title" | "status">;
+    thread: Pick<ThreadRecord, "threadId" | "title" | "status" | "threadType" | "environmentId" | "agentId">;
   },
 ): AriaDesktopBootstrap {
   return {
@@ -129,11 +178,16 @@ export function createAriaDesktopShell(
   return {
     app: bootstrap.app,
     spaces: ariaDesktopSpaces,
+    contextPanels: ariaDesktopContextPanels,
+    composerPlacement: "bottom-docked",
     access: bootstrap.access,
     environments: (options.environments ?? []).map((environment) =>
       createAriaDesktopEnvironmentOption(environment),
     ),
     sidebarProjects: createAriaDesktopSidebarProjects(options.projects ?? []),
     initialThread: bootstrap.initialThread,
+    activeThreadContext: options.activeThreadContext
+      ? createAriaDesktopThreadContext(options.activeThreadContext)
+      : undefined,
   };
 }

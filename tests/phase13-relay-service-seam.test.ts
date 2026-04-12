@@ -17,6 +17,8 @@ describe("Phase 13 relay service seam", () => {
       const bootstrap = createAriaRelayServiceBootstrap(join(dir, "relay-state.json"));
       expect(bootstrap.service.id).toBe("aria-relay");
       expect(bootstrap.service.sharedPackages).toContain("@aria/relay");
+      expect(bootstrap.service.planes).toEqual(["control", "data", "push"]);
+      expect(bootstrap.service.capabilities).toContain("direct-or-relayed-routing");
       const device = await bootstrap.relay.registerDevice({ deviceId: "device-1", label: "Phone", pairedAt: 1 });
       expect(device.deviceId).toBe("device-1");
     } finally {

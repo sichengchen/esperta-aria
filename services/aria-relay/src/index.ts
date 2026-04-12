@@ -5,7 +5,14 @@ export const ariaRelayService = {
   displayName: "Aria Relay",
   surface: "relay",
   sharedPackages: ["@aria/relay", "@aria/protocol"],
-  capabilities: ["transport", "access-broker", "attachment-resume"],
+  planes: ["control", "data", "push"],
+  capabilities: [
+    "transport",
+    "access-broker",
+    "attachment-resume",
+    "direct-or-relayed-routing",
+    "server-scoped-access-grants",
+  ],
 } as const;
 
 export interface AriaRelayServiceBootstrap {

@@ -47,7 +47,15 @@ describe("Phase 6 client seams", () => {
 
   test("@aria/access-client and @aria/ui shape project-thread data for client surfaces", () => {
     const project = { projectId: "project-1", name: "Aria" };
-    const thread = { threadId: "thread-1", title: "Inbox review", status: "queued" as const };
+    const thread = {
+      threadId: "thread-1",
+      title: "Inbox review",
+      status: "queued" as const,
+      threadType: "aria" as const,
+      workspaceId: "workspace-1",
+      environmentId: "env-1",
+      agentId: "aria-agent",
+    };
 
     expect(buildClientProjectThreadSummary(project, thread)).toEqual({
       projectId: "project-1",
@@ -55,6 +63,11 @@ describe("Phase 6 client seams", () => {
       threadId: "thread-1",
       threadTitle: "Inbox review",
       threadStatus: "queued",
+      threadType: "aria",
+      threadTypeLabel: "Aria",
+      workspaceId: "workspace-1",
+      environmentId: "env-1",
+      agentId: "aria-agent",
     });
 
     expect(createProjectThreadListItem(project, thread)).toEqual({
@@ -62,6 +75,10 @@ describe("Phase 6 client seams", () => {
       title: "Inbox review",
       projectLabel: "Aria",
       status: "Queued",
+      threadType: "aria",
+      threadTypeLabel: "Aria",
+      environmentId: "env-1",
+      agentId: "aria-agent",
     });
     expect(createStatusBadgeLabel("in_progress")).toBe("In Progress");
     expect(describeUiEngineEvent({ type: "tool_approval_request" })).toBe("Approval requested");
@@ -72,7 +89,7 @@ describe("Phase 6 client seams", () => {
       { serverId: "desktop", baseUrl: "http://127.0.0.1:7420/" },
       {
         project: { name: "Aria" },
-        thread: { threadId: "thread-1", title: "Desktop thread", status: "running" },
+        thread: { threadId: "thread-1", title: "Desktop thread", status: "running", threadType: "local_project", environmentId: "desktop-main", agentId: "codex" },
       },
     );
 
@@ -84,6 +101,7 @@ describe("Phase 6 client seams", () => {
       wsUrl: "ws://127.0.0.1:7420",
     });
     expect(bootstrap.initialThread?.status).toBe("Running");
+    expect(bootstrap.initialThread?.threadType).toBe("local_project");
   });
 
   test("apps/aria-mobile stays a thin remote client seam", () => {
@@ -91,7 +109,7 @@ describe("Phase 6 client seams", () => {
       { serverId: "mobile", baseUrl: "https://aria.example.test/" },
       {
         project: { name: "Aria" },
-        thread: { threadId: "thread-2", title: "Mobile review", status: "idle" },
+        thread: { threadId: "thread-2", title: "Mobile review", status: "idle", threadType: "remote_project", agentId: "codex" },
       },
     );
 
@@ -103,5 +121,6 @@ describe("Phase 6 client seams", () => {
       wsUrl: "wss://aria.example.test",
     });
     expect(bootstrap.initialThread?.projectLabel).toBe("Aria");
+    expect(bootstrap.initialThread?.threadType).toBe("remote_project");
   });
 });

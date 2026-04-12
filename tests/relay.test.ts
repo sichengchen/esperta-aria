@@ -25,23 +25,40 @@ describe("RelayService", () => {
     const attachment = await relay.attachSession({
       deviceId: "device-1",
       sessionId: "session-1",
+      serverId: "server-1",
+      threadId: "thread-1",
+      attachmentKind: "aria_thread",
+      transportMode: "relay_tunnel",
     });
     expect(attachment.sessionId).toBe("session-1");
+    expect(attachment).toMatchObject({
+      serverId: "server-1",
+      threadId: "thread-1",
+      attachmentKind: "aria_thread",
+      transportMode: "relay_tunnel",
+      resumable: true,
+    });
 
     const followUp = await relay.queueFollowUp({
       deviceId: "device-1",
       sessionId: "session-1",
       message: "Continue the work.",
+      serverId: "server-1",
+      threadId: "thread-1",
     });
     const approval = await relay.queueApprovalResponse({
       deviceId: "device-1",
       sessionId: "session-1",
       toolCallId: "tool-1",
       approved: true,
+      serverId: "server-1",
+      threadId: "thread-1",
     });
 
     expect(followUp.type).toBe("follow_up");
     expect(approval.type).toBe("approval_response");
+    expect(followUp.serverId).toBe("server-1");
+    expect(approval.threadId).toBe("thread-1");
     expect((await relay.listEvents("device-1", false))).toHaveLength(2);
 
     await relay.markDelivered(followUp.eventId);
