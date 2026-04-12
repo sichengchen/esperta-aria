@@ -187,3 +187,8 @@ Recommended internal slices:
 The short definition is:
 
 `Aria Relay makes Aria Server reachable and reconnectable without taking over what Aria Server actually does.`
+
+
+## Current Repo Migration Note
+
+The target-state service shape on this page is ahead of the current implementation. The relay service wrapper wave for `services/aria-relay` is tracked in [../development/phase-13-relay-service-seam-ledger.md](../development/phase-13-relay-service-seam-ledger.md), while `@aria/relay` remains the current implementation owner.

@@ -1,12 +1,13 @@
 {
   "name": "aria",
   "version": "2026.3.4",
-  "description": "Esperta Aria — Local-first agent platform",
+  "description": "Esperta Aria \u2014 Local-first agent platform",
   "type": "module",
   "main": "packages/cli/src/index.ts",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "services/*"
   ],
   "bin": {
     "aria": "dist/index.js"

@@ -135,3 +135,15 @@ Phase 9 is the cross-phase owner-classification pass. It does not move code by i
 | `legacy-only compatibility surface` | Only change this surface to preserve compatibility or to move behavior into its target owner. |
 
 The authoritative package/app-by-package/app truth table lives in [phase-9-architecture-truth-table.md](./phase-9-architecture-truth-table.md).
+
+
+## Phase 13 Extracted Ownership
+
+| Target surface | Current source owner | New compatibility owner | Compatibility surface kept at |
+| --- | --- | --- | --- |
+| `services/aria-relay` | `packages/relay/src/{service,store,types}.ts` | `services/aria-relay/src/index.ts` | `@aria/relay` |
+
+## Phase 13 Notes
+
+- This phase seeds the relay service repo shape without moving transport/access logic out of `@aria/relay`.
+- `services/aria-relay` must stay a thin wrapper and must not absorb assistant/runtime semantics.
