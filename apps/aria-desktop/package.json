@@ -1,0 +1,7 @@
+{
+  "name": "aria-desktop",
+  "private": true,
+  "type": "module",
+  "description": "Thin Aria Desktop app seam over shared client transport and view-model packages",
+  "main": "./src/index.ts"
+}
