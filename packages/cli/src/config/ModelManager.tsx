@@ -75,6 +75,7 @@ export function ModelManager({ config, homeDir, onSave, onBack }: ModelManagerPr
           provider.type as "anthropic" | "openai" | "google" | "openrouter" | "openai-compat",
           apiKey,
           provider.baseUrl ?? "",
+          provider.id,
         );
         setFetchedModels(modelList);
         setFetchError(null);
@@ -109,7 +110,7 @@ export function ModelManager({ config, homeDir, onSave, onBack }: ModelManagerPr
     }
     // Chat model — go to add-fields
     const provider = config.providers[providerIdx];
-    const meta = lookupModelMeta(provider.type, modelId);
+    const meta = lookupModelMeta(provider.type, modelId, provider.id);
     setNewName("");
     setNewTemp("0.7");
     setNewMaxTokens(meta ? String(meta.maxTokens) : "8192");
