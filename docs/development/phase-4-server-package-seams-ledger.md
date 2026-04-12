@@ -25,7 +25,7 @@ During this phase:
 | `@aria/projects` | `packages/projects/src/*` plus tracked-work materialization in `packages/handoff/src/service.ts` | Project registry, task/thread/dispatch/review/publish coordination, project-thread orchestration APIs | `@aria/projects-engine`, `@aria/handoff`, and current `aria projects` command names |
 | `@aria/workspaces` | `packages/workspaces/src/*` over the target-owned `@aria/projects` persistence APIs | Workspace, repo, worktree, sandbox, and environment models that should stay below project orchestration | `@aria/projects-engine` compatibility wrappers and `aria projects worktree-*` flows |
 | `@aria/jobs` | `packages/runtime/src/{dispatch-runner,backend-registry}.ts`, dispatch state types referenced through `packages/projects-engine/src/types.ts`, and CLI dispatch execution wiring in `packages/cli/src/projects.ts` | Remote job launch, backend selection, execution lifecycle, approval-wait transitions, and resumable job orchestration | `@aria/runtime/{dispatch-runner,backend-registry}`, queued dispatch records in `@aria/projects-engine`, and `aria projects run-dispatch` / `backends` |
-| `@aria/agents-coding` | Shared backend contracts in `packages/providers-aria/src/*` and provider-specific adapters in `packages/providers-{codex,claude-code,opencode}/src/*` | Shared coding-agent contracts, adapter composition, capability metadata, and a target-state package for Codex / Claude Code / OpenCode orchestration | `@aria/providers-aria`, `@aria/providers-codex`, `@aria/providers-claude-code`, `@aria/providers-opencode`, and current backend IDs |
+| `@aria/agents-coding` | `packages/agents-coding/src/*` with provider packages now acting as compatibility wrappers | Shared coding-agent contracts, adapter composition, capability metadata, and a target-state package for Codex / Claude Code / OpenCode orchestration | `@aria/providers-aria`, `@aria/providers-codex`, `@aria/providers-claude-code`, `@aria/providers-opencode`, and current backend IDs |
 
 ## Review Notes And Hotspots
 
@@ -49,8 +49,8 @@ During this phase:
 
 ### `@aria/agents-coding`
 
-- The current provider packages already encapsulate backend-specific auth probes, subprocess execution, and result parsing. The new seam should compose those adapters rather than flattening them into one package prematurely.
-- The target-state name is about coding-agent orchestration, not general model-provider configuration. Keep Aria's own provider/model registry docs separate from this package seam.
+- The target seam now owns the shared backend contracts plus the Codex, Claude Code, and OpenCode adapter implementations directly.
+- Provider packages remain as compatibility import paths; keep Aria's own provider/model registry docs separate from this seam.
 - Preserve the current backend identifiers and capability semantics so existing dispatches, CLI flags, and tests do not change behavior during the move.
 
 ## Recommended Extraction Order
