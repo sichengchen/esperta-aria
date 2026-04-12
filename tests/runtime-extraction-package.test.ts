@@ -85,11 +85,14 @@ describe("phase-1 extraction package verification", () => {
     const serverConfigSource = await import("node:fs/promises").then(fs => fs.readFile(new URL("../packages/server/src/config.ts", import.meta.url), "utf-8"));
     expect(serverConfigSource).toContain("@aria/runtime/config");
     expect(serverConfigSource).toContain("ConfigManager");
+    const serverCheckpointsSource = await import("node:fs/promises").then(fs => fs.readFile(new URL("../packages/server/src/checkpoints.ts", import.meta.url), "utf-8"));
+    expect(serverCheckpointsSource).toContain("@aria/runtime/checkpoints");
 
     const serverPackageJson = JSON.parse(
       await import("node:fs/promises").then(fs => fs.readFile(new URL("../packages/server/package.json", import.meta.url), "utf-8")),
     ) as { exports: Record<string, string> };
     expect(serverPackageJson.exports["./config"]).toBe("./src/config.ts");
+    expect(serverPackageJson.exports["./checkpoints"]).toBe("./src/checkpoints.ts");
 
     const skillManageSource = await import("node:fs/promises").then(fs => fs.readFile(new URL("../packages/tools/src/skill-manage.ts", import.meta.url), "utf-8"));
     expect(skillManageSource).not.toContain("@aria/runtime/skills");
@@ -118,6 +121,7 @@ describe("phase-1 extraction package verification", () => {
     expect(sessionToolEnvironmentSource).not.toContain("@aria/runtime/tools/");
     expect(sessionToolEnvironmentSource).toContain("@aria/agent-aria");
     expect(sessionToolEnvironmentSource).toContain("@aria/gateway/router");
+    expect(sessionToolEnvironmentSource).toContain("@aria/server/checkpoints");
     expect(sessionToolEnvironmentSource).toContain("./delegate.js");
     expect(sessionToolEnvironmentSource).toContain("./delegate-status.js");
 
