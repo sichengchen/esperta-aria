@@ -2,7 +2,7 @@ import type { ToolImpl } from "@aria/agent-aria";
 import type { ModelRouter } from "@aria/gateway/router";
 import { Orchestrator } from "@aria/agent-aria/orchestrator";
 import { SubAgent } from "@aria/agent-aria/sub-agent";
-import { CheckpointManager, checkpointWorkdirForArgs } from "@aria/runtime/checkpoints";
+import { CheckpointManager, checkpointWorkdirForArgs } from "@aria/server/checkpoints";
 import { SubdirectoryContextTracker } from "@aria/prompt/context-files";
 import { createDelegateStatusTool } from "./delegate-status.js";
 import { createDelegateTool } from "./delegate.js";
