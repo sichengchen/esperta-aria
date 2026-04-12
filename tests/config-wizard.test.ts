@@ -244,6 +244,29 @@ describe("wizard config generation", () => {
     expect(String(result.providers[0].type)).toBe("openai-compat");
   });
 
+  test("MiniMax provider writes the official OpenAI-compatible defaults", () => {
+    const result = buildWizardConfig({
+      providerId: "minimax",
+      providerType: "openai-compat",
+      model: "MiniMax-M2.5",
+      apiKeyEnvVar: "MINIMAX_API_KEY",
+      apiKey: "key",
+      baseUrl: "https://api.minimaxi.com/v1",
+    });
+
+    expect(result.providers).toHaveLength(1);
+    expect(result.providers[0]).toMatchObject({
+      id: "minimax",
+      type: "openai-compat",
+      apiKeyEnvVar: "MINIMAX_API_KEY",
+      baseUrl: "https://api.minimaxi.com/v1",
+    });
+    expect(result.models[0]).toMatchObject({
+      provider: "minimax",
+      model: "MiniMax-M2.5",
+    });
+  });
+
   test("no eco model skips modelTiers", () => {
     const result = buildWizardConfig(
       {

@@ -3,11 +3,18 @@ import type { KnownProvider } from "@mariozechner/pi-ai";
 
 type ProviderType = "anthropic" | "openai" | "google" | "openrouter" | "nvidia" | "openai-compat";
 
+export const MINIMAX_PROVIDER_ID = "minimax";
+export const MINIMAX_API_KEY_ENV_VAR = "MINIMAX_API_KEY";
+export const MINIMAX_BASE_URL = "https://api.minimaxi.com/v1";
+const MINIMAX_MODEL_CONTEXT_TOKENS = 204_800;
+const MINIMAX_MODEL_PREFIX = "MiniMax-";
+
 /** Fetch available model IDs from a provider's API. */
 export async function fetchModelList(
   providerType: ProviderType,
   apiKey: string,
   baseUrl: string,
+  providerId?: string,
 ): Promise<string[]> {
   if (providerType === "anthropic") {
     const res = await fetch("https://api.anthropic.com/v1/models", {
@@ -52,7 +59,10 @@ export async function fetchModelList(
     return json.data.map((m) => m.id).sort();
   }
   // openai-compat
-  const url = baseUrl.replace(/\/$/, "");
+  const resolvedBaseUrl = providerId === MINIMAX_PROVIDER_ID && !baseUrl
+    ? MINIMAX_BASE_URL
+    : baseUrl;
+  const url = resolvedBaseUrl.replace(/\/$/, "");
   const res = await fetch(`${url}/models`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
@@ -66,7 +76,11 @@ export async function fetchModelList(
 export function lookupModelMeta(
   providerType: string,
   modelId: string,
+  providerId?: string,
 ): { maxTokens: number } | null {
+  if (providerId === MINIMAX_PROVIDER_ID && modelId.startsWith(MINIMAX_MODEL_PREFIX)) {
+    return { maxTokens: MINIMAX_MODEL_CONTEXT_TOKENS };
+  }
   try {
     const models = (getModels as (p: string) => { id: string; maxTokens: number }[])(
       providerType,

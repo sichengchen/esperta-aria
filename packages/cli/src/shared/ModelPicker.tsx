@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
-import { fetchModelList, lookupModelMeta } from "./fetch-models.js";
+import {
+  fetchModelList,
+  lookupModelMeta,
+  MINIMAX_API_KEY_ENV_VAR,
+  MINIMAX_BASE_URL,
+  MINIMAX_PROVIDER_ID,
+} from "./fetch-models.js";
 
 type Substep = "provider" | "credentials" | "fetching" | "model";
 type CompatField = "name" | "baseUrl" | "apiKey";
+type CompatMode = "custom" | "preset";
 
 export interface ProviderOption {
   id: string;
@@ -11,6 +18,7 @@ export interface ProviderOption {
   label: string;
   apiKeyEnvVar: string;
   baseUrl?: string;
+  compatMode?: CompatMode;
   /** Pre-filled API key — if set, credentials step is skipped */
   apiKey?: string;
 }
@@ -54,17 +62,19 @@ export function ModelPicker({ title, description, providers, onComplete, onBack 
 
   const provider = providers[providerIdx];
   const isCompat = provider?.type === "openai-compat";
+  const isCustomCompat = isCompat && (provider?.compatMode ?? "custom") === "custom";
   const hasApiKey = !!provider?.apiKey;
 
   // Trigger model fetch
   useEffect(() => {
     if (substep !== "fetching") return;
     const resolvedKey = hasApiKey ? provider.apiKey! : apiKey;
-    const resolvedUrl = isCompat ? baseUrl : (provider?.baseUrl ?? "");
+    const resolvedUrl = isCompat ? (provider?.baseUrl ?? baseUrl) : (provider?.baseUrl ?? "");
     fetchModelList(
       provider.type as "anthropic" | "openai" | "google" | "openrouter" | "nvidia" | "openai-compat",
       resolvedKey,
       resolvedUrl,
+      provider.id,
     )
       .then((models) => {
         setFetchedModels(models);
@@ -83,18 +93,18 @@ export function ModelPicker({ title, description, providers, onComplete, onBack 
   }, [substep]);
 
   function completeSelection(chosenModel: string) {
-    const finalProviderId = isCompat && !hasApiKey ? customName : provider.id;
-    const finalEnvVar = isCompat && !hasApiKey
+    const finalProviderId = isCustomCompat && !hasApiKey ? customName : provider.id;
+    const finalEnvVar = isCustomCompat && !hasApiKey
       ? `${customName.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_API_KEY`
       : provider.apiKeyEnvVar;
-    const meta = lookupModelMeta(provider.type, chosenModel);
+    const meta = lookupModelMeta(provider.type, chosenModel, provider.id);
     onComplete({
       providerId: finalProviderId,
       providerType: provider.type,
       model: chosenModel,
       apiKeyEnvVar: finalEnvVar,
       apiKey: hasApiKey ? provider.apiKey! : apiKey,
-      baseUrl: isCompat ? (hasApiKey ? provider.baseUrl : baseUrl) : undefined,
+      baseUrl: isCompat ? (provider.baseUrl ?? baseUrl) : undefined,
       maxTokens: meta?.maxTokens,
     });
   }
@@ -116,8 +126,8 @@ export function ModelPicker({ title, description, providers, onComplete, onBack 
           // Need credentials
           setApiKey("");
           setCustomName("");
-          setBaseUrl("");
-          setCompatField("name");
+          setBaseUrl(p.baseUrl ?? "");
+          setCompatField(isCustomCompat ? "name" : "apiKey");
           setSubstep("credentials");
         }
         return;
@@ -128,7 +138,7 @@ export function ModelPicker({ title, description, providers, onComplete, onBack 
     if (substep === "credentials") {
       if (key.escape) { setSubstep("provider"); return; }
 
-      if (!isCompat) {
+      if (!isCustomCompat) {
         if (key.return) { setSubstep("fetching"); return; }
         if (key.backspace || key.delete) { setApiKey((v) => v.slice(0, -1)); return; }
         if (input && !key.ctrl && !key.meta) { setApiKey((v) => v + input); }
@@ -227,7 +237,7 @@ export function ModelPicker({ title, description, providers, onComplete, onBack 
         <>
           <Text bold>Provider: {provider.label}</Text>
           <Text />
-          {isCompat ? (
+          {isCustomCompat ? (
             <>
               <Box>
                 <Text color={compatField === "name" ? "blue" : "white"} bold={compatField === "name"}>
@@ -255,6 +265,13 @@ export function ModelPicker({ title, description, providers, onComplete, onBack 
             </>
           ) : (
             <>
+              {isCompat && provider.baseUrl && (
+                <>
+                  <Text dimColor>OpenAI-compatible endpoint:</Text>
+                  <Text dimColor>{provider.baseUrl}</Text>
+                  <Text />
+                </>
+              )}
               <Box>
                 <Text color="blue">API Key ({provider.apiKeyEnvVar}): </Text>
                 <Text>{"•".repeat(Math.min(apiKey.length, 40))}</Text>
@@ -329,5 +346,19 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
   { id: "google", type: "google", label: "Google (official)", apiKeyEnvVar: "GOOGLE_AI_API_KEY" },
   { id: "openrouter", type: "openrouter", label: "OpenRouter", apiKeyEnvVar: "OPENROUTER_API_KEY" },
   { id: "nvidia", type: "nvidia", label: "Nvidia NIM", apiKeyEnvVar: "NVIDIA_API_KEY" },
-  { id: "openai-compat", type: "openai-compat", label: "OpenAI compatible", apiKeyEnvVar: "" },
+  {
+    id: MINIMAX_PROVIDER_ID,
+    type: "openai-compat",
+    label: "MiniMax (official OpenAI-compatible)",
+    apiKeyEnvVar: MINIMAX_API_KEY_ENV_VAR,
+    baseUrl: MINIMAX_BASE_URL,
+    compatMode: "preset",
+  },
+  {
+    id: "openai-compat",
+    type: "openai-compat",
+    label: "Custom OpenAI-compatible",
+    apiKeyEnvVar: "",
+    compatMode: "custom",
+  },
 ];
