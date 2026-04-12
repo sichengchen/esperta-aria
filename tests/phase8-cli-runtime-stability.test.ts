@@ -27,6 +27,8 @@ const futureClientPackages = [
     packageJsonPath: "packages/desktop/package.json",
     sourcePath: "packages/desktop/src/index.ts",
     appWrapperPath: "apps/aria-desktop/src/index.ts",
+    appHostPath: "apps/aria-desktop/src/host.ts",
+    appAssemblyPath: "apps/aria-desktop/src/app.ts",
     expectedHostId: "aria-desktop",
     expectedShellPackage: "@aria/desktop",
   },
@@ -92,10 +94,22 @@ describe("Phase 8 CLI/server/runtime stability", () => {
       expect(manifest.types).toBe("./src/index.ts");
       expect(manifest.bin).toBeUndefined();
       expect(manifest.exports?.["."]).toBe("./src/index.ts");
-      expect(appWrapperSource).toContain(`export * from "${candidate.expectedShellPackage}";`);
-      expect(appWrapperSource).toContain(`id: "${candidate.expectedHostId}"`);
-      expect(appWrapperSource).toContain(`shellPackage: "${candidate.expectedShellPackage}"`);
-      expect(appWrapperSource).toContain("HostBootstrap");
+
+      if (candidate.packageName === "@aria/desktop") {
+        const appHostSource = readRepoFile(candidate.appHostPath);
+        const appAssemblySource = readRepoFile(candidate.appAssemblyPath);
+
+        expect(appWrapperSource).toContain(`export * from "${candidate.expectedShellPackage}";`);
+        expect(appWrapperSource).toContain('export * from "./host.js";');
+        expect(appWrapperSource).toContain('export * from "./app.js";');
+        expect(appHostSource).toContain(`id: "${candidate.expectedHostId}"`);
+        expect(appHostSource).toContain(`shellPackage: "${candidate.expectedShellPackage}"`);
+        expect(appHostSource).toContain("HostBootstrap");
+        expect(appAssemblySource).toContain(`id: "${candidate.expectedHostId}"`);
+        expect(appAssemblySource).toContain(`shellPackage: "${candidate.expectedShellPackage}"`);
+        expect(appAssemblySource).toContain("launchModes");
+        expect(appAssemblySource).toContain("frame");
+      }
 
       for (const disallowedImport of ["@aria/runtime", "@aria/server", "packages/runtime", "packages/server"]) {
         expect(source).not.toContain(disallowedImport);
