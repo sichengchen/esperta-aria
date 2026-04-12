@@ -8,6 +8,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./context-files": "./src/context-files.ts",
+    "./context-references": "./src/context-references.ts",
     "./prompt-engine": "./src/prompt-engine.ts"
   }
 }

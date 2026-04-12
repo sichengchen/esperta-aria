@@ -3,7 +3,7 @@ import type { ModelRouter } from "../../runtime/src/router/index.js";
 import { Orchestrator } from "../../runtime/src/agent/orchestrator.js";
 import { SubAgent } from "../../runtime/src/agent/sub-agent.js";
 import { CheckpointManager, checkpointWorkdirForArgs } from "../../runtime/src/checkpoints.js";
-import { SubdirectoryContextTracker } from "../../runtime/src/context-files.js";
+import { SubdirectoryContextTracker } from "../../prompt/src/context-files.js";
 import { createDelegateStatusTool } from "../../runtime/src/tools/delegate-status.js";
 import { createDelegateTool } from "../../runtime/src/tools/delegate.js";
 

@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { AuditLogger, queryAuditEntries, readAuditEntries } from "../packages/audit/src/index.js";
 import { SecurityModeManager, ToolPolicyManager, buildToolCapabilityCatalog, describeModeEffects, isPathInside, resolveCapabilityPolicyDecision, toRelativeIfInside } from "../packages/policy/src/index.js";
-import { PromptEngine } from "../packages/prompt/src/index.js";
+import { buildContextFilesPrompt, parseContextReferences, preprocessContextReferences, PromptEngine } from "../packages/prompt/src/index.js";
 import { ConnectorTypeSchema } from "../packages/protocol/src/index.js";
 import { OperationalStore } from "../packages/store/src/index.js";
 import { buildDynamicToolsets, createSessionToolEnvironment, formatToolsSection, getBuiltinTools, mergeAllowedTools } from "../packages/tools/src/index.js";
@@ -95,6 +95,20 @@ describe("phase-1 extraction package verification", () => {
     expect(manager.getDangerLevel("exec")).toBe("moderate");
     expect(manager.shouldEmitToolStart("tui", { toolName: "exec", dangerLevel: "moderate" })).toBe(true);
     expect(manager.shouldEmitToolEnd("telegram", { toolName: "read", dangerLevel: "safe", isError: true })).toBe(true);
+  });
+
+  test("@aria/prompt exposes package-owned context file and reference helpers", async () => {
+    const workingDir = await makeTempDir("aria-prompt-context-");
+    await Bun.write(join(workingDir, "AGENTS.md"), "Follow this prompt context.");
+    const prompt = await buildContextFilesPrompt(workingDir);
+    expect(prompt).toContain("Follow this prompt context.");
+
+    const refs = parseContextReferences("Please inspect @file:AGENTS.md and @staged");
+    expect(refs.map((ref) => ref.kind)).toEqual(["file", "staged"]);
+
+    const preprocessed = await preprocessContextReferences("Review @file:AGENTS.md", { cwd: workingDir, allowedRoot: workingDir });
+    expect(preprocessed.blocked).toBe(false);
+    expect(preprocessed.message).toContain("📄 @file:AGENTS.md");
   });
 
   test("@aria/prompt builds and caches the base prompt via package exports", async () => {

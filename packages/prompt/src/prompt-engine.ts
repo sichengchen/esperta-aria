@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Message } from "@mariozechner/pi-ai";
 import type { ToolImpl } from "../../runtime/src/agent/types.js";
 import type { ConfigManager } from "../../runtime/src/config/index.js";
-import { buildContextFilesPrompt } from "../../runtime/src/context-files.js";
+import { buildContextFilesPrompt } from "./context-files.js";
 import type { MemoryManager } from "../../runtime/src/memory/index.js";
 import type { OperationalStore } from "../../store/src/operational-store.js";
 import type { ModelRouter } from "../../runtime/src/router/index.js";
