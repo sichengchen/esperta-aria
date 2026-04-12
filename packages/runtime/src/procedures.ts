@@ -16,7 +16,7 @@ import type { ModelConfig, ProviderConfig } from "./router/types.js";
 import { heartbeatState, createHeartbeatTask } from "./scheduler.js";
 import { describeModeEffects } from "./security-mode.js";
 import { createSessionToolEnvironment } from "./session-tool-environment.js";
-import { preprocessContextReferences } from "./context-references.js";
+import { preprocessContextReferences } from "../../prompt/src/context-references.js";
 import type { CronTask } from "./config/types.js";
 import { computeNextRunAt, parseScheduleInput } from "./automation-schedule.js";
 import { listToolsets } from "./toolsets.js";
