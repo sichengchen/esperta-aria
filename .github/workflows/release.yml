@@ -25,8 +25,17 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
       - name: Build
         run: bun run build
+
+      - name: History audit
+        run: bun run audit:history -- origin/new-aria..HEAD
 
       - name: Rename binary
         run: mv dist/index.js dist/aria-darwin
