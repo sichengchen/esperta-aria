@@ -53,6 +53,9 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: History audit
+        run: bun run audit:history -- origin/new-aria..HEAD
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
