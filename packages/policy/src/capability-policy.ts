@@ -1,9 +1,19 @@
 import type { DangerLevel, ToolImpl } from "@aria/agent-aria";
 import type { ToolApprovalMode } from "@aria/protocol";
-import type { MCPManager, MCPServerStatus } from "@aria/runtime/mcp";
 import { getPrimaryToolset } from "@aria/tools/toolsets";
 
 export type CapabilitySource = "builtin" | "mcp";
+
+export interface CapabilityMcpServerStatus {
+  name: string;
+  trust: "trusted" | "prompt" | "blocked";
+  sessionAvailability: "all" | "enabled" | "disabled" | "session_opt_in" | "admin_only";
+}
+
+export interface CapabilityMcpRegistry {
+  getServerForTool(toolName: string): string | undefined;
+  listServers(): CapabilityMcpServerStatus[];
+}
 
 export interface ToolCapabilityDescriptor {
   toolName: string;
@@ -16,8 +26,8 @@ export interface ToolCapabilityDescriptor {
   auditDomain?: string;
   frontendVisibilityDefault?: "visible" | "summary" | "quiet";
   mcpServer?: string;
-  mcpTrust?: MCPServerStatus["trust"];
-  mcpSessionAvailability?: MCPServerStatus["sessionAvailability"];
+  mcpTrust?: CapabilityMcpServerStatus["trust"];
+  mcpSessionAvailability?: CapabilityMcpServerStatus["sessionAvailability"];
 }
 
 export interface CapabilityPolicyDecision extends ToolCapabilityDescriptor {
@@ -27,15 +37,15 @@ export interface CapabilityPolicyDecision extends ToolCapabilityDescriptor {
   policyDecision: "auto_approve" | "require_operator_approval";
 }
 
-function getMcpStatusMap(mcp: Pick<MCPManager, "listServers">): Map<string, MCPServerStatus> {
+function getMcpStatusMap(mcp: Pick<CapabilityMcpRegistry, "listServers">): Map<string, CapabilityMcpServerStatus> {
   return new Map(mcp.listServers().map((status) => [status.name, status]));
 }
 
 export function buildToolCapabilityCatalog(
   tools: ToolImpl[],
-  mcp: Pick<MCPManager, "getServerForTool" | "listServers">,
+  mcp: Pick<CapabilityMcpRegistry, "getServerForTool" | "listServers">,
 ): Map<string, ToolCapabilityDescriptor> {
-  const mcpStatuses = getMcpStatusMap(mcp as Pick<MCPManager, "listServers">);
+  const mcpStatuses = getMcpStatusMap(mcp);
   const catalog = new Map<string, ToolCapabilityDescriptor>();
 
   for (const tool of tools) {
