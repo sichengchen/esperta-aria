@@ -4,18 +4,43 @@ import type { AriaConfigFile } from "@aria/engine/config/index.js";
 import type { ProviderConfig } from "@aria/engine/router/index.js";
 import { loadSecrets, saveSecrets } from "@aria/engine/config/secrets.js";
 import type { SecretsFile } from "@aria/engine/config/types.js";
+import {
+  MINIMAX_API_KEY_ENV_VAR,
+  MINIMAX_BASE_URL,
+  MINIMAX_PROVIDER_ID,
+} from "../shared/fetch-models.js";
 
 type Substep = "list" | "add-type" | "add-apikey" | "add-fields" | "confirm-remove";
 type ProviderType = "anthropic" | "openai" | "google" | "openrouter" | "nvidia" | "openai-compat";
 type CompatField = "id" | "baseUrl" | "apiKey";
 
-const PROVIDER_TYPES: { type: ProviderType; label: string; defaultEnvVar: string }[] = [
-  { type: "anthropic", label: "Anthropic", defaultEnvVar: "ANTHROPIC_API_KEY" },
-  { type: "openai", label: "OpenAI", defaultEnvVar: "OPENAI_API_KEY" },
-  { type: "google", label: "Google", defaultEnvVar: "GOOGLE_AI_API_KEY" },
-  { type: "openrouter", label: "OpenRouter", defaultEnvVar: "OPENROUTER_API_KEY" },
-  { type: "nvidia", label: "Nvidia NIM", defaultEnvVar: "NVIDIA_API_KEY" },
-  { type: "openai-compat", label: "OpenAI compatible", defaultEnvVar: "" },
+const PROVIDER_TYPES: {
+  id: string;
+  type: ProviderType;
+  label: string;
+  defaultEnvVar: string;
+  baseUrl?: string;
+  compatMode?: "custom";
+}[] = [
+  { id: "anthropic", type: "anthropic", label: "Anthropic", defaultEnvVar: "ANTHROPIC_API_KEY" },
+  { id: "openai", type: "openai", label: "OpenAI", defaultEnvVar: "OPENAI_API_KEY" },
+  { id: "google", type: "google", label: "Google", defaultEnvVar: "GOOGLE_AI_API_KEY" },
+  { id: "openrouter", type: "openrouter", label: "OpenRouter", defaultEnvVar: "OPENROUTER_API_KEY" },
+  { id: "nvidia", type: "nvidia", label: "Nvidia NIM", defaultEnvVar: "NVIDIA_API_KEY" },
+  {
+    id: MINIMAX_PROVIDER_ID,
+    type: "openai-compat",
+    label: "MiniMax",
+    defaultEnvVar: MINIMAX_API_KEY_ENV_VAR,
+    baseUrl: MINIMAX_BASE_URL,
+  },
+  {
+    id: "openai-compat",
+    type: "openai-compat",
+    label: "Custom OpenAI-compatible",
+    defaultEnvVar: "",
+    compatMode: "custom",
+  },
 ];
 
 interface ProviderManagerProps {
@@ -81,8 +106,8 @@ export function ProviderManager({ config, homeDir, onSave, onBack }: ProviderMan
       if (key.downArrow) { setTypeIdx((i) => Math.min(PROVIDER_TYPES.length - 1, i + 1)); return; }
       if (key.return) {
         const pt = PROVIDER_TYPES[typeIdx];
-        if (pt.type !== "openai-compat") {
-          if (providers.some((p) => p.id === pt.type)) return; // already exists
+        if (!pt.compatMode) {
+          if (providers.some((p) => p.id === pt.id)) return; // already exists
           setApiKeyValue("");
           setSubstep("add-apikey");
         } else {
@@ -102,9 +127,10 @@ export function ProviderManager({ config, homeDir, onSave, onBack }: ProviderMan
       if (key.return) {
         const pt = PROVIDER_TYPES[typeIdx];
         const newProvider: ProviderConfig = {
-          id: pt.type,
+          id: pt.id,
           type: pt.type as any,
           apiKeyEnvVar: pt.defaultEnvVar,
+          ...(pt.baseUrl ? { baseUrl: pt.baseUrl } : {}),
         };
         const updated = { ...config, providers: [...config.providers, newProvider] };
 
