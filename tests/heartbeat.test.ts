@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { Scheduler, createHeartbeatTask, heartbeatState } from "@aria/automation";
 import { DEFAULT_HEARTBEAT } from "@aria/server/config/defaults";
-import { SessionManager } from "@aria/runtime/sessions";
+import { SessionManager } from "@aria/server/sessions";
 
 let testDir: string;
 

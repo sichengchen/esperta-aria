@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile, readFile, readdir, mkdir } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Scheduler, matchesCron } from "@aria/automation";
-import { SessionManager } from "@aria/runtime/sessions";
+import { SessionManager } from "@aria/server/sessions";
 
 let testDir: string;
 

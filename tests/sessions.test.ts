@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from "bun:test";
-import { SessionManager } from "@aria/runtime/sessions";
+import { SessionManager } from "@aria/server/sessions";
 
 let manager: SessionManager;
 

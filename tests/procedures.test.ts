@@ -12,11 +12,11 @@ import { SkillRegistry } from "@aria/memory/skills";
 import { SecurityModeManager } from "@aria/policy";
 import { ConfigManager } from "@aria/server/config";
 import { CheckpointManager } from "@aria/server/checkpoints";
+import { SessionArchiveManager } from "@aria/server/session-archive";
+import { SessionManager } from "@aria/server/sessions";
 import type { EngineRuntime } from "@aria/server/runtime";
 import { OperationalStore } from "@aria/store/operational-store";
 import { MCPManager } from "@aria/server/mcp";
-import { SessionArchiveManager } from "@aria/runtime/session-archive";
-import { SessionManager } from "@aria/runtime/sessions";
 import { AuthManager } from "@aria/gateway/auth";
 import type { KnownProvider } from "@mariozechner/pi-ai";
 
