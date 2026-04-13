@@ -12,6 +12,9 @@ export interface AriaDesktopApplicationRootProps {
   onOpenAriaSession?(sessionId: string): void;
   onSendAriaMessage?(message: string): void;
   onStopAriaSession?(): void;
+  onApproveToolCall?(toolCallId: string, approved: boolean): void;
+  onAcceptToolCallForSession?(toolCallId: string): void;
+  onAnswerQuestion?(questionId: string, answer: string): void;
 }
 
 export function AriaDesktopApplicationRoot(props: AriaDesktopApplicationRootProps): ReactElement {
@@ -22,6 +25,9 @@ export function AriaDesktopApplicationRoot(props: AriaDesktopApplicationRootProp
       onOpenAriaSession={props.onOpenAriaSession}
       onSendAriaMessage={props.onSendAriaMessage}
       onStopAriaSession={props.onStopAriaSession}
+      onApproveToolCall={props.onApproveToolCall}
+      onAcceptToolCallForSession={props.onAcceptToolCallForSession}
+      onAnswerQuestion={props.onAnswerQuestion}
     />
   );
 }
