@@ -93,10 +93,16 @@ describe("phase-1 extraction package verification", () => {
     const runtimeIndexSource = await import("node:fs/promises").then((fs) =>
       fs.readFile(new URL("../packages/runtime/src/index.ts", import.meta.url), "utf-8"),
     );
+    expect(runtimeIndexSource).not.toContain("./backend-registry.js");
     expect(runtimeIndexSource).not.toContain("./audio/index.js");
+    expect(runtimeIndexSource).not.toContain("./context.js");
+    expect(runtimeIndexSource).not.toContain("./dispatch-runner.js");
     expect(runtimeIndexSource).not.toContain("./mcp.js");
+    expect(runtimeIndexSource).not.toContain("./procedures.js");
+    expect(runtimeIndexSource).not.toContain("./server.js");
     expect(runtimeIndexSource).not.toContain("./session-archive.js");
     expect(runtimeIndexSource).not.toContain("./sessions.js");
+    expect(runtimeIndexSource).not.toContain("./trpc.js");
     const backendRegistrySource = await import("node:fs/promises").then((fs) =>
       fs.readFile(new URL("../packages/runtime/src/backend-registry.ts", import.meta.url), "utf-8"),
     );
