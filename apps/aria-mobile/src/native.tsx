@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { type AriaMobileAppShell } from "./app.js";
 import {
   createAriaMobileNativeHostController,
@@ -42,9 +42,17 @@ export function AriaMobileNativeHost() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Servers</Text>
         {model.availableServers.map((server) => (
-          <Text key={server.serverId}>
-            {server.label} - {server.selected ? "selected" : "available"}
-          </Text>
+          <Pressable
+            key={server.serverId}
+            onPress={() => {
+              void controller.switchServer(server.serverId);
+            }}
+            style={styles.button}
+          >
+            <Text>
+              {server.label} - {server.selected ? "selected" : "available"}
+            </Text>
+          </Pressable>
         ))}
       </View>
       <Text>Session: {model.sessionId}</Text>
@@ -61,9 +69,17 @@ export function AriaMobileNativeHost() {
           <Text>None yet</Text>
         ) : (
           model.recentSessions.map((session) => (
-            <Text key={session.sessionId}>
-              {session.sessionId} - {session.kind}
-            </Text>
+            <Pressable
+              key={session.sessionId}
+              onPress={() => {
+                void controller.openSession(session.sessionId);
+              }}
+              style={styles.button}
+            >
+              <Text>
+                {session.sessionId} - {session.kind}
+              </Text>
+            </Pressable>
           ))
         )}
       </View>
@@ -91,5 +107,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
+  },
+  button: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
 });
