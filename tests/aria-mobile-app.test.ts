@@ -308,6 +308,13 @@ describe("Aria mobile app surface", () => {
     expect(Array.isArray(renderedProps.children)).toBe(true);
     expect((renderedProps.children as unknown[]).length).toBe(4);
     expect(rootProps.shell.ariaThread.state.connected).toBe(false);
+
+    const manualRoot = AriaMobileApplicationRoot({
+      shell: rootProps.shell,
+      onSendAriaMessage() {},
+      onStopAriaSession() {},
+    });
+    expect(manualRoot.type).toBe(AriaMobileApplicationShell);
   });
 
   test("can create a connected mobile app shell asynchronously", async () => {
@@ -701,6 +708,13 @@ describe("Aria mobile app surface", () => {
     expect(openButton).toBeDefined();
     expect(openButton!.props["data-open-session-id"]).toBe("mobile:recent-1");
     expect(typeof openButton!.props.onClick).toBe("function");
+
+    const sendButton = findElement(rendered, (props) => props.children === "Send");
+    const stopButton = findElement(rendered, (props) => props.children === "Stop");
+    expect(sendButton).toBeDefined();
+    expect(sendButton!.props.type).toBe("submit");
+    expect(stopButton).toBeDefined();
+    expect(typeof stopButton!.props.onClick).toBe("function");
   });
 
   test("can switch the mobile app shell to another server", async () => {

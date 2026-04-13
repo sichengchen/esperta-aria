@@ -21,6 +21,8 @@ export interface AriaMobileApplicationShellProps {
   navigation?: AriaMobileNavigation;
   onSwitchServer?(serverId: string): void;
   onOpenAriaSession?(sessionId: string): void;
+  onSendAriaMessage?(message: string): void;
+  onStopAriaSession?(): void;
 }
 
 function renderServerSwitcher(
@@ -163,6 +165,22 @@ export function AriaMobileApplicationShell(props: AriaMobileApplicationShellProp
               ))}
             </ul>
           ) : null}
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = event.currentTarget;
+              const field = form.elements.namedItem("aria-mobile-composer-draft");
+              if (field instanceof HTMLInputElement) {
+                props.onSendAriaMessage?.(field.value);
+              }
+            }}
+          >
+            <input name="aria-mobile-composer-draft" defaultValue="Message Aria" />
+            <button type="submit">Send</button>
+            <button type="button" onClick={() => props.onStopAriaSession?.()}>
+              Stop
+            </button>
+          </form>
           {props.shell.ariaThread.state.streamingText ? (
             <p>Streaming text: {props.shell.ariaThread.state.streamingText}</p>
           ) : null}
