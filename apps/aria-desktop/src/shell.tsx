@@ -169,6 +169,9 @@ export interface AriaDesktopAppShellProps {
   onOpenAriaSession?(sessionId: string): void;
   onSendAriaMessage?(message: string): void;
   onStopAriaSession?(): void;
+  onApproveToolCall?(toolCallId: string, approved: boolean): void;
+  onAcceptToolCallForSession?(toolCallId: string): void;
+  onAnswerQuestion?(questionId: string, answer: string): void;
 }
 
 function section(slot: string, title: string, children: ReactNode): ReactElement {
@@ -314,6 +317,60 @@ export function AriaDesktopAppShell(props: AriaDesktopAppShellProps): ReactEleme
                 Pending approval: {model.ariaThread.state.pendingApproval?.toolName ?? "none"} |
                 Pending question: {model.ariaThread.state.pendingQuestion?.question ?? "none"}
               </p>
+              {model.ariaThread.state.pendingApproval ? (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      props.onApproveToolCall?.(
+                        model.ariaThread.state.pendingApproval!.toolCallId,
+                        true,
+                      )
+                    }
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      props.onAcceptToolCallForSession?.(
+                        model.ariaThread.state.pendingApproval!.toolCallId,
+                      )
+                    }
+                  >
+                    Allow for session
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      props.onApproveToolCall?.(
+                        model.ariaThread.state.pendingApproval!.toolCallId,
+                        false,
+                      )
+                    }
+                  >
+                    Deny
+                  </button>
+                </div>
+              ) : null}
+              {model.ariaThread.state.pendingQuestion ? (
+                <div>
+                  {(model.ariaThread.state.pendingQuestion.options ?? []).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() =>
+                        props.onAnswerQuestion?.(
+                          model.ariaThread.state.pendingQuestion!.questionId,
+                          option,
+                        )
+                      }
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <p>
                 Approval mode: {model.ariaThread.state.approvalMode} | Security mode:{" "}
                 {model.ariaThread.state.securityMode}

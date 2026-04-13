@@ -654,6 +654,22 @@ describe("aria-desktop app assembly", () => {
     const shell = AriaDesktopAppShell({
       model: {
         ...model,
+        ariaThread: {
+          ...model.ariaThread,
+          state: {
+            ...model.ariaThread.state,
+            pendingApproval: {
+              toolCallId: "tool-1",
+              toolName: "exec",
+              args: { command: "rm -rf tmp" },
+            },
+            pendingQuestion: {
+              questionId: "question-1",
+              question: "Ship it?",
+              options: ["Yes", "No"],
+            },
+          },
+        },
         ariaRecentSessions: [
           {
             sessionId: "desktop:recent-1",
@@ -707,6 +723,15 @@ describe("aria-desktop app assembly", () => {
     const stopButton = findElement(shell, (props) => props.children === "Stop");
     expect(sendButton?.props.type).toBe("submit");
     expect(typeof stopButton?.props.onClick).toBe("function");
+
+    const approveButton = findElement(shell, (props) => props.children === "Approve");
+    const allowButton = findElement(shell, (props) => props.children === "Allow for session");
+    const denyButton = findElement(shell, (props) => props.children === "Deny");
+    const answerButton = findElement(shell, (props) => props.children === "Yes");
+    expect(typeof approveButton?.props.onClick).toBe("function");
+    expect(typeof allowButton?.props.onClick).toBe("function");
+    expect(typeof denyButton?.props.onClick).toBe("function");
+    expect(typeof answerButton?.props.onClick).toBe("function");
   });
 
   test("can switch the desktop app shell to another server", async () => {

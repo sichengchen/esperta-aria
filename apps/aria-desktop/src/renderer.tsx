@@ -3,6 +3,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { resolveHostAccessClientTarget } from "@aria/access-client";
 import {
   AriaDesktopApplicationRoot,
+  acceptAriaDesktopAppShellToolCallForSession,
+  answerAriaDesktopAppShellQuestion,
+  approveAriaDesktopAppShellToolCall,
   connectAriaDesktopAppShellModel,
   createAriaDesktopAppShellModel,
   loadAriaDesktopAppShellRecentSessions,
@@ -33,6 +36,9 @@ export interface AriaDesktopRendererController {
   openSession(sessionId: string): Promise<AriaDesktopAppShellModel>;
   sendMessage(message: string): Promise<AriaDesktopAppShellModel>;
   stop(): Promise<AriaDesktopAppShellModel>;
+  approveToolCall(toolCallId: string, approved: boolean): Promise<AriaDesktopAppShellModel>;
+  acceptToolCallForSession(toolCallId: string): Promise<AriaDesktopAppShellModel>;
+  answerQuestion(questionId: string, answer: string): Promise<AriaDesktopAppShellModel>;
 }
 
 export async function startAriaDesktopRendererModel(
@@ -90,6 +96,15 @@ export function createAriaDesktopRendererController(
     stop() {
       return update(stopAriaDesktopAppShell(model));
     },
+    approveToolCall(toolCallId: string, approved: boolean) {
+      return update(approveAriaDesktopAppShellToolCall(model, toolCallId, approved));
+    },
+    acceptToolCallForSession(toolCallId: string) {
+      return update(acceptAriaDesktopAppShellToolCallForSession(model, toolCallId));
+    },
+    answerQuestion(questionId: string, answer: string) {
+      return update(answerAriaDesktopAppShellQuestion(model, questionId, answer));
+    },
   };
 }
 
@@ -125,6 +140,15 @@ export async function mountAriaDesktopRenderer(
         },
         onStopAriaSession: () => {
           void controller.stop();
+        },
+        onApproveToolCall: (toolCallId: string, approved: boolean) => {
+          void controller.approveToolCall(toolCallId, approved);
+        },
+        onAcceptToolCallForSession: (toolCallId: string) => {
+          void controller.acceptToolCallForSession(toolCallId);
+        },
+        onAnswerQuestion: (questionId: string, answer: string) => {
+          void controller.answerQuestion(questionId, answer);
         },
       }),
     );

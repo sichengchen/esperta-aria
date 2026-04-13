@@ -283,8 +283,16 @@ describe("aria-desktop host scaffold", () => {
       messages: [{ role: "assistant" as const, content: "hello" }],
       streamingText: "",
       isStreaming: false,
-      pendingApproval: null,
-      pendingQuestion: null,
+      pendingApproval: {
+        toolCallId: "tool-1",
+        toolName: "exec",
+        args: { command: "rm -rf tmp" },
+      },
+      pendingQuestion: {
+        questionId: "question-1",
+        question: "Ship it?",
+        options: ["Yes", "No"],
+      },
       lastError: null,
     };
     const controller = createAriaDesktopRendererController({
@@ -314,9 +322,29 @@ describe("aria-desktop host scaffold", () => {
           return state;
         },
         openSession: async () => state,
-        approveToolCall: async () => state,
-        acceptToolCallForSession: async () => state,
-        answerQuestion: async () => state,
+        approveToolCall: async () => {
+          state = { ...state, pendingApproval: null };
+          return state;
+        },
+        acceptToolCallForSession: async () => {
+          state = { ...state, pendingApproval: null };
+          return state;
+        },
+        answerQuestion: async () => {
+          state = {
+            ...state,
+            pendingQuestion: null,
+            messages: [
+              ...state.messages,
+              {
+                role: "tool" as const,
+                content: "Answer: Yes",
+                toolName: "ask_user",
+              },
+            ],
+          };
+          return state;
+        },
         listSessions: async () => [],
         listArchivedSessions: async () => [],
         searchSessions: async () => [],
@@ -332,5 +360,12 @@ describe("aria-desktop host scaffold", () => {
 
     const stopped = await controller.stop();
     expect(stopped.ariaThread.state.messages.at(-1)?.content).toBe("Stopped by user");
+
+    const approved = await controller.approveToolCall("tool-1", true);
+    expect(approved.ariaThread.state.pendingApproval).toBeNull();
+
+    const answered = await controller.answerQuestion("question-1", "Yes");
+    expect(answered.ariaThread.state.pendingQuestion).toBeNull();
+    expect(answered.ariaThread.state.messages.at(-1)?.content).toBe("Answer: Yes");
   });
 });
