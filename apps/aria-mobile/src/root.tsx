@@ -8,6 +8,8 @@ export interface AriaMobileApplicationRootProps {
   navigation?: AriaMobileNavigation;
   onSwitchServer?(serverId: string): void;
   onOpenAriaSession?(sessionId: string): void;
+  onSendAriaMessage?(message: string): void;
+  onStopAriaSession?(): void;
 }
 
 export function AriaMobileApplicationRoot(props: AriaMobileApplicationRootProps): ReactElement {
@@ -17,6 +19,8 @@ export function AriaMobileApplicationRoot(props: AriaMobileApplicationRootProps)
       navigation={props.navigation}
       onSwitchServer={props.onSwitchServer}
       onOpenAriaSession={props.onOpenAriaSession}
+      onSendAriaMessage={props.onSendAriaMessage}
+      onStopAriaSession={props.onStopAriaSession}
     />
   );
 }
