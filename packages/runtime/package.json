@@ -14,13 +14,10 @@
     "./automation-schedule": "./src/automation-schedule.ts",
     "./audit": "./src/audit.ts",
     "./auth": "./src/auth.ts",
-    "./backend-registry": "./src/backend-registry.ts",
     "./checkpoints": "./src/checkpoints.ts",
     "./config": "./src/config/index.ts",
-    "./context": "./src/context.ts",
     "./context-files": "./src/context-files.ts",
     "./context-references": "./src/context-references.ts",
-    "./dispatch-runner": "./src/dispatch-runner.ts",
     "./memory": "./src/memory/index.ts",
     "./operational-store": "./src/operational-store.ts",
     "./path-boundary": "./src/path-boundary.ts",
@@ -29,14 +26,12 @@
     "./runtime": "./src/runtime.ts",
     "./scheduler": "./src/scheduler.ts",
     "./security-mode": "./src/security-mode.ts",
-    "./server": "./src/server.ts",
     "./skills": "./src/skills/index.ts",
     "./skills/assets": "./src/skills/assets.ts",
     "./skills/loader": "./src/skills/loader.ts",
     "./skills/prompt": "./src/skills/prompt.ts",
     "./skills/registry": "./src/skills/registry.ts",
     "./skills/types": "./src/skills/types.ts",
-    "./procedures": "./src/procedures.ts",
     "./session-coordinator": "./src/session-coordinator.ts",
     "./tools": "./src/tools/index.ts",
     "./tools/claude-code": "./src/tools/claude-code.ts",
@@ -46,7 +41,6 @@
     "./tools/exec": "./src/tools/exec.ts",
     "./toolsets": "./src/toolsets.ts",
     "./capability-policy": "./src/capability-policy.ts",
-    "./session-tool-environment": "./src/session-tool-environment.ts",
-    "./trpc": "./src/trpc.ts"
+    "./session-tool-environment": "./src/session-tool-environment.ts"
   }
 }
