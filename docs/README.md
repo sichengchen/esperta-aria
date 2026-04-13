@@ -40,7 +40,6 @@ This tree is organized by reader intent, not by the old code layout.
 - [architecture/storage-and-recovery.md](./architecture/storage-and-recovery.md)
 - [architecture/tool-runtime.md](./architecture/tool-runtime.md)
 - [architecture/handoff.md](./architecture/handoff.md)
-- [architecture/providers.md](./architecture/providers.md)
 - [architecture/interaction-protocol.md](./architecture/interaction-protocol.md)
 
 ### Operator Guides

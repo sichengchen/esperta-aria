@@ -67,6 +67,8 @@ Resolution order remains:
 - cron task definitions
 - webhook task definitions
 
+Runtime and jobs resolve execution backends through the shared coding-agent registry in `@aria/agents-coding` rather than hard-coding provider-specific execution paths.
+
 ## Approval Configuration
 
 Per-connector approval defaults live under `runtime.toolApproval`, not under `runtime.toolPolicy`.

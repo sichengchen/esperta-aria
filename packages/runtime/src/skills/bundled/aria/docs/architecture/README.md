@@ -61,5 +61,4 @@ flowchart TD
 - [storage-and-recovery.md](./storage-and-recovery.md)
 - [tool-runtime.md](./tool-runtime.md)
 - [handoff.md](./handoff.md)
-- [providers.md](./providers.md)
 - [interaction-protocol.md](./interaction-protocol.md)
