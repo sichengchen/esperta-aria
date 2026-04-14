@@ -13,6 +13,7 @@ import { SecurityModeManager } from "@aria/policy";
 import { ConfigManager } from "@aria/server/config";
 import { CheckpointManager } from "@aria/server/checkpoints";
 import { SessionArchiveManager } from "@aria/server/session-archive";
+import { getRuntimeSessionCoordinator } from "@aria/server/session-coordinator";
 import { SessionManager } from "@aria/server/sessions";
 import type { EngineRuntime } from "@aria/server/runtime";
 import { OperationalStore } from "@aria/store/operational-store";
@@ -662,6 +663,64 @@ describe("tRPC procedures (non-live)", () => {
   });
 
   describe("interaction protocol metadata", () => {
+    test("includes durable event identity on normal streamed chat events", async () => {
+      const caller = createSessionCaller("telegram:123", "telegram");
+      const { session } = await caller.session.create({
+        connectorType: "telegram",
+        prefix: "telegram:123",
+      });
+
+      const coordinator = getRuntimeSessionCoordinator(runtime);
+      coordinator.sessionAgents.set(session.id, {
+        async *chat() {
+          yield { type: "text_delta", delta: "hello" };
+          yield { type: "done", stopReason: "end_turn" };
+        },
+        getMessages() {
+          return [
+            { role: "user", content: "hello", timestamp: 100 },
+            { role: "assistant", content: "world", timestamp: 101 },
+          ];
+        },
+      } as unknown as Agent);
+
+      const events: any[] = [];
+      const gen = await caller.chat.stream({
+        sessionId: session.id,
+        message: "hello",
+      });
+      for await (const event of gen) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(2);
+      expect(events[0]).toMatchObject({
+        type: "text_delta",
+        delta: "hello",
+        sessionId: session.id,
+        threadId: session.id,
+        connectorType: "telegram",
+        source: "chat",
+        threadType: "connector",
+        agentId: "Test",
+        actorId: "telegram:123",
+      });
+      expect(events[1]).toMatchObject({
+        type: "done",
+        stopReason: "end_turn",
+        sessionId: session.id,
+        threadId: session.id,
+        connectorType: "telegram",
+        source: "chat",
+        threadType: "connector",
+        agentId: "Test",
+        actorId: "telegram:123",
+      });
+      expect(typeof events[0].timestamp).toBe("number");
+      expect(typeof events[0].runId).toBe("string");
+      expect(events[0].runId).toBe(events[1].runId);
+    });
+
     test("includes durable event identity on streamed errors", async () => {
       const caller = createSessionCaller("telegram:123", "telegram");
       const events: any[] = [];
