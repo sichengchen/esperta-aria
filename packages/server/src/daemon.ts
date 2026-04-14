@@ -1,7 +1,6 @@
 import { readFile, writeFile, unlink } from "node:fs/promises";
-import { existsSync, openSync } from "node:fs";
-import { spawn } from "node:child_process";
-import { ARIA_SERVER_DAEMON_COMMAND } from "aria-server";
+import { existsSync } from "node:fs";
+import { spawnAriaServerDaemonHost } from "aria-server/process";
 import { CLI_NAME, HOME_ENV_VAR, RUNTIME_NAME } from "@aria/server/brand";
 import { getRuntimeDiscoveryPaths } from "./discovery.js";
 
@@ -43,14 +42,11 @@ export async function startEngine(): Promise<void> {
 
   await cleanStaleFiles();
 
-  const logFd = openSync(LOG_FILE, "a");
-  const child = spawn(process.execPath, [process.argv[1], ARIA_SERVER_DAEMON_COMMAND], {
-    detached: true,
-    stdio: ["ignore", logFd, logFd],
+  const child = spawnAriaServerDaemonHost({
+    runtimeHome,
+    logFile: LOG_FILE,
     env: { ...process.env, [HOME_ENV_VAR]: runtimeHome },
   });
-
-  child.unref();
 
   if (!child.pid) {
     console.error(`Failed to start ${RUNTIME_NAME}.`);

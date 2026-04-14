@@ -44,6 +44,7 @@ This plan continues `docs/development/new-architecture-implementation-plan.md` a
 - The remaining `docs/architecture/*` pages have been retired after their target-state content was moved into `docs/new-architecture/*` and current development docs.
 - `@aria/projects` now exposes a dedicated thread-environment switch service, `@aria/desktop-bridge` exposes it at the desktop-local boundary, and the CLI plus desktop shell can route environment changes through that durable mutation path.
 - `apps/aria-mobile` now includes Expo app identifiers plus EAS build and submit profiles for preview and production release flows.
+- `apps/aria-server` now owns the daemon process-spec and spawn helper used by both runtime startup and restart, while the CLI hidden host command remains only as a packaged fallback path.
 
 ### Not Completed
 

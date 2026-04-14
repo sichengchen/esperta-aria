@@ -12,6 +12,7 @@ import {
   ariaServerHost,
   createAriaServerDaemonHostBootstrap,
   createAriaServerHostBootstrap,
+  resolveAriaServerDaemonProcessSpec,
   runAriaServerDaemonHost,
   runAriaServerHost,
 } from "aria-server";
@@ -129,5 +130,31 @@ describe("server host surface", () => {
     expect(bootstrap.hiddenCommand).toBe(ARIA_SERVER_DAEMON_COMMAND);
     expect(bootstrap.discoveryPaths).toEqual(getRuntimeDiscoveryPaths("/tmp/aria-server-app"));
     expect(typeof runAriaServerDaemonHost).toBe("function");
+  });
+
+  test("resolves an app-owned daemon process spec before falling back to the CLI host command", () => {
+    expect(
+      resolveAriaServerDaemonProcessSpec({
+        execPath: "/usr/local/bin/bun",
+        cliEntrypoint: "/tmp/aria-cli.mjs",
+        appEntrypoint: "/Users/sichengchen/src/esperta-aria/apps/aria-server/src/main.ts",
+      }),
+    ).toEqual({
+      executable: "/usr/local/bin/bun",
+      args: ["/Users/sichengchen/src/esperta-aria/apps/aria-server/src/main.ts"],
+      mode: "app_entry",
+    });
+
+    expect(
+      resolveAriaServerDaemonProcessSpec({
+        execPath: "/usr/local/bin/bun",
+        cliEntrypoint: "/tmp/aria-cli.mjs",
+        appEntrypoint: "/tmp/missing-aria-server-main.ts",
+      }),
+    ).toEqual({
+      executable: "/usr/local/bin/bun",
+      args: ["/tmp/aria-cli.mjs", ARIA_SERVER_DAEMON_COMMAND],
+      mode: "cli_hidden_command",
+    });
   });
 });
