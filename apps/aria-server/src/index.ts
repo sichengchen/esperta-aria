@@ -1,7 +1,6 @@
 import {
   CLI_NAME,
   ENGINE_PORT_ENV_VAR,
-  HOME_ENV_VAR,
   PRODUCT_NAME,
   RUNTIME_NAME,
   ariaServerApp,
@@ -11,12 +10,11 @@ import {
   type RuntimeDiscoveryPaths,
   type StartAriaServerOptions,
 } from "@aria/server";
-import { existsSync, openSync, unlinkSync, writeFileSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { ARIA_SERVER_DAEMON_COMMAND, spawnAriaServerDaemonHost } from "./process.js";
 
 export * from "@aria/server";
-
-export const ARIA_SERVER_DAEMON_COMMAND = "__server_host";
+export * from "./process.js";
 
 export const ariaServerHost = {
   id: "aria-server",
@@ -105,16 +103,10 @@ export async function runAriaServerDaemonHost(
       () => {
         clearTimeout(forceTimer);
         if (shouldRestart) {
-          const logFd = openSync(logFile, "a");
-          const child = spawn(process.execPath, [process.argv[1]!, ARIA_SERVER_DAEMON_COMMAND], {
-            detached: true,
-            stdio: ["ignore", logFd, logFd],
-            env: {
-              ...process.env,
-              [HOME_ENV_VAR]: bootstrap.discoveryPaths.runtimeHome,
-            },
+          const child = spawnAriaServerDaemonHost({
+            runtimeHome: bootstrap.discoveryPaths.runtimeHome,
+            logFile,
           });
-          child.unref();
           console.log(`${RUNTIME_NAME} restarting (new PID: ${child.pid})...`);
         }
         process.exit(0);
