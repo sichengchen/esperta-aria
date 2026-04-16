@@ -13,22 +13,11 @@ It is the architecture the repo should keep aligned to:
 - `Aria Mobile` is a thin client for server-hosted Aria and remote project work
 - `Aria Server Gateway` is the built-in secure entrypoint, while LAN/VPN/tunnel reachability stays outside Aria's product boundary
 
-## Document Set
+## Document Groups
 
-- [overview.md](./overview.md)
-- [deployment.md](./deployment.md)
-- [runtime.md](./runtime.md)
-- [prompt-engine.md](./prompt-engine.md)
-- [tool-runtime.md](./tool-runtime.md)
-- [automation.md](./automation.md)
-- [interaction-protocol.md](./interaction-protocol.md)
-- [gateway-access.md](./gateway-access.md)
-- [handoff.md](./handoff.md)
-- [server.md](./server.md)
-- [desktop-and-mobile.md](./desktop-and-mobile.md)
-- [tech-decisions.md](./tech-decisions.md)
-- [domain-model.md](./domain-model.md)
-- [packages.md](./packages.md)
+- [core/README.md](./core/README.md)
+- [runtime/README.md](./runtime/README.md)
+- [surfaces/README.md](./surfaces/README.md)
 
 ## Canonical Names
 
@@ -57,17 +46,6 @@ That implies:
 
 ## Reader Guide
 
-- Start with [overview.md](./overview.md) for the system map
-- Read [deployment.md](./deployment.md) for where each component runs
-- Read [runtime.md](./runtime.md) for the runtime kernel and recovery model
-- Read [prompt-engine.md](./prompt-engine.md) for the target-state prompt assembly contract
-- Read [tool-runtime.md](./tool-runtime.md) for toolsets, policy, and MCP execution
-- Read [automation.md](./automation.md) for the server-owned automation model
-- Read [interaction-protocol.md](./interaction-protocol.md) for shared request and event contracts
-- Read [gateway-access.md](./gateway-access.md) for the secure access and transport model
-- Read [handoff.md](./handoff.md) for the durable Aria-to-project-work submission boundary
-- Read [server.md](./server.md) for the server-side ownership model
-- Read [desktop-and-mobile.md](./desktop-and-mobile.md) for the client model
-- Read [tech-decisions.md](./tech-decisions.md) for concrete stack choices
-- Read [domain-model.md](./domain-model.md) for the persistent object model
-- Read [packages.md](./packages.md) for monorepo naming and package ownership
+- Start with [core/README.md](./core/README.md) for the system map, deployment model, and durable object model
+- Read [runtime/README.md](./runtime/README.md) for runtime execution, prompt assembly, tool runtime, automation, protocol, and handoff contracts
+- Read [surfaces/README.md](./surfaces/README.md) for the server, gateway, desktop, and mobile ownership model

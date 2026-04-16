@@ -19,6 +19,7 @@ import {
   createAriaDesktopAppShellModel,
 } from "./shell.js";
 import { AriaDesktopApplicationRoot } from "./root.js";
+import "./desktop-shell.css";
 
 export interface AriaDesktopRendererTarget {
   serverId: string;

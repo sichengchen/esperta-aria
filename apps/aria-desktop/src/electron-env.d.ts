@@ -8,3 +8,5 @@ interface AriaDesktopRendererConfig {
 interface Window {
   ariaDesktop?: AriaDesktopRendererConfig;
 }
+
+declare module "*.css";

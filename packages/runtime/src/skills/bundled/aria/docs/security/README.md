@@ -2,18 +2,11 @@
 
 Aria enforces trust boundaries across runtime execution, gateway access, connectors, automation, and tracked work.
 
-## Security Topics
+## Security Groups
 
-- [auth.md](./auth.md)
-- [approval-flow.md](./approval-flow.md)
-- [audit-log.md](./audit-log.md)
-- [content-framing.md](./content-framing.md)
-- [exec-classifier.md](./exec-classifier.md)
-- [exec-fence.md](./exec-fence.md)
-- [sandbox.md](./sandbox.md)
-- [secrets-vault.md](./secrets-vault.md)
-- [security-modes.md](./security-modes.md)
-- [url-policy.md](./url-policy.md)
+- [access/README.md](./access/README.md)
+- [execution/README.md](./execution/README.md)
+- [data/README.md](./data/README.md)
 
 ## Core Properties
 
