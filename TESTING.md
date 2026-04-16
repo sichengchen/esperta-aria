@@ -11,14 +11,22 @@
 | `bun run test -- tests/tools.test.ts`   | Run one file                               |
 | `ANTHROPIC_API_KEY=sk-... bun run test` | Run all tests including live               |
 
+Canonical documentation:
+
+- repo-wide testing guide: [docs/development/testing/README.md](./docs/development/testing/README.md)
+- test plan overview: [docs/development/testing/plan/README.md](./docs/development/testing/plan/README.md)
+- capability coverage: [docs/development/testing/plan/foundations/README.md](./docs/development/testing/plan/foundations/README.md)
+- workflow coverage: [docs/development/testing/plan/workflows/README.md](./docs/development/testing/plan/workflows/README.md)
+- execution, live AI, and release gates: [docs/development/testing/plan/execution/README.md](./docs/development/testing/plan/execution/README.md)
+
 ## Rules
 
-1. **Every new file gets a test file.** If you create `packages/runtime/src/foo.ts` or `packages/connectors/src/foo.ts`, add a co-located `.test.ts` or a matching test under `tests/`.
-2. **Every bug fix gets a regression test.** Write the failing test first, then fix.
-3. **Test behavior, not implementation.** Test what a function does, not how it does it.
-4. **Pure unit tests where possible.** No I/O, no network, no temp dirs when the logic is pure.
-5. **Live LLM tests for agent behavior.** Anything involving the agent chat loop, tool dispatch, or streaming events should be tested with a real (cheap) model. Do NOT mock pi-ai.
-6. **Use the shared helpers.** See `tests/helpers/` for temp dirs, live model setup, and test tools.
+1. **Every bug fix gets a regression test.** Write the failing test first, then fix.
+2. **Test behavior, not implementation.** Test what the shipped system promises to do.
+3. **Use unit tests for local logic and E2E tests for server workflows.** `Aria Server` is not considered covered by unit tests alone.
+4. **Live LLM tests are required when model behavior is part of the contract.** Anything involving agent chat, tool dispatch, approvals, questions, automation behavior, or streaming semantics should have live coverage at the appropriate boundary.
+5. **Use the shared helpers.** See `tests/helpers/` for temp dirs, live model setup, and test tools.
+6. **Follow the canonical server plan.** For server changes, use [docs/development/testing/plan/README.md](./docs/development/testing/plan/README.md) as the release bar.
 
 ## Where to put tests
 
@@ -30,13 +38,15 @@
 | Integration test     | `tests/integration/*.test.ts` | Testing two+ subsystems without LLM                   |
 | E2E test             | `tests/e2e/*.test.ts`         | Testing full system initialization or user flows      |
 
+For `Aria Server`, these buckets are only the starting point. The canonical server plan additionally requires real gateway transport tests, restart/durability tests, and live AI workflow coverage.
+
 ## Live LLM test patterns
 
 ### Basic agent chat test
 
 ```ts
 import { describe, test, expect } from "bun:test";
-import { Agent } from "@aria/engine/agent/index.js";
+import { Agent } from "@aria/agent-aria";
 import { makeLiveRouter, describeLive } from "../helpers/live-model.js";
 
 describeLive("Agent chat", () => {
@@ -137,6 +147,8 @@ test("my_tool returns input", async () => {
 - Exact LLM response text — always non-deterministic
 - TUI visual layout — no good Ink testing story with Bun yet
 
+Do not treat file-level unit coverage as a substitute for workflow coverage. For `Aria Server`, the release question is whether the documented server flows work end-to-end.
+
 ## Danger level testing
 
 When adding or modifying a tool:
@@ -151,3 +163,5 @@ When adding or modifying a tool:
 - `bun run typecheck` must pass
 - `bun run lint` must pass
 - Live tests run in CI when `ANTHROPIC_API_KEY` secret is configured
+
+For release decisions on `Aria Server`, also use the spec-centered checklist in [docs/development/testing/plan/README.md](./docs/development/testing/plan/README.md).

@@ -113,6 +113,8 @@ This layout fits both Aria comments you raised:
 - the sidebar does not split local and remote projects
 - the environment switch lives in the active thread area, not in the tree
 
+For the detailed desktop workbench design contract, interaction paths, and acceptance criteria, see [desktop-design.md](./desktop-design.md).
+
 ## Desktop Product Spaces
 
 ```mermaid

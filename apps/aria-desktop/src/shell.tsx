@@ -44,6 +44,7 @@ export interface CreateAriaDesktopAppShellModelOptions {
     environmentId: string,
   ) => AriaDesktopEnvironmentSwitchThread;
   resolveLocalProjectState?: (threadId: string) => AriaDesktopLocalProjectState | undefined;
+  activeScreenId?: string;
 }
 
 export interface AriaDesktopAppShellSourceOptions extends Omit<
@@ -58,11 +59,44 @@ export interface AriaDesktopAppShellModel {
   activeServerId: string;
   activeServerLabel: string;
   activeSpaceId: (typeof ariaDesktopSpaces)[number]["id"];
+  activeScreenId: string;
   activeContextPanelId: (typeof ariaDesktopContextPanels)[number]["id"];
   ariaThread: ReturnType<typeof createAriaDesktopAriaThread>;
   ariaRecentSessions: AriaChatSessionSummary[];
   activeLocalProjectState?: AriaDesktopLocalProjectState;
   sourceOptions: AriaDesktopAppShellSourceOptions;
+}
+
+function resolveNavigationEntryForSpace(
+  spaceId: (typeof ariaDesktopSpaces)[number]["id"],
+) {
+  return ariaDesktopNavigation.find((entry) => entry.spaceId === spaceId) ?? ariaDesktopNavigation[0];
+}
+
+function resolveNavigationEntryForScreen(screenId: string) {
+  return ariaDesktopNavigation.find((entry) =>
+    entry.screens.some((screen) => screen.id === screenId),
+  );
+}
+
+function resolveActiveScreenId(params: {
+  activeSpaceId: (typeof ariaDesktopSpaces)[number]["id"];
+  requestedScreenId?: string;
+  hasActiveThread: boolean;
+}) {
+  const navigation = resolveNavigationEntryForSpace(params.activeSpaceId);
+  if (
+    params.requestedScreenId &&
+    navigation.screens.some((screen) => screen.id === params.requestedScreenId)
+  ) {
+    return params.requestedScreenId;
+  }
+
+  if (params.activeSpaceId === "projects" && params.hasActiveThread) {
+    return "thread";
+  }
+
+  return navigation.defaultScreenId;
 }
 
 function resolveActiveLocalProjectState(
@@ -330,6 +364,11 @@ export function createAriaDesktopAppShellModel(
     activeServerId: shell.activeServerId,
     activeServerLabel: shell.activeServerLabel,
     activeSpaceId: options.activeSpaceId ?? bootstrap.application.startup.defaultSpaceId,
+    activeScreenId: resolveActiveScreenId({
+      activeSpaceId: options.activeSpaceId ?? bootstrap.application.startup.defaultSpaceId,
+      requestedScreenId: options.activeScreenId,
+      hasActiveThread: Boolean(activeThreadContext),
+    }),
     activeContextPanelId:
       options.activeContextPanelId ?? bootstrap.application.startup.defaultContextPanelId,
     ariaThread: createAriaDesktopAriaThread(options.target, {
@@ -351,6 +390,7 @@ export function createAriaDesktopAppShellModel(
       environments: options.environments,
       activeThreadContext: options.activeThreadContext,
       activeSpaceId: options.activeSpaceId,
+      activeScreenId: options.activeScreenId,
       activeContextPanelId: options.activeContextPanelId,
       createAriaThreadController: options.createAriaThreadController,
       desktopBridge: options.desktopBridge,
@@ -394,6 +434,9 @@ function resolveDesktopServerTarget(
 export interface AriaDesktopAppShellProps {
   model: AriaDesktopAppShellModel;
   onSwitchServer?(serverId: string): void;
+  onSelectSpace?(spaceId: (typeof ariaDesktopSpaces)[number]["id"]): void;
+  onSelectScreen?(screenId: string): void;
+  onSelectContextPanel?(panelId: (typeof ariaDesktopContextPanels)[number]["id"]): void;
   onOpenAriaSession?(sessionId: string): void;
   onSearchAriaSessions?(query: string): void;
   onSelectProjectThread?(threadId: string): void;
@@ -414,30 +457,297 @@ function section(slot: string, title: string, children: ReactNode): ReactElement
   );
 }
 
+function formatDesktopMessageRole(role: string): string {
+  switch (role) {
+    case "assistant":
+      return "Aria";
+    case "user":
+      return "You";
+    case "tool":
+      return "Tool";
+    case "error":
+      return "Error";
+    default:
+      return role;
+  }
+}
+
+function renderLocalProjectState(
+  state: AriaDesktopAppShellModel["activeLocalProjectState"],
+): ReactElement {
+  if (!state) {
+    return (
+      <p className="aria-desktop-empty-copy">
+        Attach a local project thread to inspect repository and worktree details.
+      </p>
+    );
+  }
+
+  return (
+    <dl className="aria-desktop-definition-list" data-slot="local-project-state">
+      <div>
+        <dt>Repo:</dt>
+        <dd>{state.repoName ?? state.repoId ?? "unknown"}</dd>
+      </div>
+      <div>
+        <dt>Remote:</dt>
+        <dd>
+          {state.repoRemoteUrl ?? "unknown"}
+          {state.repoDefaultBranch ? ` | Default branch: ${state.repoDefaultBranch}` : ""}
+        </dd>
+      </div>
+      <div>
+        <dt>Worktree:</dt>
+        <dd>{state.worktreePath ?? "not attached"}</dd>
+      </div>
+      <div>
+        <dt>Branch:</dt>
+        <dd>
+          {state.worktreeBranchName ?? "n/a"}
+          {state.worktreeBaseRef ? ` | Base: ${state.worktreeBaseRef}` : ""}
+        </dd>
+      </div>
+      <div>
+        <dt>Worktree status:</dt>
+        <dd>{state.worktreeStatus ?? "n/a"}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function renderInspectorPanel(
+  model: AriaDesktopAppShellModel,
+  activeThreadScreen: AriaDesktopAppShellModel["shell"]["activeThreadScreen"],
+  props: AriaDesktopAppShellProps,
+): ReactElement {
+  const currentPanel = model.application.contextPanels.find(
+    (panel) => panel.id === model.activeContextPanelId,
+  );
+  const pendingApproval = model.ariaThread.state.pendingApproval;
+  const pendingQuestion = model.ariaThread.state.pendingQuestion;
+  const approvalMode = model.ariaThread.state.approvalMode ?? "default";
+  const securityMode = model.ariaThread.state.securityMode ?? "default";
+  const securityModeTTL = model.ariaThread.state.securityModeRemainingTTL;
+
+  switch (model.activeContextPanelId) {
+    case "environment":
+      return (
+        <div className="aria-desktop-inspector-stack">
+          <div className="aria-desktop-card aria-desktop-card--soft">
+            <div className="aria-desktop-card-eyebrow">{currentPanel?.label ?? "Environment"}</div>
+            <strong>
+              {activeThreadScreen?.header.environmentLabel ?? "No active environment"}
+            </strong>
+            <p>
+              {activeThreadScreen?.header.serverLabel ?? model.activeServerLabel}
+              {activeThreadScreen?.header.agentLabel
+                ? ` | Agent: ${activeThreadScreen.header.agentLabel}`
+                : ""}
+            </p>
+          </div>
+          {renderLocalProjectState(model.activeLocalProjectState)}
+        </div>
+      );
+    case "approvals":
+      return (
+        <div className="aria-desktop-inspector-stack">
+          <div className="aria-desktop-card aria-desktop-card--soft">
+            <div className="aria-desktop-card-eyebrow">{currentPanel?.label ?? "Approvals"}</div>
+            <p>Pending approval: {pendingApproval?.toolName ?? "none"}</p>
+            <p>Pending question: {pendingQuestion?.question ?? "none"}</p>
+            <p>
+              Approval mode: {approvalMode} | Security mode: {securityMode}
+              {securityModeTTL !== null && securityModeTTL !== undefined
+                ? ` (${securityModeTTL}s)`
+                : ""}
+            </p>
+          </div>
+          {pendingApproval ? (
+            <div className="aria-desktop-button-row">
+              <button
+                type="button"
+                className="aria-desktop-button aria-desktop-button--primary"
+                onClick={() => props.onApproveToolCall?.(pendingApproval.toolCallId, true)}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                className="aria-desktop-button"
+                onClick={() => props.onAcceptToolCallForSession?.(pendingApproval.toolCallId)}
+              >
+                Allow for session
+              </button>
+              <button
+                type="button"
+                className="aria-desktop-button aria-desktop-button--danger"
+                onClick={() => props.onApproveToolCall?.(pendingApproval.toolCallId, false)}
+              >
+                Deny
+              </button>
+            </div>
+          ) : null}
+          {pendingQuestion ? (
+            <div className="aria-desktop-button-row">
+              {(pendingQuestion.options ?? []).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className="aria-desktop-button"
+                  onClick={() => props.onAnswerQuestion?.(pendingQuestion.questionId, option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      );
+    case "changes":
+      return (
+        <div className="aria-desktop-inspector-stack">
+          <div className="aria-desktop-card aria-desktop-card--soft">
+            <div className="aria-desktop-card-eyebrow">{currentPanel?.label ?? "Changes"}</div>
+            <strong>{activeThreadScreen?.header.title ?? "No active thread"}</strong>
+            <p>
+              {activeThreadScreen?.header.threadTypeLabel ?? "Select a project thread"}
+              {activeThreadScreen?.header.statusLabel
+                ? ` | ${activeThreadScreen.header.statusLabel}`
+                : ""}
+            </p>
+          </div>
+          {renderLocalProjectState(model.activeLocalProjectState)}
+        </div>
+      );
+    case "job":
+      return (
+        <div className="aria-desktop-inspector-stack">
+          <div className="aria-desktop-card aria-desktop-card--soft">
+            <div className="aria-desktop-card-eyebrow">{currentPanel?.label ?? "Job State"}</div>
+            <p>Aria thread: {model.ariaThread.state.connected ? "connected" : "disconnected"}</p>
+            <p>Model: {model.ariaThread.state.modelName}</p>
+            <p>Streaming: {model.ariaThread.state.isStreaming ? "yes" : "no"}</p>
+            {model.ariaThread.state.streamingText ? (
+              <p>Streaming text: {model.ariaThread.state.streamingText}</p>
+            ) : null}
+            {model.ariaThread.state.lastError ? (
+              <p>Error: {model.ariaThread.state.lastError}</p>
+            ) : null}
+          </div>
+        </div>
+      );
+    case "artifacts":
+      return (
+        <div className="aria-desktop-inspector-stack">
+          <div className="aria-desktop-card aria-desktop-card--soft">
+            <div className="aria-desktop-card-eyebrow">{currentPanel?.label ?? "Artifacts"}</div>
+            <p>Recent Aria sessions: {model.ariaRecentSessions.length}</p>
+            <p>
+              {activeThreadScreen?.header.environmentLabel ??
+                "Artifacts will appear when runs and sessions attach to this thread."}
+            </p>
+          </div>
+        </div>
+      );
+    case "review":
+    default:
+      return (
+        <div className="aria-desktop-inspector-stack">
+          <div className="aria-desktop-card aria-desktop-card--soft">
+            <div className="aria-desktop-card-eyebrow">{currentPanel?.label ?? "Review"}</div>
+            <strong>{activeThreadScreen?.header.title ?? "No active thread"}</strong>
+            <p>Pending approval: {pendingApproval?.toolName ?? "none"}</p>
+            <p>Pending question: {pendingQuestion?.question ?? "none"}</p>
+            <p>
+              Approval mode: {approvalMode} | Security mode: {securityMode}
+              {securityModeTTL !== null && securityModeTTL !== undefined
+                ? ` (${securityModeTTL}s)`
+                : ""}
+            </p>
+          </div>
+        </div>
+      );
+  }
+}
+
 export function AriaDesktopAppShell(props: AriaDesktopAppShellProps): ReactElement {
   const { model } = props;
   const activeThreadScreen = model.shell.activeThreadScreen;
+  const currentThreadId = activeThreadScreen?.header.threadId;
+  const activeSpace = model.application.spaces.find((space) => space.id === model.activeSpaceId);
+  const activeNavigation = resolveNavigationEntryForSpace(model.activeSpaceId);
+  const activeScreen =
+    activeNavigation.screens.find((screen) => screen.id === model.activeScreenId) ??
+    activeNavigation.screens[0];
+  const activePanel = model.application.contextPanels.find(
+    (panel) => panel.id === model.activeContextPanelId,
+  );
+  const recentMessages = model.ariaThread.state.messages.slice(-4);
+  const environmentOptions =
+    activeThreadScreen?.environmentSwitcher.availableEnvironments ?? model.shell.environments;
   const composerValue = activeThreadScreen
-    ? `Reply in ${activeThreadScreen.composer.scope} (${activeThreadScreen.composer.threadId})`
-    : "Select a thread to compose";
+    ? `Continue ${activeThreadScreen.header.title}`
+    : "Select a project thread to compose";
+  const centerTabs = activeThreadScreen
+    ? [
+        { id: "projects-root", label: "Projects", active: false },
+        { id: activeThreadScreen.header.threadId, label: activeThreadScreen.header.title, active: true },
+      ]
+    : [{ id: "projects-root", label: "Projects", active: true }];
+  const showProjectThreadList =
+    model.activeSpaceId === "projects" && model.activeScreenId === "thread-list";
+  const showProjectThreadView =
+    model.activeSpaceId === "projects" && model.activeScreenId === "thread";
+  const showAriaChat = model.activeSpaceId === "aria" && activeScreen?.id === "chat";
+  const showAriaInbox = model.activeSpaceId === "aria" && activeScreen?.id === "inbox";
+  const showAriaAutomations = model.activeSpaceId === "aria" && activeScreen?.id === "automations";
+  const showAriaConnectors = model.activeSpaceId === "aria" && activeScreen?.id === "connectors";
 
   return (
-    <div data-app-shell={model.application.id} data-frame={model.application.frame.kind}>
-      <header data-slot="top-chrome">
-        <h1>{model.application.displayName}</h1>
-        <p>{model.application.startup.landingDescription}</p>
-        <small>
-          Access: {model.activeServerLabel} ({model.bootstrap.bootstrap.access.httpUrl})
-        </small>
-        <small data-slot="aria-thread-status">
-          Aria thread:{" "}
-          {model.ariaThread.state.connected ? model.ariaThread.state.sessionId : "disconnected"}
-          {" | "}
-          Model: {model.ariaThread.state.modelName}
-          {" | "}
-          Status: {model.ariaThread.state.sessionStatus}
-        </small>
+    <div
+      className="aria-desktop-shell"
+      data-app-shell={model.application.id}
+      data-frame={model.application.frame.kind}
+    >
+      <header className="aria-desktop-top-chrome" data-slot="top-chrome">
+        <div className="aria-desktop-brand">
+          <div className="aria-desktop-brand-mark">A</div>
+          <div className="aria-desktop-brand-copy">
+            <h1>{model.application.displayName}</h1>
+            <p>
+              {activeThreadScreen
+                ? `${activeThreadScreen.header.projectLabel ?? "Projects"} / ${
+                    activeThreadScreen.header.title
+                  }`
+                : "Projects workbench"}
+            </p>
+          </div>
+        </div>
+
+        <div className="aria-desktop-top-meta">
+          <div className="aria-desktop-pill-row">
+            <span className="aria-desktop-pill">{activeSpace?.label ?? model.activeSpaceId}</span>
+            <span className="aria-desktop-pill">
+              {activePanel?.label ?? model.activeContextPanelId}
+            </span>
+            <span
+              className={`aria-desktop-pill ${
+                model.ariaThread.state.connected ? "is-live" : "is-offline"
+              }`}
+            >
+              {model.ariaThread.state.connected ? "Connected" : "Offline"}
+            </span>
+          </div>
+          <small className="aria-desktop-status-line" data-slot="aria-thread-status">
+            Aria thread:{" "}
+            {model.ariaThread.state.connected ? model.ariaThread.state.sessionId : "disconnected"}
+            {" | "}Model: {model.ariaThread.state.modelName}
+            {" | "}Status: {model.ariaThread.state.sessionStatus}
+          </small>
+        </div>
+
         <label
+          className="aria-desktop-select-field"
           data-slot="server-switcher"
           data-placement={model.application.frame.serverSwitcher.placement}
         >
@@ -454,262 +764,361 @@ export function AriaDesktopAppShell(props: AriaDesktopAppShellProps): ReactEleme
             ))}
           </select>
         </label>
-        <p>
-          Active space: {model.activeSpaceId} | Active panel: {model.activeContextPanelId}
-        </p>
       </header>
 
-      <main data-slot="workbench">
-        <aside data-slot="sidebar">
+      <main className="aria-desktop-workbench" data-slot="workbench">
+        <aside className="aria-desktop-sidebar" data-slot="sidebar">
           {section(
             "project-sidebar",
-            model.shell.projectSidebar.label,
-            <ul>
-              {model.application.spaces.map((space) => (
-                <li key={space.id}>
-                  {space.label}
-                  {space.id === model.activeSpaceId ? " (active)" : ""}
-                </li>
-              ))}
-            </ul>,
+            "Workbench",
+            <div className="aria-desktop-sidebar-shell">
+              <div className="aria-desktop-tab-strip" role="tablist" aria-label="Desktop spaces">
+                {model.application.spaces.map((space) => (
+                  <button
+                    key={space.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={space.id === model.activeSpaceId}
+                    className={`aria-desktop-tab ${
+                      space.id === model.activeSpaceId ? "is-active" : ""
+                    }`}
+                  >
+                    {space.label}
+                  </button>
+                ))}
+              </div>
+              <div className="aria-desktop-pane-caption">
+                <span>{activeSpace?.label ?? "Projects"}</span>
+                <span>{model.activeServerLabel}</span>
+              </div>
+            </div>,
           )}
           {section(
             "thread-list",
-            model.shell.projectThreadListScreen.title,
+            "Projects",
             <div>
-              <p>{model.shell.projectThreadListScreen.description}</p>
-              <ul>
-                {model.shell.projectSidebar.projects.map((project) => (
-                  <li key={project.projectLabel}>
-                    <strong>{project.projectLabel}</strong>
-                    <ul>
-                      {project.threads.map((thread) => (
-                        <li key={thread.id}>
-                          {props.onSelectProjectThread ? (
+              {model.shell.projectSidebar.projects.length > 0 ? (
+                <div className="aria-desktop-project-groups">
+                  {model.shell.projectSidebar.projects.map((project) => (
+                    <div key={project.projectLabel} className="aria-desktop-project-group">
+                      <div className="aria-desktop-project-group-header">
+                        {project.projectLabel}
+                      </div>
+                      <ul className="aria-desktop-thread-list">
+                        {project.threads.map((thread) => (
+                          <li key={thread.id}>
                             <button
                               type="button"
+                              className={`aria-desktop-thread-button ${
+                                thread.id === currentThreadId ? "is-active" : ""
+                              }`}
                               data-thread-id={thread.id}
                               onClick={() => props.onSelectProjectThread?.(thread.id)}
                             >
-                              {thread.title}
+                              <span className="aria-desktop-thread-title">{thread.title}</span>
+                              <span className="aria-desktop-thread-meta">
+                                {thread.status} · {thread.threadTypeLabel}
+                              </span>
                             </button>
-                          ) : (
-                            thread.title
-                          )}{" "}
-                          - {thread.status} - {thread.threadTypeLabel}
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="aria-desktop-empty-copy">No project threads yet.</p>
+              )}
             </div>,
           )}
         </aside>
 
-        <section data-slot="center">
+        <section className="aria-desktop-center" data-slot="center">
           {section(
             "active-thread-header",
             activeThreadScreen?.header.title ?? "No active thread",
-            <div>
-              <p>{activeThreadScreen?.header.projectLabel ?? "Select a project thread"}</p>
-              {activeThreadScreen ? (
-                <p>
-                  {activeThreadScreen.header.threadTypeLabel} -{" "}
-                  {activeThreadScreen.header.statusLabel}
-                </p>
-              ) : null}
-              <label>
-                {activeThreadScreen?.environmentSwitcher.label ?? "Environment"}
-                <select
-                  aria-label="Environment switcher"
-                  value={activeThreadScreen?.environmentSwitcher.activeEnvironmentId ?? ""}
-                  onChange={(event) => props.onSelectThreadEnvironment?.(event.currentTarget.value)}
-                >
-                  {(
-                    activeThreadScreen?.environmentSwitcher.availableEnvironments ??
-                    model.shell.environments
-                  ).map((environment) => (
-                    <option key={environment.id} value={environment.id}>
-                      {environment.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="aria-desktop-editor-shell">
+              <div className="aria-desktop-tab-strip" role="tablist" aria-label="Workspace tabs">
+                {centerTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab.active}
+                    className={`aria-desktop-tab ${tab.active ? "is-active" : ""}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="aria-desktop-pane-header">
+                <div className="aria-desktop-thread-header-copy">
+                  <p className="aria-desktop-eyebrow">
+                    {activeThreadScreen?.header.projectLabel ?? "Select a project thread"}
+                  </p>
+                  <div className="aria-desktop-pill-row">
+                    <span className="aria-desktop-pill">
+                      {activeThreadScreen?.header.threadTypeLabel ?? "Thread"}
+                    </span>
+                    <span className="aria-desktop-pill">
+                      {activeThreadScreen?.header.statusLabel ?? "Idle"}
+                    </span>
+                    {activeThreadScreen?.header.agentLabel ? (
+                      <span className="aria-desktop-pill">
+                        Agent: {activeThreadScreen.header.agentLabel}
+                      </span>
+                    ) : null}
+                    <span className="aria-desktop-pill">
+                      {activeThreadScreen?.header.serverLabel ?? model.activeServerLabel}
+                    </span>
+                  </div>
+                </div>
+                <label className="aria-desktop-select-field">
+                  <span>{activeThreadScreen?.environmentSwitcher.label ?? "Environment"}</span>
+                  <select
+                    aria-label="Environment switcher"
+                    value={activeThreadScreen?.environmentSwitcher.activeEnvironmentId ?? ""}
+                    onChange={(event) =>
+                      props.onSelectThreadEnvironment?.(event.currentTarget.value)
+                    }
+                  >
+                    {environmentOptions.map((environment) => (
+                      <option key={environment.id} value={environment.id}>
+                        {environment.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>,
           )}
           {section(
             "stream",
-            "Stream",
-            <div>
-              <p>
-                {activeThreadScreen
-                  ? activeThreadScreen.stream.tracks.join(" + ")
-                  : "messages + runs"}{" "}
-                (live)
-              </p>
-              <p>
-                Aria chat messages: {model.ariaThread.state.messages.length} | Streaming:{" "}
-                {model.ariaThread.state.isStreaming ? "yes" : "no"}
-              </p>
-              <p>
-                Latest Aria message:{" "}
-                {model.ariaThread.state.messages.at(-1)?.content ?? "No transcript yet"}
-              </p>
-              <p>
-                Pending approval: {model.ariaThread.state.pendingApproval?.toolName ?? "none"} |
-                Pending question: {model.ariaThread.state.pendingQuestion?.question ?? "none"}
-              </p>
-              {model.ariaThread.state.pendingApproval ? (
-                <div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      props.onApproveToolCall?.(
-                        model.ariaThread.state.pendingApproval!.toolCallId,
-                        true,
-                      )
-                    }
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      props.onAcceptToolCallForSession?.(
-                        model.ariaThread.state.pendingApproval!.toolCallId,
-                      )
-                    }
-                  >
-                    Allow for session
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      props.onApproveToolCall?.(
-                        model.ariaThread.state.pendingApproval!.toolCallId,
-                        false,
-                      )
-                    }
-                  >
-                    Deny
-                  </button>
+            "Activity",
+            <div className="aria-desktop-stream">
+              <div className="aria-desktop-pane-header aria-desktop-pane-header--compact">
+                <div className="aria-desktop-stream-summary">
+                  <span className="aria-desktop-pill">
+                    {activeThreadScreen
+                      ? activeThreadScreen.stream.tracks.join(" + ")
+                      : "messages + runs"}
+                  </span>
+                  <span className="aria-desktop-pill">
+                    Aria chat messages: {model.ariaThread.state.messages.length}
+                  </span>
+                  <span className="aria-desktop-pill">
+                    Streaming: {model.ariaThread.state.isStreaming ? "yes" : "no"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="aria-desktop-card aria-desktop-card--lead">
+                <div className="aria-desktop-card-eyebrow">Latest Aria message</div>
+                <p>
+                  Latest Aria message:{" "}
+                  {model.ariaThread.state.messages.at(-1)?.content ?? "No transcript yet"}
+                </p>
+              </div>
+
+              {recentMessages.length > 0 ? (
+                <ol className="aria-desktop-stream-list">
+                  {recentMessages.map((message, index) => (
+                    <li
+                      key={`${message.role}-${index}-${message.content}`}
+                      className={`aria-desktop-stream-item is-${message.role}`}
+                    >
+                      <div className="aria-desktop-stream-item-head">
+                        <span className="aria-desktop-message-role">
+                          {formatDesktopMessageRole(message.role)}
+                        </span>
+                        {"toolName" in message && message.toolName ? (
+                          <span className="aria-desktop-message-tool">{message.toolName}</span>
+                        ) : null}
+                      </div>
+                      <p>{message.content}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <div className="aria-desktop-empty-state">
+                  <strong>No stream events yet</strong>
+                  <p>Select a project thread and start a run to fill the activity stream.</p>
+                </div>
+              )}
+
+              {model.ariaThread.state.streamingText ? (
+                <div className="aria-desktop-card aria-desktop-card--soft">
+                  <div className="aria-desktop-card-eyebrow">Streaming text</div>
+                  <p>Streaming text: {model.ariaThread.state.streamingText}</p>
                 </div>
               ) : null}
-              {model.ariaThread.state.pendingQuestion ? (
-                <div>
-                  {(model.ariaThread.state.pendingQuestion.options ?? []).map((option) => (
+
+              {model.ariaThread.state.pendingApproval ? (
+                <div className="aria-desktop-card aria-desktop-card--soft">
+                  <div className="aria-desktop-card-eyebrow">Approval required</div>
+                  <p>Pending approval: {model.ariaThread.state.pendingApproval.toolName}</p>
+                  <div className="aria-desktop-button-row">
                     <button
-                      key={option}
                       type="button"
+                      className="aria-desktop-button aria-desktop-button--primary"
                       onClick={() =>
-                        props.onAnswerQuestion?.(
-                          model.ariaThread.state.pendingQuestion!.questionId,
-                          option,
+                        props.onApproveToolCall?.(
+                          model.ariaThread.state.pendingApproval!.toolCallId,
+                          true,
                         )
                       }
                     >
-                      {option}
+                      Approve
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      className="aria-desktop-button"
+                      onClick={() =>
+                        props.onAcceptToolCallForSession?.(
+                          model.ariaThread.state.pendingApproval!.toolCallId,
+                        )
+                      }
+                    >
+                      Allow for session
+                    </button>
+                    <button
+                      type="button"
+                      className="aria-desktop-button aria-desktop-button--danger"
+                      onClick={() =>
+                        props.onApproveToolCall?.(
+                          model.ariaThread.state.pendingApproval!.toolCallId,
+                          false,
+                        )
+                      }
+                    >
+                      Deny
+                    </button>
+                  </div>
                 </div>
               ) : null}
-              <p>
-                Approval mode: {model.ariaThread.state.approvalMode} | Security mode:{" "}
-                {model.ariaThread.state.securityMode}
-                {model.ariaThread.state.securityModeRemainingTTL !== null
-                  ? ` (${model.ariaThread.state.securityModeRemainingTTL}s)`
-                  : ""}
-              </p>
-              <p>Recent Aria sessions: {model.ariaRecentSessions.length}</p>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const form = event.currentTarget;
-                  const field = form.elements.namedItem("aria-session-search");
-                  if (field instanceof HTMLInputElement) {
-                    props.onSearchAriaSessions?.(field.value);
-                  }
-                }}
-              >
-                <input name="aria-session-search" defaultValue="" />
-                <button type="submit">Search Sessions</button>
-              </form>
-              {model.ariaRecentSessions.length > 0 ? (
-                <ul>
-                  {model.ariaRecentSessions.map((session) => (
-                    <li key={session.sessionId}>
-                      {session.sessionId} - {session.archived ? "archived" : "live"}
-                      {session.preview ? ` - ${session.preview}` : ""}
-                      {session.summary ? ` - ${session.summary}` : ""}
-                      {props.onOpenAriaSession ? (
-                        <button
-                          type="button"
-                          data-session-id={session.sessionId}
-                          onClick={() => props.onOpenAriaSession?.(session.sessionId)}
-                        >
-                          Open
-                        </button>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+
+              {model.ariaThread.state.pendingQuestion ? (
+                <div className="aria-desktop-card aria-desktop-card--soft">
+                  <div className="aria-desktop-card-eyebrow">Question</div>
+                  <p>Pending question: {model.ariaThread.state.pendingQuestion.question}</p>
+                  <div className="aria-desktop-button-row">
+                    {(model.ariaThread.state.pendingQuestion.options ?? []).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className="aria-desktop-button"
+                        onClick={() =>
+                          props.onAnswerQuestion?.(
+                            model.ariaThread.state.pendingQuestion!.questionId,
+                            option,
+                          )
+                        }
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : null}
-              {model.ariaThread.state.streamingText ? (
-                <p>Streaming text: {model.ariaThread.state.streamingText}</p>
-              ) : null}
+
               {model.ariaThread.state.lastError ? (
-                <p>Error: {model.ariaThread.state.lastError}</p>
+                <div className="aria-desktop-card aria-desktop-card--error">
+                  <div className="aria-desktop-card-eyebrow">Connection</div>
+                  <p>Error: {model.ariaThread.state.lastError}</p>
+                </div>
               ) : null}
             </div>,
           )}
         </section>
 
-        <aside data-slot="right-rail">
+        <aside className="aria-desktop-right-rail" data-slot="right-rail">
           {section(
             "context-panels",
-            "Context Panels",
-            <div>
-              <ul>
+            "Inspector",
+            <div className="aria-desktop-inspector">
+              <div className="aria-desktop-tab-strip" role="tablist" aria-label="Inspector panels">
                 {model.application.contextPanels.map((panel) => (
-                  <li key={panel.id}>
+                  <button
+                    key={panel.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={panel.id === model.activeContextPanelId}
+                    className={`aria-desktop-tab ${
+                      panel.id === model.activeContextPanelId ? "is-active" : ""
+                    }`}
+                  >
                     {panel.label}
-                    {panel.id === model.activeContextPanelId ? " (active)" : ""}
-                  </li>
+                  </button>
                 ))}
-              </ul>
-              {model.activeLocalProjectState ? (
-                <div data-slot="local-project-state">
-                  <p>
-                    Repo:{" "}
-                    {model.activeLocalProjectState.repoName ??
-                      model.activeLocalProjectState.repoId ??
-                      "unknown"}
-                  </p>
-                  <p>
-                    Remote: {model.activeLocalProjectState.repoRemoteUrl ?? "unknown"}
-                    {model.activeLocalProjectState.repoDefaultBranch
-                      ? ` | Default branch: ${model.activeLocalProjectState.repoDefaultBranch}`
-                      : ""}
-                  </p>
-                  <p>Worktree: {model.activeLocalProjectState.worktreePath ?? "not attached"}</p>
-                  <p>
-                    Branch: {model.activeLocalProjectState.worktreeBranchName ?? "n/a"}
-                    {model.activeLocalProjectState.worktreeBaseRef
-                      ? ` | Base: ${model.activeLocalProjectState.worktreeBaseRef}`
-                      : ""}
-                  </p>
-                  <p>Worktree status: {model.activeLocalProjectState.worktreeStatus ?? "n/a"}</p>
-                </div>
-              ) : null}
+              </div>
+              {renderInspectorPanel(model, activeThreadScreen, props)}
+
+              <div className="aria-desktop-card aria-desktop-card--soft">
+                <div className="aria-desktop-card-eyebrow">Sessions</div>
+                <p>Recent Aria sessions: {model.ariaRecentSessions.length}</p>
+                <form
+                  className="aria-desktop-inline-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const form = event.currentTarget;
+                    const field = form.elements.namedItem("aria-session-search");
+                    if (field instanceof HTMLInputElement) {
+                      props.onSearchAriaSessions?.(field.value);
+                    }
+                  }}
+                >
+                  <input
+                    className="aria-desktop-input"
+                    name="aria-session-search"
+                    defaultValue=""
+                    placeholder="Find session"
+                  />
+                  <button type="submit" className="aria-desktop-button">
+                    Search Sessions
+                  </button>
+                </form>
+                {model.ariaRecentSessions.length > 0 ? (
+                  <ul className="aria-desktop-session-list">
+                    {model.ariaRecentSessions.map((session) => (
+                      <li key={session.sessionId} className="aria-desktop-session-item">
+                        <div>
+                          <strong>
+                            {session.sessionId} - {session.archived ? "archived" : "live"}
+                          </strong>
+                          {session.preview ? <p>{session.preview}</p> : null}
+                          {session.summary ? <p>{session.summary}</p> : null}
+                        </div>
+                        {props.onOpenAriaSession ? (
+                          <button
+                            type="button"
+                            className="aria-desktop-button"
+                            data-session-id={session.sessionId}
+                            onClick={() => props.onOpenAriaSession?.(session.sessionId)}
+                          >
+                            Open
+                          </button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="aria-desktop-empty-copy">No saved sessions yet.</p>
+                )}
+              </div>
             </div>,
           )}
         </aside>
       </main>
 
-      <footer data-slot="status-strip">
-        <p>Placement: {model.application.frame.composer.placement}</p>
+      <footer className="aria-desktop-status-strip" data-slot="status-strip">
+        <div className="aria-desktop-composer-meta">
+          <span className="aria-desktop-pill">{model.application.frame.composer.placement}</span>
+          <span className="aria-desktop-pill">
+            {activeThreadScreen?.header.environmentLabel ?? "No active environment"}
+          </span>
+        </div>
         <form
+          className="aria-desktop-composer-form"
           onSubmit={(event) => {
             event.preventDefault();
             const form = event.currentTarget;
@@ -719,16 +1128,25 @@ export function AriaDesktopAppShell(props: AriaDesktopAppShellProps): ReactEleme
             }
           }}
         >
-          <textarea name="aria-composer-draft" defaultValue={composerValue} />
-          <button type="submit">Send</button>
-          <button
-            type="button"
-            onClick={() => {
-              props.onStopAriaSession?.();
-            }}
-          >
-            Stop
-          </button>
+          <textarea
+            className="aria-desktop-composer-input"
+            name="aria-composer-draft"
+            defaultValue={composerValue}
+          />
+          <div className="aria-desktop-button-row">
+            <button type="submit" className="aria-desktop-button aria-desktop-button--primary">
+              Send
+            </button>
+            <button
+              type="button"
+              className="aria-desktop-button"
+              onClick={() => {
+                props.onStopAriaSession?.();
+              }}
+            >
+              Stop
+            </button>
+          </div>
         </form>
       </footer>
     </div>
@@ -843,7 +1261,9 @@ export async function openAriaDesktopAppShellSession(
   model: AriaDesktopAppShellModel,
   sessionId: string,
 ): Promise<AriaDesktopAppShellModel> {
-  return syncDesktopAriaThreadState(model, () => model.ariaThread.controller.openSession(sessionId));
+  return syncDesktopAriaThreadState(model, () =>
+    model.ariaThread.controller.openSession(sessionId),
+  );
 }
 
 export async function approveAriaDesktopAppShellToolCall(

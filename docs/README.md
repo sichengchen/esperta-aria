@@ -1,11 +1,9 @@
 # Esperta Aria Docs
 
-This tree is organized by reader intent, not by the old code layout.
-
 ## Start Here
 
 - Product overview: [product/overview.md](./product/overview.md)
-- Getting started as an operator: [operator/getting-started.md](./operator/getting-started.md)
+- Getting started as an operator: [operator/core/README.md](./operator/core/README.md)
 - System map: [architecture/README.md](./architecture/README.md)
 - Security model: [security/README.md](./security/README.md)
 - Contributing and shipping: [development/README.md](./development/README.md)
@@ -15,20 +13,9 @@ This tree is organized by reader intent, not by the old code layout.
 ### Architecture
 
 - [architecture/README.md](./architecture/README.md)
-- [architecture/overview.md](./architecture/overview.md)
-- [architecture/deployment.md](./architecture/deployment.md)
-- [architecture/runtime.md](./architecture/runtime.md)
-- [architecture/prompt-engine.md](./architecture/prompt-engine.md)
-- [architecture/tool-runtime.md](./architecture/tool-runtime.md)
-- [architecture/automation.md](./architecture/automation.md)
-- [architecture/interaction-protocol.md](./architecture/interaction-protocol.md)
-- [architecture/gateway-access.md](./architecture/gateway-access.md)
-- [architecture/handoff.md](./architecture/handoff.md)
-- [architecture/server.md](./architecture/server.md)
-- [architecture/desktop-and-mobile.md](./architecture/desktop-and-mobile.md)
-- [architecture/tech-decisions.md](./architecture/tech-decisions.md)
-- [architecture/domain-model.md](./architecture/domain-model.md)
-- [architecture/packages.md](./architecture/packages.md)
+- [architecture/core/README.md](./architecture/core/README.md)
+- [architecture/runtime/README.md](./architecture/runtime/README.md)
+- [architecture/surfaces/README.md](./architecture/surfaces/README.md)
 
 ### Product
 
@@ -41,29 +28,16 @@ This tree is organized by reader intent, not by the old code layout.
 ### Operator Guides
 
 - [operator/README.md](./operator/README.md)
-- [operator/getting-started.md](./operator/getting-started.md)
-- [operator/cli.md](./operator/cli.md)
-- [operator/configuration.md](./operator/configuration.md)
-- [operator/gateway.md](./operator/gateway.md)
-- [operator/automation.md](./operator/automation.md)
-- [operator/sessions.md](./operator/sessions.md)
-- [operator/projects.md](./operator/projects.md)
-- [operator/skills.md](./operator/skills.md)
-- [operator/subagents.md](./operator/subagents.md)
+- [operator/core/README.md](./operator/core/README.md)
+- [operator/operations/README.md](./operator/operations/README.md)
+- [operator/extensions/README.md](./operator/extensions/README.md)
 
 ### Security
 
 - [security/README.md](./security/README.md)
-- [security/auth.md](./security/auth.md)
-- [security/approval-flow.md](./security/approval-flow.md)
-- [security/content-framing.md](./security/content-framing.md)
-- [security/exec-classifier.md](./security/exec-classifier.md)
-- [security/exec-fence.md](./security/exec-fence.md)
-- [security/sandbox.md](./security/sandbox.md)
-- [security/secrets-vault.md](./security/secrets-vault.md)
-- [security/security-modes.md](./security/security-modes.md)
-- [security/url-policy.md](./security/url-policy.md)
-- [security/audit-log.md](./security/audit-log.md)
+- [security/access/README.md](./security/access/README.md)
+- [security/execution/README.md](./security/execution/README.md)
+- [security/data/README.md](./security/data/README.md)
 
 ### Reference
 
@@ -74,7 +48,11 @@ This tree is organized by reader intent, not by the old code layout.
 
 - [development/README.md](./development/README.md)
 - [development/setup.md](./development/setup.md)
-- [development/testing.md](./development/testing.md)
+- [development/testing/README.md](./development/testing/README.md)
+- [development/testing/plan/README.md](./development/testing/plan/README.md)
+- [development/testing/plan/foundations/README.md](./development/testing/plan/foundations/README.md)
+- [development/testing/plan/workflows/README.md](./development/testing/plan/workflows/README.md)
+- [development/testing/plan/execution/README.md](./development/testing/plan/execution/README.md)
 - [development/release.md](./development/release.md)
 - [development/migration.md](./development/migration.md)
 
