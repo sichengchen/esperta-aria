@@ -18,6 +18,7 @@ const MIN_CENTER_WIDTH = 360;
 const MIN_BOTTOM_HEIGHT = 120;
 const MIN_CENTER_HEIGHT = 180;
 const RESIZE_HANDLE_WIDTH = 1;
+const LEFT_SIDEBAR_TRANSITION_MS = 180;
 
 export type DesktopBaseLayoutToolbarItem = {
   id: string;
@@ -200,6 +201,7 @@ export function DesktopBaseLayout({
   const [contentHeight, setContentHeight] = useState(0);
   const [shellWidth, setShellWidth] = useState(0);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [showCollapsedLeftToolbar, setShowCollapsedLeftToolbar] = useState(false);
   const [layout, setLayout] = useState<LayoutState>({
     bottomCollapsed: true,
     bottomHeight: DEFAULT_BOTTOM_HEIGHT,
@@ -273,16 +275,33 @@ export function DesktopBaseLayout({
   }, [contentHeight, hasBottomBar, hasRightSidebar, shellWidth]);
 
   useEffect(() => {
+    if (!layout.leftCollapsed) {
+      setShowCollapsedLeftToolbar(false);
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setShowCollapsedLeftToolbar(true);
+    }, LEFT_SIDEBAR_TRANSITION_MS);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [layout.leftCollapsed]);
+
+  useEffect(() => {
     if (!dragState || !shellWidth || !contentHeight) {
       return;
     }
+
+    const activeDragState = dragState;
 
     function handlePointerMove(event: PointerEvent): void {
       setLayout((currentLayout) => {
         const minCenterWidth = getMinCenterWidth(shellWidth);
         const rightCollapsed = hasRightSidebar ? currentLayout.rightCollapsed : true;
 
-        if (dragState.side === "left") {
+        if (activeDragState.side === "left") {
           const rightVisibleWidth = getVisibleSidebarWidth(
             currentLayout.rightWidth,
             rightCollapsed,
@@ -300,7 +319,7 @@ export function DesktopBaseLayout({
           return {
             ...currentLayout,
             leftWidth: clamp(
-              dragState.startLeftWidth + event.clientX - dragState.startX,
+              activeDragState.startLeftWidth + event.clientX - activeDragState.startX,
               MIN_LEFT_WIDTH,
               maxLeftWidth,
             ),
@@ -317,11 +336,11 @@ export function DesktopBaseLayout({
           shellWidth - minCenterWidth - leftVisibleWidth - leftHandleWidth - RESIZE_HANDLE_WIDTH,
         );
 
-        if (dragState.side === "right") {
+        if (activeDragState.side === "right") {
           return {
             ...currentLayout,
             rightWidth: clamp(
-              dragState.startRightWidth - (event.clientX - dragState.startX),
+              activeDragState.startRightWidth - (event.clientX - activeDragState.startX),
               MIN_RIGHT_WIDTH,
               maxRightWidth,
             ),
@@ -331,7 +350,7 @@ export function DesktopBaseLayout({
         return {
           ...currentLayout,
           bottomHeight: clamp(
-            dragState.startBottomHeight - (event.clientY - dragState.startY),
+            activeDragState.startBottomHeight - (event.clientY - activeDragState.startY),
             MIN_BOTTOM_HEIGHT,
             getMaxBottomHeight(contentHeight),
           ),
@@ -419,14 +438,11 @@ export function DesktopBaseLayout({
     : "minmax(0, 1fr)";
 
   const collapsedSidebarControls = (
-    <>
-      <LayoutToggleIconButton
-        icon={<PanelLeftOpen aria-hidden="true" />}
-        label="Expand left sidebar"
-        onClick={toggleLeftSidebar}
-      />
-      {renderToolbarItems(leftSidebarToolbarItems)}
-    </>
+    <LayoutToggleIconButton
+      icon={<PanelLeftOpen aria-hidden="true" />}
+      label="Expand left sidebar"
+      onClick={toggleLeftSidebar}
+    />
   );
 
   return (
@@ -435,13 +451,11 @@ export function DesktopBaseLayout({
       className="desktop-base-layout-shell"
       style={{ gridTemplateColumns: shellTemplateColumns }}
     >
-      {!showMainTopbar && layout.leftCollapsed ? (
+      {!showMainTopbar && showCollapsedLeftToolbar ? (
         <div className="desktop-base-layout-floating-left-toolbar">{collapsedSidebarControls}</div>
       ) : null}
 
-      <aside
-        className={`pane pane-sidebar pane-left${layout.leftCollapsed ? " is-collapsed" : ""}`}
-      >
+      <aside className="pane pane-sidebar pane-left">
         <LayoutTopbar
           className="desktop-base-layout-topbar-sidebar"
           leftSlot={
@@ -451,14 +465,14 @@ export function DesktopBaseLayout({
               onClick={toggleLeftSidebar}
             />
           }
-          rightSlot={renderToolbarItems(leftSidebarToolbarItems)}
+          rightSlot={layout.leftCollapsed ? null : renderToolbarItems(leftSidebarToolbarItems)}
           title={leftSidebarTitle}
         />
         <div className="pane-body">{leftSidebar}</div>
       </aside>
 
       <div
-        className={`resize-handle${layout.leftCollapsed ? " is-collapsed" : ""}`}
+        className="resize-handle"
         role="separator"
         aria-label="Resize left sidebar"
         aria-orientation="vertical"
@@ -472,7 +486,7 @@ export function DesktopBaseLayout({
             title={title}
             leftSlot={
               <div className="desktop-base-layout-main-left-content">
-                {layout.leftCollapsed ? collapsedSidebarControls : null}
+                {showCollapsedLeftToolbar ? collapsedSidebarControls : null}
                 {renderToolbarItems(leftToolbarItems)}
               </div>
             }

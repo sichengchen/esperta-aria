@@ -472,6 +472,57 @@ body.is-resizing .resize-handle {
   min-height: 100%;
 }
 
+.thread-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.thread-empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 320px;
+  text-align: center;
+}
+
+.thread-empty-state-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.thread-empty-state-copy {
+  margin: 0;
+  color: var(--desktop-muted-text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.thread-empty-state-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--desktop-border);
+  border-radius: 8px;
+  background: var(--desktop-center-background);
+  cursor: pointer;
+}
+
+.thread-empty-state-action:hover {
+  background: var(--desktop-button-hover);
+}
+
+.thread-empty-state-action svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.9;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .desktop-base-layout-shell,
   .desktop-base-layout-content,

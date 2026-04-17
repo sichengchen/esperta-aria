@@ -189,3 +189,13 @@ Scope: Desktop
 In project-thread views, the main topbar's left context shows the active project identity using the repo or directory name.
 
 The centered main title shows the active thread title.
+
+### 021. Empty Desktop Work Surfaces Must Expose The Primary Recovery Action
+
+Scope: Desktop
+
+When a desktop work surface is empty, it must show the shortest clear action that lets the operator enter a working state.
+
+If that action is already semantically obvious, do not add explanatory title or helper copy around it.
+
+For the `Projects` center pane with no imported project, that action is project import.
