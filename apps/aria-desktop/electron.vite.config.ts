@@ -21,6 +21,20 @@ export default defineConfig({
   renderer: {
     root: resolve(rootDir, "src/renderer"),
     plugins: [react()],
+    server: {
+      host: "127.0.0.1",
+      port: 5173,
+      strictPort: true,
+      hmr: {
+        host: "127.0.0.1",
+        port: 5173,
+        protocol: "ws",
+      },
+      watch: {
+        usePolling: true,
+        interval: 100,
+      },
+    },
     resolve: {
       alias: {
         "@renderer": resolve(rootDir, "src/renderer/src"),
