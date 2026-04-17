@@ -1,10 +1,25 @@
 :root {
-  color-scheme: dark;
-  font-family: "SF Pro Display", "Segoe UI", system-ui, sans-serif;
-  background:
-    radial-gradient(circle at top, rgba(76, 113, 255, 0.2), transparent 32%),
-    linear-gradient(180deg, #09101f 0%, #04070e 100%);
-  color: #edf2ff;
+  color-scheme: light;
+  font-family: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  background: #f3f3f3;
+  color: #111111;
+  --desktop-topbar-height: 40px;
+  --desktop-pane-header-height: 36px;
+  --desktop-toolbar-gap: 6px;
+  --desktop-toolbar-button-size: 24px;
+  --desktop-panel-padding: 12px;
+  --desktop-title-size: 12px;
+  --desktop-background: #f3f3f3;
+  --desktop-topbar-background: #ebebeb;
+  --desktop-workbench-background: #efefef;
+  --desktop-sidebar-background: #f7f7f7;
+  --desktop-center-background: #ffffff;
+  --desktop-muted-text: #5c5c5c;
+  --desktop-handle-background: #e5e5e5;
+  --desktop-handle-line: #c8c8c8;
+  --desktop-button-hover: rgba(0, 0, 0, 0.08);
+  --desktop-motion-duration: 180ms;
+  --desktop-motion-ease: cubic-bezier(0.2, 0, 0, 1);
 }
 
 * {
@@ -15,138 +30,258 @@ html,
 body,
 #root {
   margin: 0;
-  min-height: 100%;
+  width: 100%;
+  height: 100%;
 }
 
 body {
   min-height: 100vh;
+  background: var(--desktop-background);
+}
+
+body.is-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 button {
   font: inherit;
+  color: inherit;
 }
 
 .app-shell {
-  min-height: 100vh;
-  padding: 48px;
+  width: 100vw;
+  height: 100vh;
+  background: var(--desktop-background);
 }
 
-.hero {
-  max-width: 780px;
-  margin: 0 auto 32px;
-  padding: 32px;
-  border: 1px solid rgba(199, 210, 254, 0.18);
-  border-radius: 24px;
-  background: rgba(8, 13, 27, 0.72);
-  backdrop-filter: blur(18px);
+.desktop-base-layout-shell {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--desktop-workbench-background);
+  transition: grid-template-columns var(--desktop-motion-duration) var(--desktop-motion-ease);
+  position: relative;
 }
 
-.eyebrow {
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #8aa4ff;
-}
-
-.hero h1 {
-  margin: 12px 0 8px;
-  font-size: clamp(2.4rem, 4vw, 4rem);
-  line-height: 1;
-}
-
-.hero p {
-  margin: 0;
-  max-width: 56ch;
-  color: #c7d2fe;
-  line-height: 1.6;
-}
-
-.actions {
+.desktop-base-layout-main {
   display: flex;
-  gap: 16px;
-  align-items: center;
-  margin-top: 24px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
-.actions button {
-  padding: 12px 18px;
+.desktop-base-layout-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: var(--desktop-topbar-height);
+  padding: 0 var(--desktop-panel-padding);
+  background: var(--desktop-topbar-background);
+  flex-shrink: 0;
+}
+
+.desktop-base-layout-content {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--desktop-workbench-background);
+  transition: grid-template-columns var(--desktop-motion-duration) var(--desktop-motion-ease);
+}
+
+.desktop-base-layout-center-stack {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  transition: grid-template-rows var(--desktop-motion-duration) var(--desktop-motion-ease);
+}
+
+.desktop-base-layout-shared-left-toolbar {
+  position: absolute;
+  top: 0;
+  left: var(--desktop-panel-padding);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--desktop-toolbar-gap);
+  min-height: var(--desktop-topbar-height);
+}
+
+.desktop-base-layout-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--desktop-toolbar-gap);
+  min-width: 0;
+}
+
+.desktop-base-layout-toolbar-left {
+  justify-content: flex-start;
+}
+
+.desktop-base-layout-toolbar-right {
+  justify-content: flex-end;
+}
+
+.desktop-base-layout-toolbar-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.desktop-base-layout-main-left-content {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--desktop-toolbar-gap);
+  min-width: 0;
+  transition: padding-left var(--desktop-motion-duration) var(--desktop-motion-ease);
+}
+
+.desktop-base-layout-title {
+  min-width: 0;
+  font-size: var(--desktop-title-size);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition:
+    opacity var(--desktop-motion-duration) var(--desktop-motion-ease),
+    visibility var(--desktop-motion-duration) var(--desktop-motion-ease);
+}
+
+.pane-sidebar {
+  background: var(--desktop-sidebar-background);
+}
+
+.pane-center {
+  background: var(--desktop-center-background);
+}
+
+.pane-bottom {
+  background: var(--desktop-sidebar-background);
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--desktop-toolbar-gap);
+  min-height: var(--desktop-pane-header-height);
+  padding: 0 var(--desktop-panel-padding);
+  flex-shrink: 0;
+}
+
+.pane-title {
+  font-size: var(--desktop-title-size);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pane-body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--desktop-panel-padding);
+}
+
+.pane-copy {
+  color: var(--desktop-muted-text);
+}
+
+.pane.is-collapsed {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.layout-toggle-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--desktop-toolbar-button-size);
+  height: var(--desktop-toolbar-button-size);
+  padding: 0;
   border: 0;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #8aa4ff 0%, #6a7df6 100%);
-  color: #08101f;
-  font-weight: 700;
+  border-radius: 6px;
+  background: transparent;
   cursor: pointer;
 }
 
-.status {
-  color: #b9c6ff;
-  font-size: 0.95rem;
+.layout-toggle-icon-button svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.9;
 }
 
-.error {
-  margin-top: 16px;
-  color: #ffb4b4;
+.layout-toggle-icon-button:hover,
+.layout-toggle-icon-button.is-active {
+  background: var(--desktop-button-hover);
 }
 
-.panel-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  max-width: 1200px;
-  margin: 0 auto;
+.resize-handle {
+  position: relative;
+  background: var(--desktop-handle-background);
+  cursor: col-resize;
+  transition:
+    opacity var(--desktop-motion-duration) var(--desktop-motion-ease),
+    visibility var(--desktop-motion-duration) var(--desktop-motion-ease);
 }
 
-.panel {
-  padding: 24px;
-  border: 1px solid rgba(199, 210, 254, 0.14);
-  border-radius: 20px;
-  background: rgba(5, 9, 18, 0.74);
+.resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--desktop-handle-line);
 }
 
-.panel h2 {
-  margin: 0 0 16px;
-  font-size: 1.1rem;
+.resize-handle-horizontal {
+  cursor: row-resize;
 }
 
-.panel dl,
-.panel ul {
-  margin: 0;
+.resize-handle-horizontal::before {
+  top: 50%;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 1px;
+  transform: translateY(-50%);
 }
 
-.panel dl {
-  display: grid;
-  gap: 14px;
+.resize-handle.is-collapsed {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
-.panel dl div {
-  display: grid;
-  gap: 6px;
+body.is-resizing .desktop-base-layout-shell,
+body.is-resizing .desktop-base-layout-content,
+body.is-resizing .desktop-base-layout-center-stack,
+body.is-resizing .desktop-base-layout-main-left-content,
+body.is-resizing .pane,
+body.is-resizing .resize-handle {
+  transition: none;
 }
 
-.panel dt {
-  font-size: 0.85rem;
-  color: #8fa0d9;
-}
-
-.panel dd {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.panel ul {
-  padding-left: 20px;
-  color: #c7d2fe;
-  line-height: 1.6;
-}
-
-@media (max-width: 960px) {
-  .app-shell {
-    padding: 24px;
-  }
-
-  .panel-grid {
-    grid-template-columns: 1fr;
+@media (prefers-reduced-motion: reduce) {
+  .desktop-base-layout-shell,
+  .desktop-base-layout-content,
+  .desktop-base-layout-center-stack,
+  .desktop-base-layout-main-left-content,
+  .pane,
+  .resize-handle {
+    transition: none;
   }
 }
