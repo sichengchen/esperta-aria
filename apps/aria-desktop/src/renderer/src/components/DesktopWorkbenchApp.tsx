@@ -1,253 +1,134 @@
 import { ChevronDown, ChevronRight, FolderPlus, MessageSquarePlus, Settings2 } from "lucide-react";
-import { startTransition, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
+import type {
+  AriaDesktopProjectGroup,
+  AriaDesktopProjectShellState,
+  AriaDesktopProjectThreadItem,
+} from "../../../shared/api.js";
 import { DesktopBaseLayout, type DesktopBaseLayoutToolbarItem } from "./DesktopBaseLayout.js";
 import { DesktopCollapsibleSection } from "./DesktopCollapsibleSection.js";
 import { DesktopIconButton } from "./DesktopIconButton.js";
 import { DesktopSidebarButton } from "./DesktopSidebarButton.js";
 
-type ThreadMessage = {
-  body: string;
-  id: string;
-  role: "Agent" | "Operator" | "Tool";
+type ActiveScreen = "projects" | "settings";
+
+const EMPTY_SHELL_STATE: AriaDesktopProjectShellState = {
+  collapsedProjectIds: [],
+  projects: [],
+  selectedProjectId: null,
+  selectedThreadId: null,
 };
 
-type ProjectThread = {
-  environment: string;
-  id: string;
-  messages: ThreadMessage[];
-  name: string;
-  status: "Draft" | "Running" | "Review";
-  updatedLabel: string;
-};
+function formatRelativeUpdatedAt(updatedAt: number): string {
+  const differenceMs = Date.now() - updatedAt;
 
-type ProjectWorkspace = {
-  id: string;
-  name: string;
-  root: string;
-  threads: ProjectThread[];
-};
-
-type AppView =
-  | {
-      kind: "settings";
-    }
-  | {
-      kind: "thread";
-      projectId: string;
-      threadId: string;
-    };
-
-const INITIAL_PROJECTS: ProjectWorkspace[] = [
-  {
-    id: "project-atlas",
-    name: "atlas-app",
-    root: "~/Projects/atlas-app",
-    threads: [
-      {
-        environment: "This Device / main",
-        id: "thread-atlas-workspace",
-        messages: [
-          {
-            body: "Split the desktop shell so the project tree stays visible while thread context moves in the center pane.",
-            id: "atlas-1",
-            role: "Operator",
-          },
-          {
-            body: "The active workspace remains local, so the thread keeps one identity while the layout work stays attached to the same project.",
-            id: "atlas-2",
-            role: "Agent",
-          },
-          {
-            body: "Renderer build is clean. Sidebar state and pane sizes are ready for the next UI pass.",
-            id: "atlas-3",
-            role: "Tool",
-          },
-        ],
-        name: "Workspace split view",
-        status: "Running",
-        updatedLabel: "2m",
-      },
-      {
-        environment: "This Device / wt/login-refresh",
-        id: "thread-atlas-login",
-        messages: [
-          {
-            body: "Carry the auth-state cleanup in the feature worktree and keep the review thread separate from layout work.",
-            id: "atlas-login-1",
-            role: "Operator",
-          },
-          {
-            body: "The thread is still pointed at the login worktree, so review artifacts stay isolated from main.",
-            id: "atlas-login-2",
-            role: "Agent",
-          },
-        ],
-        name: "Login state cleanup",
-        status: "Review",
-        updatedLabel: "12m",
-      },
-    ],
-  },
-  {
-    id: "project-mercury",
-    name: "mercury-api",
-    root: "~/Projects/mercury-api",
-    threads: [
-      {
-        environment: "Home Server / sandbox/release-qa",
-        id: "thread-mercury-release",
-        messages: [
-          {
-            body: "Track the release verification separately from local feature work so the remote job can continue while the desktop disconnects.",
-            id: "mercury-1",
-            role: "Operator",
-          },
-          {
-            body: "Release checks are running remotely. The project thread keeps the same identity while the environment attachment stays explicit.",
-            id: "mercury-2",
-            role: "Agent",
-          },
-        ],
-        name: "Release checklist",
-        status: "Running",
-        updatedLabel: "5m",
-      },
-    ],
-  },
-  {
-    id: "project-sparrow",
-    name: "sparrow-site",
-    root: "~/Projects/sparrow-site",
-    threads: [
-      {
-        environment: "This Device / main",
-        id: "thread-sparrow-hero",
-        messages: [
-          {
-            body: "Tune the first viewport motion and keep the hero changes in a dedicated thread for design review.",
-            id: "sparrow-1",
-            role: "Operator",
-          },
-          {
-            body: "The motion pass is local. Inspector notes and terminal output stay attached to the same thread.",
-            id: "sparrow-2",
-            role: "Agent",
-          },
-        ],
-        name: "Hero motion tune",
-        status: "Draft",
-        updatedLabel: "19m",
-      },
-    ],
-  },
-];
-
-function createId(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function createThread(projectName: string, threadCount: number): ProjectThread {
-  const index = threadCount + 1;
-
-  return {
-    environment: "This Device / main",
-    id: createId("thread"),
-    messages: [
-      {
-        body: `Start a new workspace thread for ${projectName} and keep the execution target explicit from the first run.`,
-        id: createId("message"),
-        role: "Operator",
-      },
-      {
-        body: "Thread created. The workspace is attached locally and ready for the next dispatch.",
-        id: createId("message"),
-        role: "Agent",
-      },
-    ],
-    name: threadCount === 0 ? "Workspace kickoff" : `Thread ${index}`,
-    status: "Draft",
-    updatedLabel: "Just now",
-  };
-}
-
-function createProject(projectCount: number): ProjectWorkspace {
-  const index = projectCount + 1;
-  const name = `project-${index}`;
-
-  return {
-    id: createId("project"),
-    name,
-    root: `~/Projects/${name}`,
-    threads: [createThread(name, 0)],
-  };
-}
-
-function getProjectDisplayName(project: ProjectWorkspace): string {
-  const segments = project.root.split("/").filter(Boolean);
-  const rootName = segments.at(-1);
-
-  return rootName ?? project.name;
-}
-
-function getThreadCount(projects: ProjectWorkspace[]): number {
-  return projects.reduce((count, project) => count + project.threads.length, 0);
-}
-
-function getActiveProject(projects: ProjectWorkspace[], view: AppView): ProjectWorkspace | null {
-  if (view.kind !== "thread") {
-    return null;
+  if (differenceMs < 60_000) {
+    return "now";
   }
 
-  return projects.find((project) => project.id === view.projectId) ?? null;
-}
+  const differenceMinutes = Math.floor(differenceMs / 60_000);
 
-function getActiveThread(project: ProjectWorkspace | null, view: AppView): ProjectThread | null {
-  if (!project || view.kind !== "thread") {
-    return null;
+  if (differenceMinutes < 60) {
+    return `${differenceMinutes}m`;
   }
 
-  return project.threads.find((thread) => thread.id === view.threadId) ?? null;
+  const differenceHours = Math.floor(differenceMinutes / 60);
+
+  if (differenceHours < 24) {
+    return `${differenceHours}h`;
+  }
+
+  return `${Math.floor(differenceHours / 24)}d`;
+}
+
+type ThreadViewProps = {
+  onImportProject: () => void;
+  selectedProject: AriaDesktopProjectGroup | null;
+  selectedThread: AriaDesktopProjectThreadItem | null;
+};
+
+function ThreadView({ onImportProject, selectedProject, selectedThread }: ThreadViewProps) {
+  if (!selectedProject) {
+    return (
+      <div className="thread-design-canvas thread-empty-state">
+        <button type="button" className="thread-empty-state-action" onClick={onImportProject}>
+          <FolderPlus aria-hidden="true" />
+          <span>Import project</span>
+        </button>
+      </div>
+    );
+  }
+
+  if (!selectedThread) {
+    return (
+      <div className="thread-design-canvas thread-empty-state">
+        <div className="thread-empty-state-content">
+          <h2 className="thread-empty-state-title">{selectedProject.name}</h2>
+          <p className="thread-empty-state-copy">
+            Create a thread from the project row to start work.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="thread-design-canvas" />;
+}
+
+function SettingsView() {
+  return <div className="settings-design-canvas" />;
+}
+
+function ThreadInspectorSurface() {
+  return <div className="thread-inspector-surface" />;
+}
+
+function ThreadTerminalSurface() {
+  return <div className="thread-terminal-surface" />;
 }
 
 type ProjectSidebarProps = {
-  collapsedProjects: Record<string, boolean>;
+  activeScreen: ActiveScreen;
+  collapsedProjectIds: string[];
   onCreateThread: (projectId: string) => void;
   onOpenSettings: () => void;
   onSelectProject: (projectId: string) => void;
   onSelectThread: (projectId: string, threadId: string) => void;
-  onToggleProject: (projectId: string) => void;
-  projects: ProjectWorkspace[];
-  view: AppView;
+  onToggleProject: (projectId: string, collapsed: boolean) => void;
+  projects: AriaDesktopProjectGroup[];
+  selectedProjectId: string | null;
+  selectedThreadId: string | null;
 };
 
 function ProjectSidebar({
-  collapsedProjects,
+  activeScreen,
+  collapsedProjectIds,
   onCreateThread,
   onOpenSettings,
   onSelectProject,
   onSelectThread,
   onToggleProject,
   projects,
-  view,
+  selectedProjectId,
+  selectedThreadId,
 }: ProjectSidebarProps) {
-  const activeProjectId = view.kind === "thread" ? view.projectId : null;
-  const activeThreadId = view.kind === "thread" ? view.threadId : null;
+  const collapsedProjectIdSet = new Set(collapsedProjectIds);
 
   return (
     <div className="desktop-sidebar">
       <div className="desktop-sidebar-primary">
         {projects.map((project) => {
-          const isCollapsed = collapsedProjects[project.id] ?? false;
-          const isActiveProject = project.id === activeProjectId;
-          const threadListId = `project-thread-list-${project.id}`;
+          const isCollapsed = collapsedProjectIdSet.has(project.projectId);
+          const isSelectedProject = project.projectId === selectedProjectId;
+          const threadListId = `project-thread-list-${project.projectId}`;
 
           return (
-            <section key={project.id} className="project-group">
+            <section key={project.projectId} className="project-group">
               <div className="project-group-header">
                 <button
                   type="button"
-                  className={`project-group-name${isActiveProject ? " is-active" : ""}`}
-                  onClick={() => onSelectProject(project.id)}
+                  className={`project-group-name${isSelectedProject ? " is-active" : ""}`}
+                  onClick={() => onSelectProject(project.projectId)}
                 >
                   {project.name}
                 </button>
@@ -267,12 +148,12 @@ function ProjectSidebar({
                         ? `Expand ${project.name} threads`
                         : `Collapse ${project.name} threads`
                     }
-                    onClick={() => onToggleProject(project.id)}
+                    onClick={() => onToggleProject(project.projectId, !isCollapsed)}
                   />
                   <DesktopIconButton
                     icon={<MessageSquarePlus aria-hidden="true" />}
                     label={`Create thread in ${project.name}`}
-                    onClick={() => onCreateThread(project.id)}
+                    onClick={() => onCreateThread(project.projectId)}
                   />
                 </div>
               </div>
@@ -284,15 +165,12 @@ function ProjectSidebar({
               >
                 <div className="thread-list" role="list">
                   {project.threads.map((thread) => (
-                    <button
-                      key={thread.id}
-                      type="button"
-                      className={`thread-list-item${thread.id === activeThreadId ? " is-active" : ""}`}
-                      onClick={() => onSelectThread(project.id, thread.id)}
-                    >
-                      <span className="thread-list-item-name">{thread.name}</span>
-                      <span className="thread-list-item-meta">{thread.updatedLabel}</span>
-                    </button>
+                    <ThreadListItem
+                      key={thread.threadId}
+                      isActive={thread.threadId === selectedThreadId}
+                      onSelect={() => onSelectThread(project.projectId, thread.threadId)}
+                      thread={thread}
+                    />
                   ))}
                 </div>
               </DesktopCollapsibleSection>
@@ -303,7 +181,7 @@ function ProjectSidebar({
 
       <div className="desktop-sidebar-footer">
         <DesktopSidebarButton
-          active={view.kind === "settings"}
+          active={activeScreen === "settings"}
           icon={<Settings2 aria-hidden="true" />}
           label="Settings"
           onClick={onOpenSettings}
@@ -313,119 +191,125 @@ function ProjectSidebar({
   );
 }
 
-function ThreadView() {
-  return <div className="thread-design-canvas" />;
+type ThreadListItemProps = {
+  isActive: boolean;
+  onSelect: () => void;
+  thread: AriaDesktopProjectThreadItem;
+};
+
+function ThreadListItem({ isActive, onSelect, thread }: ThreadListItemProps) {
+  return (
+    <button
+      type="button"
+      className={`thread-list-item${isActive ? " is-active" : ""}`}
+      onClick={onSelect}
+    >
+      <span className="thread-list-item-name">{thread.title}</span>
+      <span className="thread-list-item-meta">{formatRelativeUpdatedAt(thread.updatedAt)}</span>
+    </button>
+  );
 }
 
-function SettingsView() {
-  return <div className="settings-design-canvas" />;
+function getSelectedProject(
+  shellState: AriaDesktopProjectShellState,
+): AriaDesktopProjectGroup | null {
+  return (
+    shellState.projects.find((project) => project.projectId === shellState.selectedProjectId) ??
+    null
+  );
 }
 
-function ThreadInspectorSurface() {
-  return <div className="thread-inspector-surface" />;
-}
+function getSelectedThread(
+  project: AriaDesktopProjectGroup | null,
+  shellState: AriaDesktopProjectShellState,
+): AriaDesktopProjectThreadItem | null {
+  if (!project) {
+    return null;
+  }
 
-function ThreadTerminalSurface() {
-  return <div className="thread-terminal-surface" />;
+  return project.threads.find((thread) => thread.threadId === shellState.selectedThreadId) ?? null;
 }
 
 export function DesktopWorkbenchApp() {
-  const [projects, setProjects] = useState(INITIAL_PROJECTS);
-  const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>(() =>
-    INITIAL_PROJECTS[1] ? { [INITIAL_PROJECTS[1].id]: true } : {},
-  );
-  const [view, setView] = useState<AppView>({
-    kind: "thread",
-    projectId: INITIAL_PROJECTS[0].id,
-    threadId: INITIAL_PROJECTS[0].threads[0].id,
-  });
+  const [activeScreen, setActiveScreen] = useState<ActiveScreen>("projects");
+  const [shellState, setShellState] = useState<AriaDesktopProjectShellState>(EMPTY_SHELL_STATE);
 
-  const activeProject = getActiveProject(projects, view);
-  const activeThread = getActiveThread(activeProject, view);
+  const selectedProject = getSelectedProject(shellState);
+  const selectedThread = getSelectedThread(selectedProject, shellState);
+
+  useEffect(() => {
+    let isDisposed = false;
+
+    async function loadProjectShellState(): Promise<void> {
+      if (!window.ariaDesktop) {
+        return;
+      }
+
+      const nextShellState = await window.ariaDesktop.getProjectShellState();
+
+      if (isDisposed) {
+        return;
+      }
+
+      startTransition(() => {
+        setShellState(nextShellState);
+      });
+    }
+
+    void loadProjectShellState();
+
+    return () => {
+      isDisposed = true;
+    };
+  }, []);
+
+  async function applyShellState(
+    loader: () => Promise<AriaDesktopProjectShellState>,
+    nextScreen: ActiveScreen = "projects",
+  ): Promise<void> {
+    if (!window.ariaDesktop) {
+      return;
+    }
+
+    try {
+      const nextShellState = await loader();
+
+      startTransition(() => {
+        setActiveScreen(nextScreen);
+        setShellState(nextShellState);
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   function openSettings(): void {
     startTransition(() => {
-      setView({ kind: "settings" });
+      setActiveScreen("settings");
     });
+  }
+
+  function importProject(): void {
+    void applyShellState(() => window.ariaDesktop.importLocalProjectFromDialog());
+  }
+
+  function createThread(projectId: string): void {
+    void applyShellState(() => window.ariaDesktop.createThread(projectId));
   }
 
   function selectProject(projectId: string): void {
-    const project = projects.find((candidate) => candidate.id === projectId);
-    const firstThread = project?.threads[0];
-
-    if (!project || !firstThread) {
-      return;
-    }
-
-    startTransition(() => {
-      setCollapsedProjects((current) => ({ ...current, [projectId]: false }));
-      setView({
-        kind: "thread",
-        projectId,
-        threadId: firstThread.id,
-      });
-    });
+    void applyShellState(() => window.ariaDesktop.selectProject(projectId));
   }
 
   function selectThread(projectId: string, threadId: string): void {
-    startTransition(() => {
-      setView({
-        kind: "thread",
-        projectId,
-        threadId,
-      });
-    });
+    void applyShellState(() => window.ariaDesktop.selectThread(projectId, threadId));
   }
 
-  function toggleProject(projectId: string): void {
-    setCollapsedProjects((current) => ({
-      ...current,
-      [projectId]: !current[projectId],
-    }));
-  }
-
-  function createProjectAction(): void {
-    const nextProject = createProject(projects.length);
-    const firstThread = nextProject.threads[0];
-
-    startTransition(() => {
-      setProjects((current) => [...current, nextProject]);
-      setCollapsedProjects((current) => ({ ...current, [nextProject.id]: false }));
-      setView({
-        kind: "thread",
-        projectId: nextProject.id,
-        threadId: firstThread.id,
-      });
-    });
-  }
-
-  function createThreadAction(projectId: string): void {
-    const project = projects.find((candidate) => candidate.id === projectId);
-
-    if (!project) {
-      return;
-    }
-
-    const nextThread = createThread(project.name, project.threads.length);
-
-    startTransition(() => {
-      setProjects((current) =>
-        current.map((candidate) =>
-          candidate.id === projectId
-            ? {
-                ...candidate,
-                threads: [...candidate.threads, nextThread],
-              }
-            : candidate,
-        ),
-      );
-      setCollapsedProjects((current) => ({ ...current, [projectId]: false }));
-      setView({
-        kind: "thread",
-        projectId,
-        threadId: nextThread.id,
-      });
-    });
+  function toggleProject(projectId: string, collapsed: boolean): void {
+    void applyShellState(
+      () => window.ariaDesktop.setProjectCollapsed(projectId, collapsed),
+      activeScreen,
+    );
   }
 
   const leftSidebarToolbarItems: DesktopBaseLayoutToolbarItem[] = [
@@ -433,62 +317,69 @@ export function DesktopWorkbenchApp() {
       content: (
         <DesktopIconButton
           icon={<FolderPlus aria-hidden="true" />}
-          label="Create project"
-          onClick={createProjectAction}
+          label="Import project"
+          onClick={importProject}
         />
       ),
-      id: "create-project",
+      id: "import-project",
     },
   ];
 
   const toolbarItems: DesktopBaseLayoutToolbarItem[] =
-    activeProject && activeThread && view.kind === "thread"
+    activeScreen === "projects" && selectedProject
       ? [
           {
-            content: (
-              <span className="desktop-toolbar-context">
-                {getProjectDisplayName(activeProject)}
-              </span>
-            ),
+            content: <span className="desktop-toolbar-context">{selectedProject.name}</span>,
             id: "project-context",
           },
         ]
       : [];
 
-  const centerContent =
-    view.kind === "settings" || !activeProject || !activeThread ? <SettingsView /> : <ThreadView />;
-
   return (
     <DesktopBaseLayout
       bottomBar={
-        view.kind === "thread" && activeProject && activeThread ? (
-          <ThreadTerminalSurface />
-        ) : undefined
+        activeScreen === "projects" && selectedThread ? <ThreadTerminalSurface /> : undefined
       }
       bottomBarTitle="Terminal"
-      center={centerContent}
+      center={
+        activeScreen === "settings" ? (
+          <SettingsView />
+        ) : (
+          <ThreadView
+            onImportProject={importProject}
+            selectedProject={selectedProject}
+            selectedThread={selectedThread}
+          />
+        )
+      }
       leftSidebar={
         <ProjectSidebar
-          collapsedProjects={collapsedProjects}
-          onCreateThread={createThreadAction}
+          activeScreen={activeScreen}
+          collapsedProjectIds={shellState.collapsedProjectIds}
+          onCreateThread={createThread}
           onOpenSettings={openSettings}
           onSelectProject={selectProject}
           onSelectThread={selectThread}
           onToggleProject={toggleProject}
-          projects={projects}
-          view={view}
+          projects={shellState.projects}
+          selectedProjectId={shellState.selectedProjectId}
+          selectedThreadId={shellState.selectedThreadId}
         />
       }
       leftSidebarTitle="Projects"
       leftSidebarToolbarItems={leftSidebarToolbarItems}
       rightSidebar={
-        view.kind === "thread" && activeProject && activeThread ? (
-          <ThreadInspectorSurface />
-        ) : undefined
+        activeScreen === "projects" && selectedThread ? <ThreadInspectorSurface /> : undefined
       }
-      rightSidebarTitle={view.kind === "thread" && activeThread ? activeThread.name : undefined}
-      showMainTopbar={view.kind !== "settings"}
-      title={view.kind === "thread" && activeThread ? activeThread.name : "Projects"}
+      rightSidebarTitle={
+        activeScreen === "projects" && selectedThread ? selectedThread.title : undefined
+      }
+      showMainTopbar={activeScreen !== "settings"}
+      title={
+        activeScreen === "projects"
+          ? (selectedThread?.title ?? selectedProject?.name ?? "Projects")
+          : "Projects"
+      }
       toolbarItems={toolbarItems}
     />
   );
