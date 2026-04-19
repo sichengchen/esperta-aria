@@ -259,9 +259,26 @@ Scope: Desktop
 
 In desktop `Aria > Chat`, pending `ask_user` prompts must render immediately above the composer instead of inside the transcript stream.
 
+### 029. Desktop Project Threads Reuse The Aria Conversation Lane
+
+Scope: Desktop
+
+In desktop `Projects > Active Thread`, the transcript and composer must reuse the same centered conversation lane, message spacing, and composer chrome as desktop `Aria > Chat`.
+
+Do not duplicate the project and thread identity inside the center pane when that identity is already present in desktop chrome.
+
+Project-specific quick controls such as the current branch and active coding agent live in a compact row directly beneath the composer, while richer status stays in the inspector.
+
+When present in desktop `Projects > Active Thread`, the composer-adjacent quick controls are ordered as follows:
+
+- left side: branch/environment
+- right side: model
+
+Those quick controls use one compact typography scale across the trigger and menu rows, and their menu padding stays tighter than the main composer shell.
+
 Free-text answers reuse the same rounded neutral shell language as the composer, with the answer field and submit control aligned to that chrome.
 
-### 029. Desktop Approval Prompts Share The Composer-Adjacent Action Layer
+### 030. Desktop Approval Prompts Share The Composer-Adjacent Action Layer
 
 Scope: Desktop
 
@@ -269,7 +286,7 @@ In desktop `Aria > Chat`, pending approvals render in the same composer-adjacent
 
 Approval controls use compact pill buttons with the primary action emphasized, while tool-call details stay in a restrained neutral shell.
 
-### 030. Desktop Tool Activity Uses Inline Process Rows Instead Of Cards
+### 031. Desktop Tool Activity Uses Inline Process Rows Instead Of Cards
 
 Scope: Desktop
 

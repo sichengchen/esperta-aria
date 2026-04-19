@@ -70,7 +70,7 @@ flowchart LR
 | `Access Client`                 | Connects to one or more `Aria Server` deployments through the built-in gateway over loopback, LAN, VPN, or a published tunnel/proxy |
 | `Local Workspace Bridge`        | Local filesystem, git, worktree, shell, and environment integration                                                                 |
 | `Local Coding Agent Adapters`   | Codex, Claude Code, OpenCode on the current machine                                                                                 |
-| `Local Thread Store + UI Cache` | Local project thread state, UI cache, local run history, server metadata cache                                                      |
+| `Local Thread Store + UI Cache` | Local project thread state, local agent transcripts/session cache, local run history, and server metadata cache                     |
 
 ## Desktop Shell Recommendation
 
