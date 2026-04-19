@@ -11,7 +11,6 @@ import { startTransition, useEffect, useState } from "react";
 import type {
   AriaDesktopAriaShellState,
   AriaDesktopAriaScreen,
-  AriaDesktopAutomationTask,
   AriaDesktopProjectGroup,
   AriaDesktopProjectShellState,
   AriaDesktopProjectThreadItem,
@@ -783,8 +782,8 @@ export function DesktopWorkbenchApp() {
     void applyAriaShellState(() => window.ariaDesktop.refreshAutomations());
   }
 
-  function selectAutomationTask(task: AriaDesktopAutomationTask): void {
-    void applyAriaShellState(() => window.ariaDesktop.selectAutomationTask(task.taskId));
+  function selectAutomationTask(taskId: string): void {
+    void applyAriaShellState(() => window.ariaDesktop.selectAutomationTask(taskId));
   }
 
   function searchChatSessions(query: string): void {

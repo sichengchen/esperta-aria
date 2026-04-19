@@ -70,13 +70,12 @@ describe("desktop aria renderer", () => {
     const html = renderToStaticMarkup(
       React.createElement(AriaSidebar, {
         ariaState: SAMPLE_ARIA_STATE,
+        ariaServerConnected: true,
         onCreateChat: () => {},
         onOpenSettings: () => {},
         onSearchChatSessions: () => {},
-        onSearchConnectorSessions: () => {},
         onSelectChatSession: () => {},
         onSelectConnectorScreen: () => {},
-        onSelectConnectorSession: () => {},
         onSelectScreen: () => {},
         settingsActive: false,
       }),
@@ -96,7 +95,6 @@ describe("desktop aria renderer", () => {
         onAcceptForSession: () => {},
         onAnswerQuestion: () => {},
         onApproveToolCall: () => {},
-        onSearchSessions: () => {},
         onSendMessage: () => {},
       }),
     );

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactElement } from "react";
 
 type MarkdownBlock =
   | { type: "code"; content: string }
@@ -79,8 +79,8 @@ function parseBlocks(content: string): MarkdownBlock[] {
   return blocks;
 }
 
-function renderInline(text: string): ReactNode[] {
-  const tokens: ReactNode[] = [];
+function renderInline(text: string): Array<ReactElement | string> {
+  const tokens: Array<ReactElement | string> = [];
   const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g;
   let lastIndex = 0;
 
@@ -138,18 +138,28 @@ export function AriaMarkdown({ content }: { content: string }) {
         }
 
         if (block.type === "heading") {
-          const Tag = `h${Math.min(block.level, 4)}` as const;
-          return <Tag key={`${index}:heading`}>{renderInline(block.text)}</Tag>;
+          const headingContent = renderInline(block.text);
+          const headingKey = `${index}:heading`;
+          switch (Math.min(block.level, 4)) {
+            case 1:
+              return <h1 key={headingKey}>{headingContent}</h1>;
+            case 2:
+              return <h2 key={headingKey}>{headingContent}</h2>;
+            case 3:
+              return <h3 key={headingKey}>{headingContent}</h3>;
+            default:
+              return <h4 key={headingKey}>{headingContent}</h4>;
+          }
         }
 
         if (block.type === "list") {
-          const Tag = block.ordered ? "ol" : "ul";
-          return (
-            <Tag key={`${index}:list`}>
-              {block.items.map((item, itemIndex) => (
-                <li key={`${index}:${itemIndex}`}>{renderInline(item)}</li>
-              ))}
-            </Tag>
+          const items = block.items.map((item, itemIndex) => (
+            <li key={`${index}:${itemIndex}`}>{renderInline(item)}</li>
+          ));
+          return block.ordered ? (
+            <ol key={`${index}:list`}>{items}</ol>
+          ) : (
+            <ul key={`${index}:list`}>{items}</ul>
           );
         }
 
