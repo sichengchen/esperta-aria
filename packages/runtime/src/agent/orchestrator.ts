@@ -1,1 +1,1 @@
-export * from "@aria/agent-aria/orchestrator";
+export * from "@aria/agent/orchestrator";

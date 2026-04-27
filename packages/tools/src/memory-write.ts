@@ -1,5 +1,5 @@
 import { Type } from "@mariozechner/pi-ai";
-import type { ToolImpl } from "@aria/agent-aria";
+import type { ToolImpl } from "@aria/agent";
 import type { MemoryManager } from "@aria/memory";
 
 export function createMemoryWriteTool(memory: MemoryManager): ToolImpl {

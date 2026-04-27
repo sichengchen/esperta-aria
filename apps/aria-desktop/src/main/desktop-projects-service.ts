@@ -1,24 +1,20 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { BrowserWindow } from "electron";
-import {
-  createOpenCodeRuntimeBackendAdapter,
-  type OpenCodeModelOption,
-} from "../../../../packages/agents-coding/src/opencode.js";
 import type {
   RuntimeBackendAdapter,
   RuntimeBackendExecutionResult,
-} from "../../../../packages/agents-coding/src/contracts.js";
+} from "../../../../packages/jobs/src/runtime-backend.js";
 import { parseFrontmatter } from "../../../../packages/memory/src/skills/loader.js";
 import { preprocessContextReferences } from "../../../../packages/prompt/src/context-references.js";
 import { getRuntimeHome } from "../../../../packages/server/src/brand.js";
-import { ProjectsThreadEnvironmentService } from "../../../../packages/projects/src/thread-environments.js";
-import type { ProjectsEngineRepository } from "../../../../packages/projects/src/repository.js";
+import { ProjectsThreadEnvironmentService } from "../../../../packages/work/src/thread-environments.js";
+import type { ProjectsEngineRepository } from "../../../../packages/work/src/repository.js";
 import type {
   EnvironmentRecord,
   ProjectRecord,
@@ -26,8 +22,8 @@ import type {
   ThreadEnvironmentBindingRecord,
   ThreadRecord,
   WorkspaceRecord,
-} from "../../../../packages/projects/src/types.js";
-import { createProjectThreadListItem } from "../../../../packages/projects/src/view-models.js";
+} from "../../../../packages/work/src/types.js";
+import { createProjectThreadListItem } from "../../../../packages/work/src/view-models.js";
 import type {
   AriaDesktopChatState,
   AriaDesktopProjectShellState,
@@ -43,12 +39,12 @@ import {
 import { DesktopProjectsStore } from "./desktop-projects-store.js";
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_THREAD_AGENT_ID = "opencode";
+const DEFAULT_THREAD_AGENT_ID = "aria-agent";
 const LOCAL_AGENT_TIMEOUT_MS = 20 * 60_000;
 const DEFAULT_LOCAL_AGENT_TURNS = 8;
 const DEFAULT_MODEL_OPTION_LABEL = "Default";
-const OPEN_CODE_SKILL_REFERENCE_PATTERN = /(?<![\w/])\$([a-z][a-z0-9._-]*)\b/g;
-const OPEN_CODE_AT_REFERENCE_PATTERN = /(?<![\w/])@([^\s@]+)/g;
+const PROJECT_PROMPT_SKILL_REFERENCE_PATTERN = /(?<![\w/])\$([a-z][a-z0-9._-]*)\b/g;
+const PROJECT_PROMPT_AT_REFERENCE_PATTERN = /(?<![\w/])@([^\s@]+)/g;
 const TRAILING_REFERENCE_PUNCTUATION_PATTERN = /[),.;!?]+$/;
 const MAX_PROJECT_PROMPT_FILES = 250;
 const PROJECT_PROMPT_IGNORED_DIRECTORIES = new Set([
@@ -75,7 +71,7 @@ type RunningThreadExecution = {
   executionId: string;
 };
 
-type OpenCodeSkillRecord = {
+type ProjectPromptSkillRecord = {
   content: string;
   description: string;
   filePath: string;
@@ -85,31 +81,10 @@ type OpenCodeSkillRecord = {
 type DesktopProjectsServiceOptions = {
   backendRegistry?: Map<string, RuntimeBackendAdapter>;
   dbPath?: string;
-  localAgentRuntimeRoot?: string;
   now?: () => number;
   pickDirectory?: (ownerWindow?: BrowserWindow | null) => Promise<string | null>;
   readGitMetadata?: (directoryPath: string) => Promise<GitMetadata | null>;
   runtimeHome?: string;
-};
-
-type OpenCodeRuntimePaths = {
-  cacheHome: string;
-  stateHome: string;
-};
-
-type OpenCodeModelDiscoveryBackend = RuntimeBackendAdapter & {
-  listModels?: (input: {
-    env?: Record<string, string>;
-    timeoutMs?: number;
-    workingDirectory: string;
-  }) => Promise<OpenCodeModelOption[]>;
-  syncSessionTitle?: (input: {
-    env?: Record<string, string>;
-    modelId?: string | null;
-    sessionId: string;
-    timeoutMs?: number;
-    workingDirectory: string;
-  }) => Promise<string | null>;
 };
 
 function slugify(value: string): string {
@@ -316,17 +291,6 @@ function resolveFailureMessage(
   }
 }
 
-function buildOpenCodeRuntimePaths(root: string, threadId: string): OpenCodeRuntimePaths {
-  return {
-    cacheHome: join(root, "cache"),
-    stateHome: join(root, "threads", threadId, "state"),
-  };
-}
-
-function ensureDirectory(path: string): void {
-  mkdirSync(path, { recursive: true });
-}
-
 async function assertValidBranchName(branchName: string, workingDirectory: string): Promise<void> {
   await execFileAsync("git", ["-C", workingDirectory, "check-ref-format", "--branch", branchName]);
 }
@@ -358,8 +322,8 @@ function parseReferenceLineRange(target: string): { lineSuffix: string; path: st
   };
 }
 
-function normalizeOpenCodeContextMentions(message: string, cwd: string): string {
-  return message.replace(OPEN_CODE_AT_REFERENCE_PATTERN, (raw, tokenValue: string) => {
+function normalizeProjectContextMentions(message: string, cwd: string): string {
+  return message.replace(PROJECT_PROMPT_AT_REFERENCE_PATTERN, (raw, tokenValue: string) => {
     if (
       tokenValue === "diff" ||
       tokenValue === "staged" ||
@@ -401,12 +365,14 @@ function normalizeOpenCodeContextMentions(message: string, cwd: string): string 
   });
 }
 
-async function resolveOpenCodeSkillAttachments(
+async function resolveProjectSkillAttachments(
   message: string,
-  skillCatalog: Map<string, OpenCodeSkillRecord>,
+  skillCatalog: Map<string, ProjectPromptSkillRecord>,
 ): Promise<{ message: string; skillSection: string | null }> {
   const referencedSkillNames = Array.from(
-    new Set(Array.from(message.matchAll(OPEN_CODE_SKILL_REFERENCE_PATTERN), (match) => match[1])),
+    new Set(
+      Array.from(message.matchAll(PROJECT_PROMPT_SKILL_REFERENCE_PATTERN), (match) => match[1]),
+    ),
   );
 
   if (referencedSkillNames.length === 0) {
@@ -432,7 +398,7 @@ async function resolveOpenCodeSkillAttachments(
   }
 
   const strippedMessage = message
-    .replace(OPEN_CODE_SKILL_REFERENCE_PATTERN, (raw, skillName: string) =>
+    .replace(PROJECT_PROMPT_SKILL_REFERENCE_PATTERN, (raw, skillName: string) =>
       resolvedSkillNames.has(skillName) ? "" : raw,
     )
     .replace(/\s{2,}/g, " ")
@@ -469,7 +435,7 @@ async function resolveOpenCodeSkillAttachments(
   };
 }
 
-function walkOpenCodeSkillFiles(rootDirectory: string): string[] {
+function walkProjectSkillFiles(rootDirectory: string): string[] {
   const stack = [rootDirectory];
   const skillFiles: string[] = [];
 
@@ -507,7 +473,7 @@ function walkOpenCodeSkillFiles(rootDirectory: string): string[] {
   return skillFiles.sort((left, right) => left.localeCompare(right));
 }
 
-function buildOpenCodeSkillSearchRoots(workingDirectory: string): string[] {
+function buildProjectSkillSearchRoots(workingDirectory: string): string[] {
   return [
     join(workingDirectory, ".agents", "skills"),
     join(workingDirectory, ".codex", "skills"),
@@ -516,11 +482,13 @@ function buildOpenCodeSkillSearchRoots(workingDirectory: string): string[] {
   ];
 }
 
-function collectOpenCodeSkills(workingDirectory: string): Map<string, OpenCodeSkillRecord> {
-  const catalog = new Map<string, OpenCodeSkillRecord>();
+function collectProjectPromptSkills(
+  workingDirectory: string,
+): Map<string, ProjectPromptSkillRecord> {
+  const catalog = new Map<string, ProjectPromptSkillRecord>();
 
-  for (const rootDirectory of buildOpenCodeSkillSearchRoots(workingDirectory)) {
-    for (const skillFile of walkOpenCodeSkillFiles(rootDirectory)) {
+  for (const rootDirectory of buildProjectSkillSearchRoots(workingDirectory)) {
+    for (const skillFile of walkProjectSkillFiles(rootDirectory)) {
       try {
         const rawContent = readFileSync(skillFile, "utf8");
         const { body, meta } = parseFrontmatter(rawContent);
@@ -535,7 +503,7 @@ function collectOpenCodeSkills(workingDirectory: string): Map<string, OpenCodeSk
           name: meta.name,
         });
       } catch {
-        // Ignore unreadable skill files and continue with the remaining OpenCode skill roots.
+        // Ignore unreadable skill files and continue with the remaining project skill roots.
       }
     }
   }
@@ -599,11 +567,8 @@ export class DesktopProjectsService {
   private readonly threadEnvironmentService: ProjectsThreadEnvironmentService;
   private readonly backendRegistry: Map<string, RuntimeBackendAdapter>;
   private readonly runtimeHome: string;
-  private readonly localAgentRuntimeRoot: string;
   private readonly promptFileCache = new Map<string, string[]>();
-  private readonly promptSkillCache = new Map<string, OpenCodeSkillRecord[]>();
-  private readonly modelOptionsCache = new Map<string, OpenCodeModelOption[]>();
-  private readonly pendingModelOptionRefreshes = new Set<string>();
+  private readonly promptSkillCache = new Map<string, ProjectPromptSkillRecord[]>();
   private readonly listeners = new Set<(state: AriaDesktopProjectShellState) => void>();
   private readonly runningExecutions = new Map<string, RunningThreadExecution>();
 
@@ -615,11 +580,7 @@ export class DesktopProjectsService {
     this.now = options.now ?? (() => Date.now());
     this.pickDirectory = options.pickDirectory ?? defaultPickDirectory;
     this.readGitMetadata = options.readGitMetadata ?? defaultReadGitMetadata;
-    this.backendRegistry =
-      options.backendRegistry ??
-      new Map<string, RuntimeBackendAdapter>([["opencode", createOpenCodeRuntimeBackendAdapter()]]);
-    this.localAgentRuntimeRoot =
-      options.localAgentRuntimeRoot ?? join(this.runtimeHome, "desktop", "opencode");
+    this.backendRegistry = options.backendRegistry ?? new Map<string, RuntimeBackendAdapter>();
     this.threadEnvironmentService = new ProjectsThreadEnvironmentService(
       this.createRepositoryAdapter() as unknown as ProjectsEngineRepository,
     );
@@ -902,9 +863,6 @@ export class DesktopProjectsService {
         threadId,
         updatedAt: now,
       });
-      this.modelOptionsCache.delete(threadId);
-      this.refreshThreadModelOptions(threadId);
-
       return this.emitSnapshot();
     } catch (error) {
       return this.recordThreadFailure(
@@ -1012,7 +970,7 @@ export class DesktopProjectsService {
     );
 
     if (!allowedModels.has(normalizedModelId)) {
-      return this.recordThreadFailure(thread, "Unsupported model for the selected coding agent.");
+      return this.recordThreadFailure(thread, "Unsupported model for Aria Agent.");
     }
 
     const now = this.now();
@@ -1101,17 +1059,11 @@ export class DesktopProjectsService {
     });
     this.notify();
 
-    const requestEnv =
-      backendId === "opencode" ? this.buildOpenCodeRequestEnv(thread.threadId) : undefined;
-
     try {
-      const prompt =
-        backendId === "opencode"
-          ? await this.buildOpenCodePrompt(trimmedMessage, environment.locator)
-          : trimmedMessage;
+      const prompt = await this.buildProjectPrompt(trimmedMessage, environment.locator);
       const result = await backend.execute({
         approvalMode: "auto",
-        env: requestEnv,
+        env: undefined,
         executionId,
         maxTurns: DEFAULT_LOCAL_AGENT_TURNS,
         metadata: {
@@ -1140,24 +1092,10 @@ export class DesktopProjectsService {
             toolName: null,
           });
         }
-        const nextTitle =
-          backendId === "opencode"
-            ? await this.resolveOpenCodeThreadTitle({
-                backend,
-                modelId:
-                  (result.metadata?.providerId as string | undefined) &&
-                  (result.metadata?.modelId as string | undefined)
-                    ? `${String(result.metadata?.providerId)}/${String(result.metadata?.modelId)}`
-                    : (existingState?.selectedModelId ?? null),
-                env: requestEnv,
-                sessionId: nextSessionId,
-                workingDirectory: environment.locator,
-              })
-            : null;
         this.store.upsertThread({
           ...thread,
           status: resolveThreadStatus(result),
-          title: nextTitle ?? thread.title,
+          title: thread.title,
           updatedAt: completedAt,
         });
         this.store.upsertProjectThreadState({
@@ -1257,8 +1195,7 @@ export class DesktopProjectsService {
     const storedState = this.store.getProjectThreadState(thread.threadId);
     const threadItem = createProjectThreadListItem(project, thread);
     const backend = thread.agentId ? this.backendRegistry.get(thread.agentId) : null;
-    const agentLabel =
-      backend?.displayName ?? formatAgentLabel(thread.agentId) ?? "Local Coding Agent";
+    const agentLabel = backend?.displayName ?? formatAgentLabel(thread.agentId) ?? "Aria Agent";
     const projectEnvironments = this.store.listEnvironments(project.projectId);
     const selectedModelId = storedState?.selectedModelId ?? null;
     const cachedModelOptions = this.getThreadModelOptions(thread);
@@ -1353,35 +1290,6 @@ export class DesktopProjectsService {
     return activeBinding ? this.store.getEnvironment(activeBinding.environmentId) : undefined;
   }
 
-  private async resolveOpenCodeThreadTitle(input: {
-    backend: RuntimeBackendAdapter;
-    env?: Record<string, string>;
-    modelId?: string | null;
-    sessionId: string | null;
-    workingDirectory: string;
-  }): Promise<string | null> {
-    if (!input.sessionId) {
-      return null;
-    }
-
-    const backend = input.backend as OpenCodeModelDiscoveryBackend;
-    if (!backend.syncSessionTitle) {
-      return null;
-    }
-
-    try {
-      return await backend.syncSessionTitle({
-        env: input.env,
-        modelId: input.modelId ?? null,
-        sessionId: input.sessionId,
-        timeoutMs: 15_000,
-        workingDirectory: input.workingDirectory,
-      });
-    } catch {
-      return null;
-    }
-  }
-
   private listVisibleThreadIdsForProject(
     projectId: string,
     pinnedThreadIds: string[],
@@ -1409,12 +1317,6 @@ export class DesktopProjectsService {
   private getThreadModelOptions(
     thread: ThreadRecord,
   ): Array<{ label: string; modelId: string | null }> {
-    const cachedOptions = this.modelOptionsCache.get(thread.threadId);
-    if (cachedOptions) {
-      return [{ label: DEFAULT_MODEL_OPTION_LABEL, modelId: null }, ...cachedOptions];
-    }
-
-    this.refreshThreadModelOptions(thread.threadId);
     return getAvailableModelOptions(thread.agentId ?? DEFAULT_THREAD_AGENT_ID);
   }
 
@@ -1429,7 +1331,7 @@ export class DesktopProjectsService {
       }));
     }
 
-    const skills = Array.from(collectOpenCodeSkills(workingDirectory).values()).sort(
+    const skills = Array.from(collectProjectPromptSkills(workingDirectory).values()).sort(
       (left, right) => left.name.localeCompare(right.name),
     );
     this.promptSkillCache.set(workingDirectory, skills);
@@ -1448,56 +1350,6 @@ export class DesktopProjectsService {
     const files = listProjectPromptFiles(environmentLocator);
     this.promptFileCache.set(environmentLocator, files);
     return files;
-  }
-
-  private refreshThreadModelOptions(threadId: string): void {
-    if (this.pendingModelOptionRefreshes.has(threadId)) {
-      return;
-    }
-
-    const thread = this.store.getThread(threadId);
-    if (!thread) {
-      return;
-    }
-
-    const backend = this.backendRegistry.get(thread.agentId ?? DEFAULT_THREAD_AGENT_ID) as
-      | OpenCodeModelDiscoveryBackend
-      | undefined;
-    const environment = this.getThreadEnvironment(thread);
-    if (!backend?.listModels || !environment) {
-      return;
-    }
-
-    this.pendingModelOptionRefreshes.add(threadId);
-
-    let env: Record<string, string>;
-    try {
-      env = this.buildOpenCodeRequestEnv(thread.threadId);
-    } catch {
-      this.pendingModelOptionRefreshes.delete(threadId);
-      return;
-    }
-
-    void backend
-      .listModels({
-        env,
-        timeoutMs: 10_000,
-        workingDirectory: environment.locator,
-      })
-      .then((options) => {
-        if (options.length === 0) {
-          return;
-        }
-
-        this.modelOptionsCache.set(threadId, options);
-        this.notify();
-      })
-      .catch(() => {
-        // Fall back to bundled defaults when discovery fails.
-      })
-      .finally(() => {
-        this.pendingModelOptionRefreshes.delete(threadId);
-      });
   }
 
   private recordThreadFailure(thread: ThreadRecord, message: string): AriaDesktopProjectShellState {
@@ -1529,21 +1381,10 @@ export class DesktopProjectsService {
     return this.emitSnapshot();
   }
 
-  private buildOpenCodeRequestEnv(threadId: string): Record<string, string> {
-    const runtimePaths = buildOpenCodeRuntimePaths(this.localAgentRuntimeRoot, threadId);
-    ensureDirectory(runtimePaths.cacheHome);
-    ensureDirectory(runtimePaths.stateHome);
-
-    return {
-      XDG_CACHE_HOME: runtimePaths.cacheHome,
-      XDG_STATE_HOME: runtimePaths.stateHome,
-    };
-  }
-
-  private async buildOpenCodePrompt(message: string, workingDirectory: string): Promise<string> {
-    const skillCatalog = collectOpenCodeSkills(workingDirectory);
-    const skillAttachments = await resolveOpenCodeSkillAttachments(message, skillCatalog);
-    const normalizedMessage = normalizeOpenCodeContextMentions(
+  private async buildProjectPrompt(message: string, workingDirectory: string): Promise<string> {
+    const skillCatalog = collectProjectPromptSkills(workingDirectory);
+    const skillAttachments = await resolveProjectSkillAttachments(message, skillCatalog);
+    const normalizedMessage = normalizeProjectContextMentions(
       skillAttachments.message,
       workingDirectory,
     );

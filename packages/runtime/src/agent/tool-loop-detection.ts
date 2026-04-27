@@ -1,1 +1,1 @@
-export * from "@aria/agent-aria/tool-loop-detection";
+export * from "@aria/agent/tool-loop-detection";

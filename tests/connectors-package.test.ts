@@ -15,9 +15,9 @@ import {
   startWeChatConnector,
   startSlackSocketConnector,
   startWeChatLogin,
-} from "../packages/connectors-im/src/index.js";
+} from "../packages/connectors/src/index.js";
 
-describe("@aria/connectors-im package entrypoints", () => {
+describe("@aria/connectors package entrypoints", () => {
   test("re-exports the shared chat-sdk surface", () => {
     expect(formatToolResult("read", "hello", 20)).toContain("hello");
     expect(typeof createChatSDKClient).toBe("function");

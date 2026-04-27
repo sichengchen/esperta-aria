@@ -1,7 +1,7 @@
 {
   "name": "aria-desktop",
   "private": true,
-  "description": "Aria Desktop app surface over the Electron shell and desktop-local bridge seam",
+  "description": "Aria Desktop app surface over the Electron shell and local Aria node integration",
   "type": "module",
   "main": "./dist/main/index.js",
   "scripts": {

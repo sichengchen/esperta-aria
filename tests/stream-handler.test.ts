@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   createStreamHandler,
   EDIT_THROTTLE_MS,
-} from "../packages/connectors-im/src/shared/stream-handler.js";
+} from "../packages/connectors/src/shared/stream-handler.js";
 
 const originalNow = Date.now;
 

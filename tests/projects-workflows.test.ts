@@ -13,7 +13,7 @@ import {
   ProjectsReviewService,
   ProjectsThreadEnvironmentService,
   type ThreadEnvironmentBindingRecord,
-} from "@aria/projects";
+} from "@aria/work";
 import { ProjectsWorktreeService } from "@aria/workspaces";
 import { HandoffService, HandoffStore } from "@aria/handoff";
 
@@ -65,7 +65,7 @@ describe("projects workflow services", () => {
       workspaceId: "workspace-local",
       environmentId: "env-main",
       environmentBindingId: "binding-1",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now,
     });
@@ -174,7 +174,7 @@ describe("projects workflow services", () => {
       workspaceId: "workspace-local",
       environmentId: "env-local",
       environmentBindingId: "binding-local",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now,
     });
@@ -400,7 +400,7 @@ describe("projects workflow services", () => {
           body: "Please continue this tracked work.",
           workspaceId: "workspace-local",
           environmentId: "env-main",
-          requestedBackend: "codex",
+          requestedBackend: "aria",
         }),
       },
       now,
@@ -413,7 +413,7 @@ describe("projects workflow services", () => {
     expect(second.dispatchId).toBe(first.dispatchId);
     expect(repository.getThread(first.threadId)?.title).toBe("Imported handoff thread");
     expect(repository.getThread(first.threadId)?.threadType).toBe("local_project");
-    expect(repository.getThread(first.threadId)?.agentId).toBe("codex");
+    expect(repository.getThread(first.threadId)?.agentId).toBe("aria-agent");
     expect(repository.getThread(first.threadId)?.workspaceId).toBe("workspace-local");
     expect(repository.getThread(first.threadId)?.environmentId).toBe("env-main");
     expect(repository.getActiveThreadEnvironmentBinding(first.threadId)).toMatchObject({
@@ -496,7 +496,7 @@ describe("projects workflow services", () => {
       workspaceId: "workspace-1",
       environmentId: "env-2",
       environmentBindingId: "binding-2",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now,
     });

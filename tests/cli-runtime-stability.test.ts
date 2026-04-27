@@ -50,6 +50,11 @@ type RootPackageJson = {
   bin?: Record<string, string>;
   scripts?: Record<string, string>;
 };
+type TsConfigJson = {
+  compilerOptions?: {
+    paths?: Record<string, string[]>;
+  };
+};
 
 describe("cli and runtime stability", () => {
   test("keeps removed desktop seams out of current server bootstrap paths", () => {
@@ -122,5 +127,65 @@ describe("cli and runtime stability", () => {
 
   test("removes the old @aria/ui package seam from the repo", () => {
     expect(existsSync(join(REPO_DIR, "packages/ui/package.json"))).toBe(false);
+  });
+
+  test("keeps removed package aliases and stale package shells out of the repo", () => {
+    const tsconfig = readRepoJson<TsConfigJson>("tsconfig.json");
+    const paths = tsconfig.compilerOptions?.paths ?? {};
+    const removedAliases = [
+      "@aria/engine/*",
+      "@aria/projects-engine",
+      "@aria/projects-engine/*",
+      "@aria/projects",
+      "@aria/projects/*",
+      "@aria/store",
+      "@aria/store/*",
+      "@aria/agent-aria",
+      "@aria/agent-aria/*",
+      "@aria/connectors-im",
+      "@aria/connectors-im/*",
+      "@aria/agents-coding",
+      "@aria/agents-coding/*",
+      "@aria/providers-aria",
+      "@aria/providers-aria/*",
+      "@aria/providers-codex",
+      "@aria/providers-codex/*",
+      "@aria/providers-claude-code",
+      "@aria/providers-claude-code/*",
+      "@aria/providers-opencode",
+      "@aria/providers-opencode/*",
+      "@aria/desktop",
+      "@aria/desktop/*",
+      "@aria/desktop-ui",
+      "@aria/desktop-ui/*",
+      "@aria/desktop-bridge",
+      "@aria/desktop-bridge/*",
+      "@aria/desktop-git",
+      "@aria/desktop-git/*",
+    ];
+    const removedPackageManifests = [
+      "packages/agents-coding/package.json",
+      "packages/projects/package.json",
+      "packages/store/package.json",
+      "packages/agent-aria/package.json",
+      "packages/connectors-im/package.json",
+      "packages/projects-engine/package.json",
+      "packages/providers-aria/package.json",
+      "packages/providers-codex/package.json",
+      "packages/providers-claude-code/package.json",
+      "packages/providers-opencode/package.json",
+      "packages/desktop/package.json",
+      "packages/desktop-ui/package.json",
+      "packages/desktop-bridge/package.json",
+      "packages/desktop-git/package.json",
+      "apps/aria-mobile/package.json",
+    ];
+
+    for (const alias of removedAliases) {
+      expect(paths).not.toHaveProperty(alias);
+    }
+    for (const manifestPath of removedPackageManifests) {
+      expect(existsSync(join(REPO_DIR, manifestPath))).toBe(false);
+    }
   });
 });

@@ -4,7 +4,7 @@ import {
   getMissingSocketModeCredentials,
   hasSlackCredentials,
   hasSlackSocketModeCredentials,
-} from "../packages/connectors-im/src/slack/config.js";
+} from "../packages/connectors/src/slack/config.js";
 
 afterEach(() => {
   delete process.env.SLACK_BOT_TOKEN;

@@ -1,6 +1,6 @@
 import type { EscalationChoice } from "@aria/protocol";
-import { createEmptyOverrides } from "@aria/agent-aria";
-import type { Agent, SessionSecurityOverrides } from "@aria/agent-aria";
+import { createEmptyOverrides } from "@aria/agent";
+import type { Agent, SessionSecurityOverrides } from "@aria/agent";
 import type { SessionToolEnvironment } from "@aria/tools/session-tool-environment";
 import type { EngineRuntime } from "./runtime.js";
 

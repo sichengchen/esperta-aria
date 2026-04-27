@@ -3,8 +3,8 @@
  */
 
 import { Type } from "@sinclair/typebox";
-import type { ToolImpl } from "@aria/agent-aria";
-import type { Orchestrator } from "@aria/agent-aria/orchestrator";
+import type { ToolImpl } from "@aria/agent";
+import type { Orchestrator } from "@aria/agent/orchestrator";
 
 export interface DelegateStatusDeps {
   getOrchestrator: () => Orchestrator | undefined;

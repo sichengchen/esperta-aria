@@ -1,4 +1,4 @@
-import type { ThreadStatus, ThreadType } from "../../../../packages/projects/src/client.js";
+import type { ThreadStatus, ThreadType } from "../../../../packages/work/src/client.js";
 
 export const ariaDesktopChannels = {
   ping: "aria-desktop:ping",

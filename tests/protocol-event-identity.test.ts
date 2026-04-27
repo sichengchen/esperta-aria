@@ -41,14 +41,14 @@ describe("protocol event identity", () => {
       threadId: "thread-2",
       jobId: "job-1",
       runId: "run-2",
-      agentId: "codex",
+      agentId: "aria-agent",
     });
     const localProjectIdentity = createEventCorrelationIdentity({
       projectId: "project-1",
       environmentId: "env-local",
       threadId: "thread-2",
       runId: "run-3",
-      agentId: "codex",
+      agentId: "aria-agent",
     });
 
     expect(hasRemoteProjectEventIdentity(remoteProjectIdentity)).toBe(true);
@@ -112,7 +112,7 @@ describe("protocol event identity", () => {
         environmentId: "env-1",
         environmentBindingId: "binding-1",
         jobId: "job-1",
-        agentId: "codex",
+        agentId: "aria-agent",
         actorId: "automation:nightly",
         serverId: "server-1",
         timestamp: 456,
@@ -135,7 +135,7 @@ describe("protocol event identity", () => {
       connectorType: "cron",
       source: "automation.run",
       threadType: "remote_project",
-      agentId: "codex",
+      agentId: "aria-agent",
       actorId: "automation:nightly",
       timestamp: 456,
     });

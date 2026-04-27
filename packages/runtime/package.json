@@ -34,8 +34,6 @@
     "./skills/types": "./src/skills/types.ts",
     "./session-coordinator": "./src/session-coordinator.ts",
     "./tools": "./src/tools/index.ts",
-    "./tools/claude-code": "./src/tools/claude-code.ts",
-    "./tools/codex": "./src/tools/codex.ts",
     "./tools/delegate": "./src/tools/delegate.ts",
     "./tools/delegate-status": "./src/tools/delegate-status.ts",
     "./tools/exec": "./src/tools/exec.ts",

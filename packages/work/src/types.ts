@@ -67,7 +67,7 @@ export const THREAD_STATUSES = ThreadStatusSchema.options;
 export type ThreadStatus = ProtocolThreadStatus;
 export const THREAD_TYPES = ThreadTypeSchema.options;
 export type ThreadType = ProtocolThreadType;
-export type AgentAdapterId = "aria-agent" | "codex" | "claude-code" | "opencode" | string;
+export type AgentAdapterId = "aria-agent" | string;
 
 export interface ThreadRecord {
   threadId: string;

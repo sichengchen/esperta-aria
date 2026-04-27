@@ -122,7 +122,7 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
   },
   slack: async (cmdArgs) => {
     await loadConnectorRuntimeEnv(runtimeHome);
-    const { startSlackConnector } = await import("@aria/connectors-im/slack");
+    const { startSlackConnector } = await import("@aria/connectors/slack");
     const [modeOrPort, maybePort] = cmdArgs;
 
     if (modeOrPort === "socket" || modeOrPort === "--socket") {
@@ -150,30 +150,30 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
   teams: async (cmdArgs) => {
     await loadConnectorRuntimeEnv(runtimeHome);
     const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3421;
-    const { startTeamsConnector } = await import("@aria/connectors-im/teams");
+    const { startTeamsConnector } = await import("@aria/connectors/teams");
     await startTeamsConnector(port);
   },
   gchat: async (cmdArgs) => {
     await loadConnectorRuntimeEnv(runtimeHome);
     const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3422;
-    const { startGChatConnector } = await import("@aria/connectors-im/gchat");
+    const { startGChatConnector } = await import("@aria/connectors/gchat");
     await startGChatConnector(port);
   },
   github: async (cmdArgs) => {
     await loadConnectorRuntimeEnv(runtimeHome);
     const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3424;
-    const { startGitHubConnector } = await import("@aria/connectors-im/github");
+    const { startGitHubConnector } = await import("@aria/connectors/github");
     await startGitHubConnector(port);
   },
   linear: async (cmdArgs) => {
     await loadConnectorRuntimeEnv(runtimeHome);
     const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3425;
-    const { startLinearConnector } = await import("@aria/connectors-im/linear");
+    const { startLinearConnector } = await import("@aria/connectors/linear");
     await startLinearConnector(port);
   },
   wechat: async (cmdArgs) => {
     const [action, maybeBaseUrl] = cmdArgs;
-    const { startWeChatConnector, startWeChatLogin } = await import("@aria/connectors-im/wechat");
+    const { startWeChatConnector, startWeChatLogin } = await import("@aria/connectors/wechat");
 
     if (!action || action === "start") {
       await ensureEngine();
@@ -265,13 +265,13 @@ const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
   telegram: async (cmdArgs) => {
     await loadConnectorRuntimeEnv(runtimeHome);
     const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3426;
-    const { startTelegramConnector } = await import("@aria/connectors-im/telegram");
+    const { startTelegramConnector } = await import("@aria/connectors/telegram");
     await startTelegramConnector(port);
   },
   discord: async (cmdArgs) => {
     await loadConnectorRuntimeEnv(runtimeHome);
     const port = cmdArgs[0] ? parseInt(cmdArgs[0], 10) : 3423;
-    const { startDiscordConnector } = await import("@aria/connectors-im/discord");
+    const { startDiscordConnector } = await import("@aria/connectors/discord");
     await startDiscordConnector(port);
   },
   __server_host: async () => {

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { HandoffStore } from "@aria/handoff";
-import { ProjectsEngineRepository, ProjectsEngineStore } from "@aria/projects";
+import { ProjectsEngineRepository, ProjectsEngineStore } from "@aria/work";
 import { projectsCommand } from "../packages/cli/src/projects.js";
 
 let runtimeHome = "";
@@ -67,7 +67,7 @@ describe("projectsCommand", () => {
     await projectsCommand(["task-status", "task-1", "ready"]);
     await projectsCommand(["thread-create", "thread-1", "project-1", "Tracked thread"]);
     await projectsCommand(["job-add", "thread-1", "user", "Please", "continue", "this", "work"]);
-    await projectsCommand(["dispatch-create", "dispatch-1", "project-1", "thread-1", "codex"]);
+    await projectsCommand(["dispatch-create", "dispatch-1", "project-1", "thread-1"]);
     await projectsCommand([
       "worktree-register",
       "worktree-1",
@@ -110,7 +110,7 @@ describe("projectsCommand", () => {
       expect(repository.getTask("task-1")?.status).toBe("ready");
       expect(repository.getThread("thread-1")?.title).toBe("Tracked thread");
       expect(repository.listJobs("thread-1")).toHaveLength(1);
-      expect(repository.getDispatch("dispatch-1")?.requestedBackend).toBe("codex");
+      expect(repository.getDispatch("dispatch-1")?.requestedBackend).toBe("aria");
       expect(repository.getWorktree("worktree-1")?.status).toBe("pruned");
       expect(repository.getReview(reviewId)?.status).toBe("approved");
       expect(repository.getPublishRun(publishRunId)?.prUrl).toBe("https://example.com/pr/1");
@@ -269,7 +269,7 @@ describe("projectsCommand", () => {
       "handoff-submit",
       "project-2",
       "key-1",
-      '{"title":"Imported Thread","body":"from handoff","requestedBackend":"claude-code"}',
+      '{"title":"Imported Thread","body":"from handoff"}',
     ]);
 
     const handoffStore = new HandoffStore(join(runtimeHome, "aria.db"));
@@ -283,7 +283,7 @@ describe("projectsCommand", () => {
     await withRepository((repository) => {
       const dispatch = repository.listDispatches()[0];
       expect(dispatch?.projectId).toBe("project-2");
-      expect(dispatch?.requestedBackend).toBe("claude-code");
+      expect(dispatch?.requestedBackend).toBe("aria");
       expect(repository.getThread(dispatch?.threadId ?? "")?.title).toBe("Imported Thread");
       expect(repository.listJobs(dispatch?.threadId ?? "")).toHaveLength(1);
     });
@@ -350,7 +350,7 @@ describe("projectsCommand", () => {
       "--binding",
       "binding-1",
       "--agent",
-      "codex",
+      "aria-agent",
     ]);
     await projectsCommand([
       "thread-bind",

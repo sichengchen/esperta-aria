@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { Agent, type AgentEvent } from "@aria/agent-aria";
+import { Agent, type AgentEvent } from "@aria/agent";
 import {
   describeLive,
   getLiveTestLabel,

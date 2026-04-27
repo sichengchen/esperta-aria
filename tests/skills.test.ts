@@ -2,8 +2,6 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import {
   parseFrontmatter,
   SkillRegistry,
@@ -165,53 +163,12 @@ describe("formatActiveSkills", () => {
 });
 
 describe("bundled orchestration skills", () => {
-  const bundledDir = fileURLToPath(
-    new URL("../packages/runtime/src/skills/bundled", import.meta.url),
-  );
-
-  const orchestrationSkills = [
-    {
-      dir: "coding-agents",
-      expectedName: "coding-agents",
-      mustMention: ["claude_code", "codex", "esperkit", "ask_user", "background"],
-    },
-  ];
-
-  for (const { dir, expectedName, mustMention } of orchestrationSkills) {
-    test(`${dir}/SKILL.md exists and has valid frontmatter`, async () => {
-      const skillFile = join(bundledDir, dir, "SKILL.md");
-      expect(existsSync(skillFile)).toBe(true);
-
-      const content = await readFile(skillFile, "utf-8");
-      const { meta, body } = parseFrontmatter(content);
-
-      expect(meta.name).toBe(expectedName);
-      expect(meta.description).toBeTruthy();
-      expect(meta.description!.length).toBeGreaterThan(10);
-      expect(body.length).toBeGreaterThan(100);
-    });
-
-    test(`${dir}/SKILL.md mentions required topics`, async () => {
-      const content = await readFile(join(bundledDir, dir, "SKILL.md"), "utf-8");
-      for (const keyword of mustMention) {
-        expect(content).toContain(keyword);
-      }
-    });
-  }
-
-  test("orchestration skills are discovered by SkillRegistry", async () => {
+  test("bundled skills are discovered by SkillRegistry", async () => {
     const registry = new SkillRegistry();
     await registry.loadAll(testHome);
 
     const names = registry.getMetadataList().map((s) => s.name);
-    expect(names).toContain("coding-agents");
-  });
-
-  test("coding-agents skill documents tool usage and esperkit", async () => {
-    const content = await readFile(join(bundledDir, "coding-agents", "SKILL.md"), "utf-8");
-    expect(content).toContain("claude_code");
-    expect(content).toContain("codex");
-    expect(content).toContain("esperkit");
-    expect(content).toContain("background");
+    expect(names).toContain("aria");
+    expect(names).not.toContain("coding-agents");
   });
 });

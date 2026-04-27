@@ -1,7 +1,7 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Type } from "@mariozechner/pi-ai";
-import type { ToolImpl } from "@aria/agent-aria";
+import type { ToolImpl } from "@aria/agent";
 
 export const writeTool: ToolImpl = {
   name: "write",

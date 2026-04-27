@@ -11,8 +11,8 @@
  */
 
 import { Type } from "@mariozechner/pi-ai";
-import type { ToolImpl } from "@aria/agent-aria";
-import { frameAsData, sanitizeContent } from "@aria/agent-aria/content-frame";
+import type { ToolImpl } from "@aria/agent";
+import { frameAsData, sanitizeContent } from "@aria/agent/content-frame";
 import { generateHandle, registerBackground } from "./exec-background.js";
 import { detectSandbox, type Sandbox, type SandboxOptions } from "./sandbox.js";
 

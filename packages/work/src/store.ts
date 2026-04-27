@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Database } from "bun:sqlite";
 import type { SQLQueryBindings } from "bun:sqlite";
-import { ensureAriaDomainModelSchema } from "@aria/store";
+import { ensureAriaDomainModelSchema } from "@aria/persistence";
 import { PROJECTS_ENGINE_SCHEMA_SQL } from "./schema.js";
 import type {
   DispatchRecord,

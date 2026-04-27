@@ -1,5 +1,5 @@
 import type { ConnectorType, Session } from "@aria/protocol";
-import type { OperationalStore } from "@aria/store/operational-store";
+import type { OperationalStore } from "@aria/persistence/operational-store";
 
 function randomSuffix(): string {
   return crypto.randomUUID();

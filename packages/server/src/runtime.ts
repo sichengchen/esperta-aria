@@ -1,13 +1,8 @@
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import {
-  Agent,
-  type AskUserCallback,
-  type ToolApprovalCallback,
-  type ToolImpl,
-} from "@aria/agent-aria";
-import { Orchestrator } from "@aria/agent-aria/orchestrator";
+import { Agent, type AskUserCallback, type ToolApprovalCallback, type ToolImpl } from "@aria/agent";
+import { Orchestrator } from "@aria/agent/orchestrator";
 import { AuditLogger } from "@aria/audit";
 import { AutomationRegistry, Scheduler, createHeartbeatTask } from "@aria/automation";
 import { AuthManager } from "@aria/gateway/auth";
@@ -16,11 +11,9 @@ import { MemoryManager } from "@aria/memory";
 import { SkillRegistry } from "@aria/memory/skills";
 import { SecurityModeManager } from "@aria/policy";
 import { PromptEngine } from "@aria/prompt";
-import { OperationalStore } from "@aria/store";
+import { OperationalStore } from "@aria/persistence";
 import {
   askUserTool,
-  createClaudeCodeTool,
-  createCodexTool,
   createDelegateStatusTool,
   createDelegateTool,
   createMemoryDeleteTool,
@@ -227,17 +220,6 @@ export async function createRuntime(): Promise<EngineRuntime> {
   tools.push(
     createDelegateStatusTool({
       getOrchestrator: () => orchestrator,
-    }),
-  );
-
-  tools.push(
-    createClaudeCodeTool({
-      getSecret: (envVar) => secrets?.apiKeys[envVar],
-    }),
-  );
-  tools.push(
-    createCodexTool({
-      getSecret: (envVar) => secrets?.apiKeys[envVar],
     }),
   );
 

@@ -6,8 +6,8 @@ type DesktopSpaceTabsProps = {
 };
 
 const SPACES: ReadonlyArray<{ id: DesktopSpace; label: string }> = [
+  { id: "aria", label: "Chat" },
   { id: "projects", label: "Projects" },
-  { id: "aria", label: "Aria" },
 ];
 
 export function DesktopSpaceTabs({ activeSpace, onSelectSpace }: DesktopSpaceTabsProps) {

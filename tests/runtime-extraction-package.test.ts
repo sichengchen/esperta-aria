@@ -25,7 +25,7 @@ import {
   PromptEngine,
 } from "../packages/prompt/src/index.js";
 import { ConnectorTypeSchema } from "../packages/protocol/src/index.js";
-import { OperationalStore } from "../packages/store/src/index.js";
+import { OperationalStore } from "../packages/persistence/src/index.js";
 import {
   askUserTool,
   bashTool,
@@ -125,12 +125,12 @@ describe("phase-1 extraction package verification", () => {
       fs.readFile(new URL("../packages/tools/src/index.ts", import.meta.url), "utf-8"),
     );
     expect(toolsIndexSource).not.toContain("@aria/runtime/tools/");
-    expect(toolsIndexSource).toContain("@aria/agent-aria");
+    expect(toolsIndexSource).toContain("@aria/agent");
     expect(toolsIndexSource).toContain("./exec.js");
     expect(toolsIndexSource).toContain("./delegate.js");
     expect(toolsIndexSource).toContain("./delegate-status.js");
-    expect(toolsIndexSource).toContain("./claude-code.js");
-    expect(toolsIndexSource).toContain("./codex.js");
+    expect(toolsIndexSource).not.toContain("./claude-code.js");
+    expect(toolsIndexSource).not.toContain("./codex.js");
 
     const memoryIndexSource = await import("node:fs/promises").then((fs) =>
       fs.readFile(new URL("../packages/memory/src/index.ts", import.meta.url), "utf-8"),
@@ -195,13 +195,7 @@ describe("phase-1 extraction package verification", () => {
     expect(skillManageSource).not.toContain("@aria/runtime/skills");
     expect(skillManageSource).toContain("@aria/memory");
 
-    const localToolFiles = [
-      "exec.ts",
-      "delegate.ts",
-      "delegate-status.ts",
-      "claude-code.ts",
-      "codex.ts",
-    ];
+    const localToolFiles = ["exec.ts", "delegate.ts", "delegate-status.ts"];
     for (const file of localToolFiles) {
       const source = await import("node:fs/promises").then((fs) =>
         fs.readFile(new URL(`../packages/tools/src/${file}`, import.meta.url), "utf-8"),
@@ -212,16 +206,7 @@ describe("phase-1 extraction package verification", () => {
       fs.readFile(new URL("../packages/tools/src/exec.ts", import.meta.url), "utf-8"),
     );
     expect(execSource).toContain("./sandbox.js");
-    expect(execSource).toContain("@aria/agent-aria/content-frame");
-    const codexSource = await import("node:fs/promises").then((fs) =>
-      fs.readFile(new URL("../packages/tools/src/codex.ts", import.meta.url), "utf-8"),
-    );
-    expect(codexSource).toContain("./agent-subprocess.js");
-    const claudeSource = await import("node:fs/promises").then((fs) =>
-      fs.readFile(new URL("../packages/tools/src/claude-code.ts", import.meta.url), "utf-8"),
-    );
-    expect(claudeSource).toContain("./agent-subprocess.js");
-
+    expect(execSource).toContain("@aria/agent/content-frame");
     const sessionToolEnvironmentSource = await import("node:fs/promises").then((fs) =>
       fs.readFile(
         new URL("../packages/tools/src/session-tool-environment.ts", import.meta.url),
@@ -229,7 +214,7 @@ describe("phase-1 extraction package verification", () => {
       ),
     );
     expect(sessionToolEnvironmentSource).not.toContain("@aria/runtime/tools/");
-    expect(sessionToolEnvironmentSource).toContain("@aria/agent-aria");
+    expect(sessionToolEnvironmentSource).toContain("@aria/agent");
     expect(sessionToolEnvironmentSource).toContain("@aria/gateway/router");
     expect(sessionToolEnvironmentSource).toContain("@aria/server/checkpoints");
     expect(sessionToolEnvironmentSource).toContain("./delegate.js");
@@ -243,8 +228,8 @@ describe("phase-1 extraction package verification", () => {
     expect(toolsPackageJson.exports["./exec"]).toBe("./src/exec.ts");
     expect(toolsPackageJson.exports["./delegate"]).toBe("./src/delegate.ts");
     expect(toolsPackageJson.exports["./delegate-status"]).toBe("./src/delegate-status.ts");
-    expect(toolsPackageJson.exports["./claude-code"]).toBe("./src/claude-code.ts");
-    expect(toolsPackageJson.exports["./codex"]).toBe("./src/codex.ts");
+    expect(toolsPackageJson.exports["./claude-code"]).toBeUndefined();
+    expect(toolsPackageJson.exports["./codex"]).toBeUndefined();
   });
 
   test("@aria/audit writes and queries entries through the package barrel", async () => {
@@ -477,7 +462,7 @@ describe("phase-1 extraction package verification", () => {
     expect(() => ConnectorTypeSchema.parse("not-a-connector")).toThrow();
   });
 
-  test("@aria/store preserves operational store session and prompt cache behavior", async () => {
+  test("@aria/persistence preserves operational store session and prompt cache behavior", async () => {
     const homeDir = await makeTempDir("aria-store-package-");
     const store = new OperationalStore(homeDir);
     await store.init();

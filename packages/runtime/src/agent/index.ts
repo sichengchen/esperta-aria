@@ -1,1 +1,1 @@
-export * from "@aria/agent-aria";
+export * from "@aria/agent";

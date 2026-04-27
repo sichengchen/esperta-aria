@@ -22,7 +22,7 @@ import {
   type ThreadStatus,
   type ThreadType,
   type ThreadRecord,
-} from "@aria/projects";
+} from "@aria/work";
 import { ProjectsWorktreeService } from "@aria/workspaces";
 import { HandoffService, HandoffStore } from "@aria/handoff";
 import { createRuntime } from "@aria/server/runtime";
@@ -438,7 +438,7 @@ function printHelp(): void {
   console.log("  job-add <threadId> <author> <body>  Append a job/event to a thread");
   console.log("  dispatches [threadId]  List dispatch records, optionally filtered by thread");
   console.log(
-    "  dispatch-create <dispatchId> <projectId> <threadId> [backend]  Create a queued dispatch",
+    "  dispatch-create <dispatchId> <projectId> <threadId>  Create a queued Aria dispatch",
   );
   console.log("  worktrees [repoId]     List tracked worktrees, optionally filtered by repo");
   console.log(
@@ -849,7 +849,7 @@ export async function projectsCommand(args: string[]): Promise<void> {
     }
 
     if (action === "dispatch-create") {
-      const [dispatchId, projectId, threadId, requestedBackend] = args.slice(1);
+      const [dispatchId, projectId, threadId] = args.slice(1);
       if (!dispatchId || !projectId || !threadId) {
         printHelp();
         process.exitCode = 1;
@@ -866,7 +866,7 @@ export async function projectsCommand(args: string[]): Promise<void> {
         repoId: thread?.repoId ?? null,
         worktreeId: null,
         status: "queued",
-        requestedBackend: requestedBackend ?? null,
+        requestedBackend: "aria",
         requestedModel: null,
         executionSessionId: null,
         summary: null,

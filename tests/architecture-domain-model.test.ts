@@ -1,11 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  THREAD_STATUSES,
-  THREAD_TYPES,
-  describeThreadType,
-  resolveThreadType,
-} from "@aria/projects";
+import { THREAD_STATUSES, THREAD_TYPES, describeThreadType, resolveThreadType } from "@aria/work";
 import { ThreadStatusSchema, ThreadTypeSchema } from "@aria/protocol";
 
 describe("architecture domain model", () => {

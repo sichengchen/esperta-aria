@@ -1,1 +1,1 @@
-export * from "@aria/store/operational-store";
+export * from "@aria/persistence/operational-store";

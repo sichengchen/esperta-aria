@@ -4,14 +4,14 @@ import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 
-import { ProjectsEngineStore } from "@aria/projects/store";
+import { ProjectsEngineStore } from "@aria/work/store";
 import {
   ARIA_DOMAIN_RELATIONS,
   OperationalStore,
   createAriaStoreMigrationBackup,
   listAriaDomainRelations,
   restoreAriaStoreMigrationBackup,
-} from "@aria/store";
+} from "@aria/persistence";
 
 describe("store domain model cutover", () => {
   test("projects and operational storage expose the canonical Aria domain relations", async () => {
@@ -64,7 +64,7 @@ describe("store domain model cutover", () => {
       workspaceId: "workspace-1",
       environmentId: "env-1",
       environmentBindingId: "binding-1",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: 9,
       updatedAt: 10,
     });

@@ -16,7 +16,7 @@ import {
   startTeamsConnector,
   startTelegramConnector,
   startWeChatConnector,
-} from "@aria/connectors-im";
+} from "@aria/connectors";
 import { getRuntimeHome } from "./brand.js";
 
 export interface ServerConnectorHandle {

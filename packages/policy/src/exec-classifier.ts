@@ -1,4 +1,4 @@
-import type { DangerLevel } from "@aria/agent-aria";
+import type { DangerLevel } from "@aria/agent";
 
 /**
  * Patterns that are always dangerous regardless of what the agent claims.

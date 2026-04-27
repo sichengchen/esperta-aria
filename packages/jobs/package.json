@@ -12,6 +12,7 @@
     "./bridge": "./src/bridge.ts",
     "./dispatch": "./src/dispatch.ts",
     "./dispatch-runner": "./src/dispatch-runner.ts",
+    "./runtime-backend": "./src/runtime-backend.ts",
     "./types": "./src/types.ts"
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ChatSDKAdapter } from "../packages/connectors-im/src/chat-sdk/adapter.js";
+import { ChatSDKAdapter } from "../packages/connectors/src/chat-sdk/adapter.js";
 
 function createFakeChat() {
   return {

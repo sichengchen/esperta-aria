@@ -3,17 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  createClaudeCodeRuntimeBackendAdapter,
-  createCodexRuntimeBackendAdapter,
-  createOpenCodeRuntimeBackendAdapter,
-} from "@aria/agents-coding";
 import { ProjectsDispatchService } from "@aria/jobs";
-import {
-  ProjectsEngineRepository,
-  ProjectsEngineStore,
-  ProjectsPlanningService,
-} from "@aria/projects";
+import { ProjectsEngineRepository, ProjectsEngineStore, ProjectsPlanningService } from "@aria/work";
 import {
   ProjectsRepoService,
   ProjectsWorktreeService,
@@ -38,7 +29,7 @@ async function createRepository(prefix: string): Promise<ProjectsEngineRepositor
 }
 
 describe("project package surfaces", () => {
-  test("@aria/projects preserves tracked-work planning through the package seam", async () => {
+  test("@aria/work preserves tracked-work planning through the package seam", async () => {
     const repository = await createRepository("aria-projects-package-");
     const now = Date.now();
 
@@ -71,7 +62,7 @@ describe("project package surfaces", () => {
       workspaceId: "workspace-stale",
       environmentId: "env-stale",
       environmentBindingId: "binding-stale",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now,
     });
@@ -97,7 +88,7 @@ describe("project package surfaces", () => {
       workspaceId: "workspace-stale",
       environmentId: "env-stale",
       environmentBindingId: "binding-stale",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now + 2,
     });
@@ -217,7 +208,7 @@ describe("project package surfaces", () => {
       workspaceId: "workspace-stale",
       environmentId: "env-stale",
       environmentBindingId: "binding-stale",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now,
     });
@@ -243,7 +234,7 @@ describe("project package surfaces", () => {
       workspaceId: "workspace-stale",
       environmentId: "env-stale",
       environmentBindingId: "binding-stale",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now + 2,
     });
@@ -264,8 +255,8 @@ describe("project package surfaces", () => {
       repoId: "repo-1",
       worktreeId: null,
       status: "queued",
-      requestedBackend: "codex",
-      requestedModel: "gpt-5.4",
+      requestedBackend: "aria",
+      requestedModel: null,
       executionSessionId: null,
       summary: null,
       error: null,
@@ -287,16 +278,10 @@ describe("project package surfaces", () => {
       workspaceId: "workspace-active",
       environmentId: "env-active",
       environmentBindingId: "binding-active",
-      agentId: "codex",
-      requestedBackend: "codex",
-      requestedModel: "gpt-5.4",
+      agentId: "aria-agent",
+      requestedBackend: "aria",
+      requestedModel: null,
     });
     repository.close();
-  });
-
-  test("@aria/agents-coding re-exports shared coding-agent adapters", () => {
-    expect(createCodexRuntimeBackendAdapter().backend).toBe("codex");
-    expect(createClaudeCodeRuntimeBackendAdapter().backend).toBe("claude-code");
-    expect(createOpenCodeRuntimeBackendAdapter().backend).toBe("opencode");
   });
 });

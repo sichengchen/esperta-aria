@@ -1,5 +1,5 @@
 import { Type } from "@mariozechner/pi-ai";
-import type { ToolImpl } from "@aria/agent-aria";
+import type { ToolImpl } from "@aria/agent";
 import type { SkillRegistry } from "@aria/memory";
 
 /** Create a tool that lets the Agent read and activate a skill's full instructions */

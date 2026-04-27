@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { ToolLoopDetector, capToolResultSize } from "../packages/agent-aria/src/index.js";
+import { ToolLoopDetector, capToolResultSize } from "../packages/agent/src/index.js";
 
-describe("@aria/agent-aria package entrypoints", () => {
+describe("@aria/agent package entrypoints", () => {
   test("re-exports tool loop detector", () => {
     const detector = new ToolLoopDetector({ warnThreshold: 2, blockThreshold: 3 });
     expect(detector.checkBeforeExecution("read", { path: "README.md" }).level).toBe("ok");

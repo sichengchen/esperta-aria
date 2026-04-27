@@ -6,8 +6,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const TARGET_ENTRYPOINT_PACKAGE_DIRS = [
   "packages/access-client/src",
-  "packages/agents-coding/src",
-  "packages/connectors-im/src",
+  "packages/connectors/src",
   "packages/console/src",
   "packages/handoff/src",
   "packages/jobs/src",
@@ -15,7 +14,7 @@ const TARGET_ENTRYPOINT_PACKAGE_DIRS = [
   "packages/automation/src",
   "packages/policy/src",
   "packages/prompt/src",
-  "packages/projects/src",
+  "packages/work/src",
   "packages/protocol/src",
   "packages/server/src",
   "packages/workspaces/src",

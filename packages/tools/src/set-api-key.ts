@@ -1,5 +1,5 @@
 import { Type } from "@mariozechner/pi-ai";
-import type { ToolImpl } from "@aria/agent-aria";
+import type { ToolImpl } from "@aria/agent";
 import type { ConfigManager } from "@aria/server/config";
 
 /** Environment variables that must not be overwritten by the agent (injection risk). */

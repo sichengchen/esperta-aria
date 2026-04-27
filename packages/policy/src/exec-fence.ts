@@ -4,7 +4,7 @@
 
 import { homedir } from "node:os";
 import { resolve, normalize } from "node:path";
-import type { SecurityBlock } from "@aria/agent-aria";
+import type { SecurityBlock } from "@aria/agent";
 
 const HOME = homedir();
 

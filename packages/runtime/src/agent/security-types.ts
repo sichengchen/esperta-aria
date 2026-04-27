@@ -1,1 +1,1 @@
-export * from "@aria/agent-aria/security-types";
+export * from "@aria/agent/security-types";

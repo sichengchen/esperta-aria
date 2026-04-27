@@ -1,5 +1,5 @@
 import { ProjectsDispatchService } from "@aria/jobs";
-import type { ProjectsEngineRepository } from "@aria/projects";
+import type { ProjectsEngineRepository } from "@aria/work";
 import type { HandoffRecord, HandoffSubmission } from "./types.js";
 import { HandoffStore } from "./store.js";
 
@@ -32,9 +32,8 @@ function parsePayload(payloadJson?: string | null): ParsedHandoffPayload {
       workspaceId: typeof parsed.workspaceId === "string" ? parsed.workspaceId : null,
       environmentId: typeof parsed.environmentId === "string" ? parsed.environmentId : null,
       agentId: typeof parsed.agentId === "string" ? parsed.agentId : null,
-      requestedBackend:
-        typeof parsed.requestedBackend === "string" ? parsed.requestedBackend : null,
-      requestedModel: typeof parsed.requestedModel === "string" ? parsed.requestedModel : null,
+      requestedBackend: null,
+      requestedModel: null,
     };
   } catch {
     return { body: payloadJson };
@@ -146,7 +145,7 @@ export class HandoffService {
         workspaceId: payload.workspaceId ?? null,
         environmentId: payload.environmentId ?? null,
         environmentBindingId: null,
-        agentId: payload.agentId ?? payload.requestedBackend ?? null,
+        agentId: payload.agentId ?? "aria-agent",
         createdAt: now,
         updatedAt: now,
       });
@@ -186,8 +185,8 @@ export class HandoffService {
       repoId: payload.repoId ?? repository.getThread(threadId)?.repoId ?? null,
       worktreeId: null,
       status: "queued",
-      requestedBackend: payload.requestedBackend ?? null,
-      requestedModel: payload.requestedModel ?? null,
+      requestedBackend: "aria",
+      requestedModel: null,
       executionSessionId: null,
       summary: null,
       error: null,
@@ -206,7 +205,7 @@ export class HandoffService {
         workspaceId: payload.workspaceId ?? null,
         environmentId: payload.environmentId ?? null,
         environmentBindingId: null,
-        agentId: payload.agentId ?? payload.requestedBackend ?? null,
+        agentId: payload.agentId ?? "aria-agent",
         createdAt: now,
       }),
       title:
@@ -217,11 +216,7 @@ export class HandoffService {
       workspaceId: repository.getThread(threadId)?.workspaceId ?? payload.workspaceId ?? null,
       environmentId: repository.getThread(threadId)?.environmentId ?? payload.environmentId ?? null,
       environmentBindingId: repository.getThread(threadId)?.environmentBindingId ?? null,
-      agentId:
-        repository.getThread(threadId)?.agentId ??
-        payload.agentId ??
-        payload.requestedBackend ??
-        null,
+      agentId: repository.getThread(threadId)?.agentId ?? payload.agentId ?? "aria-agent",
       updatedAt: now,
     });
 

@@ -1,9 +1,9 @@
 import { ProjectsDispatchService } from "./dispatch.js";
 import { createRuntimeBackendRegistry } from "./backend-registry.js";
 import type { DispatchExecutionEvent } from "./bridge.js";
-import type { ProjectsEngineRepository } from "@aria/projects";
-import type { RuntimeBackendAdapter, RuntimeBackendExecutionEvent } from "@aria/agents-coding";
+import type { ProjectsEngineRepository } from "@aria/work";
 import type { EngineRuntime } from "@aria/server/runtime";
+import type { RuntimeBackendAdapter, RuntimeBackendExecutionEvent } from "./runtime-backend.js";
 
 function buildDispatchPrompt(repository: ProjectsEngineRepository, dispatchId: string): string {
   const dispatch = repository.getDispatch(dispatchId);
@@ -140,23 +140,20 @@ export async function runDispatchExecution(
   const dispatchService = new ProjectsDispatchService(repository);
   const launch = dispatchService.buildLaunchRequest(dispatchId);
   const backendRegistry = options.backendRegistry ?? createRuntimeBackendRegistry(runtime);
-  const backendId = launch.requestedBackend ?? "aria";
+  const backendId = "aria";
   const backend = backendRegistry.get(backendId);
   if (!backend) {
     throw new Error(`Runtime backend not found: ${backendId}`);
   }
 
-  const executionSessionId =
-    backendId === "aria"
-      ? runtime.sessions.create(`dispatch:${dispatchId}`, "engine").id
-      : `${backendId}:${dispatchId}`;
+  const executionSessionId = runtime.sessions.create(`dispatch:${dispatchId}`, "engine").id;
 
   dispatchService.acceptDispatch({
     dispatchId,
     executionSessionId,
     acceptedAt: Date.now(),
-    effectiveBackend: backendId,
-    effectiveModel: launch.requestedModel ?? null,
+    effectiveBackend: "aria",
+    effectiveModel: null,
   });
 
   let result;
@@ -168,7 +165,7 @@ export async function runDispatchExecution(
         workingDirectory: launch.worktreePath ?? process.cwd(),
         timeoutMs: 10 * 60 * 1000,
         approvalMode: "gated",
-        sessionId: backendId === "aria" ? executionSessionId : null,
+        sessionId: executionSessionId,
         threadId: launch.threadId,
         taskId: launch.taskId ?? null,
         metadata: buildDispatchMetadata(launch),

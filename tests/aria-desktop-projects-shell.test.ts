@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  EnvironmentRecord,
-  ProjectRecord,
-  RepoRecord,
-  ThreadRecord,
-} from "@aria/projects/types";
+import type { EnvironmentRecord, ProjectRecord, RepoRecord, ThreadRecord } from "@aria/work/types";
 
 function createProjectRecord(projectId: string, name: string, updatedAt: number): ProjectRecord {
   return {
@@ -42,7 +37,7 @@ function createThreadRecord(
   updatedAt: number,
 ): ThreadRecord {
   return {
-    agentId: "codex",
+    agentId: "aria-agent",
     createdAt: updatedAt,
     environmentBindingId: "binding-1",
     environmentId: "env-1",

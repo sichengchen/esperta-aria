@@ -1,1 +1,1 @@
-export * from "@aria/agent-aria/tool-result-guard";
+export * from "@aria/agent/tool-result-guard";

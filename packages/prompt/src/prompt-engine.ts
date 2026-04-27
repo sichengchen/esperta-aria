@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import type { Message } from "@mariozechner/pi-ai";
-import type { ToolImpl } from "@aria/agent-aria";
+import type { ToolImpl } from "@aria/agent";
 import type { ModelRouter } from "@aria/gateway/router";
 import type { ConfigManager } from "@aria/server/config";
 import type { MemoryManager, SkillRegistry } from "@aria/memory";
-import type { OperationalStore } from "@aria/store";
+import type { OperationalStore } from "@aria/persistence";
 import { formatSkillsDiscovery } from "@aria/memory";
 import { listToolsets } from "@aria/tools";
 import { buildContextFilesPrompt } from "./context-files.js";

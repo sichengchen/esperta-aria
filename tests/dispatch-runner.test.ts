@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import { runDispatchExecution } from "@aria/jobs";
-import { ProjectsEngineRepository, ProjectsEngineStore } from "@aria/projects";
+import { ProjectsEngineRepository, ProjectsEngineStore } from "@aria/work";
 import type {
   RuntimeBackendAdapter,
   RuntimeBackendExecutionObserver,
   RuntimeBackendExecutionRequest,
   RuntimeBackendExecutionResult,
-} from "@aria/agents-coding";
+} from "@aria/jobs/runtime-backend";
 
 const stores: ProjectsEngineStore[] = [];
 
@@ -28,8 +28,8 @@ function createFakeBackend(options: {
   ): Promise<RuntimeBackendExecutionResult>;
 }): RuntimeBackendAdapter {
   return {
-    backend: "fake",
-    displayName: "Fake Backend",
+    backend: "aria",
+    displayName: "Aria Agent",
     capabilities: {
       supportsStreamingEvents: true,
       supportsCancellation: true,
@@ -49,6 +49,23 @@ function createFakeBackend(options: {
     execute: options.execute,
     async cancel() {},
   };
+}
+
+function createFakeRuntime() {
+  return {
+    sessions: {
+      create(title: string) {
+        return {
+          createdAt: Date.now(),
+          id: `${title}:session-1`,
+          kind: "engine",
+          messages: [],
+          title,
+          updatedAt: Date.now(),
+        };
+      },
+    },
+  } as never;
 }
 
 afterEach(() => {
@@ -91,7 +108,7 @@ describe("runDispatchExecution", () => {
       workspaceId: "workspace-1",
       environmentId: "env-stale",
       environmentBindingId: "binding-stale",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now,
     });
@@ -117,7 +134,7 @@ describe("runDispatchExecution", () => {
       workspaceId: "workspace-1",
       environmentId: "env-stale",
       environmentBindingId: "binding-stale",
-      agentId: "codex",
+      agentId: "aria-agent",
       createdAt: now,
       updatedAt: now + 2,
     });
@@ -144,7 +161,7 @@ describe("runDispatchExecution", () => {
       async execute(request, observer) {
         await observer?.onEvent?.({
           type: "execution.started",
-          backend: "fake",
+          backend: "aria",
           executionId: request.executionId,
           timestamp: now + 1,
           metadata: request.metadata,
@@ -157,7 +174,7 @@ describe("runDispatchExecution", () => {
           workspaceId: "workspace-1",
           environmentId: "env-active",
           environmentBindingId: "binding-active",
-          agentId: "codex",
+          agentId: "aria-agent",
         });
         expect(request.prompt).toContain("Environment: env-active");
         expect(request.prompt).toContain("Environment binding: binding-active");
@@ -165,7 +182,7 @@ describe("runDispatchExecution", () => {
 
         await observer?.onEvent?.({
           type: "execution.waiting_approval",
-          backend: "fake",
+          backend: "aria",
           executionId: request.executionId,
           timestamp: now + 2,
           metadata: {
@@ -177,7 +194,7 @@ describe("runDispatchExecution", () => {
 
         await observer?.onEvent?.({
           type: "execution.completed",
-          backend: "fake",
+          backend: "aria",
           executionId: request.executionId,
           timestamp: now + 3,
           status: "succeeded",
@@ -186,7 +203,7 @@ describe("runDispatchExecution", () => {
         });
 
         return {
-          backend: "fake",
+          backend: "aria",
           executionId: request.executionId,
           status: "succeeded",
           exitCode: 0,
@@ -199,17 +216,17 @@ describe("runDispatchExecution", () => {
       },
     });
 
-    const result = await runDispatchExecution({} as never, repository, "dispatch-1", {
-      backendRegistry: new Map([["fake", backend]]),
+    const result = await runDispatchExecution(createFakeRuntime(), repository, "dispatch-1", {
+      backendRegistry: new Map([["aria", backend]]),
     });
 
-    expect(result.executionSessionId).toBe("fake:dispatch-1");
+    expect(result.executionSessionId.startsWith("dispatch:dispatch-1")).toBe(true);
     expect(result.status).toBe("succeeded");
     expect(result.summary).toBe("Completed dispatch run");
 
     const dispatch = repository.getDispatch("dispatch-1");
     expect(dispatch?.status).toBe("completed");
-    expect(dispatch?.executionSessionId).toBe("fake:dispatch-1");
+    expect(dispatch?.executionSessionId?.startsWith("dispatch:dispatch-1")).toBe(true);
     expect(dispatch?.summary).toBe("Completed dispatch run");
     expect(dispatch?.acceptedAt).toBeNumber();
     expect(dispatch?.completedAt).toBeNumber();
@@ -247,7 +264,7 @@ describe("runDispatchExecution", () => {
       repoId: null,
       worktreeId: null,
       status: "queued",
-      requestedBackend: "fake",
+      requestedBackend: "aria",
       requestedModel: null,
       executionSessionId: null,
       summary: null,
@@ -261,7 +278,7 @@ describe("runDispatchExecution", () => {
       async execute(request, observer) {
         await observer?.onEvent?.({
           type: "execution.started",
-          backend: "fake",
+          backend: "aria",
           executionId: request.executionId,
           timestamp: now + 1,
           metadata: request.metadata,
@@ -271,14 +288,14 @@ describe("runDispatchExecution", () => {
     });
 
     await expect(
-      runDispatchExecution({} as never, repository, "dispatch-2", {
-        backendRegistry: new Map([["fake", backend]]),
+      runDispatchExecution(createFakeRuntime(), repository, "dispatch-2", {
+        backendRegistry: new Map([["aria", backend]]),
       }),
     ).rejects.toThrow("backend exploded");
 
     const dispatch = repository.getDispatch("dispatch-2");
     expect(dispatch?.status).toBe("failed");
-    expect(dispatch?.executionSessionId).toBe("fake:dispatch-2");
+    expect(dispatch?.executionSessionId?.startsWith("dispatch:dispatch-2")).toBe(true);
     expect(dispatch?.error).toBe("backend exploded");
     expect(dispatch?.acceptedAt).toBeNumber();
     expect(dispatch?.completedAt).toBeNumber();

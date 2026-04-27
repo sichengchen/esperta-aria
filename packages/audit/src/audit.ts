@@ -16,7 +16,7 @@ import {
   readFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import type { DangerLevel } from "@aria/agent-aria";
+import type { DangerLevel } from "@aria/agent";
 
 /** Event types recorded in the audit log */
 export type AuditEvent =

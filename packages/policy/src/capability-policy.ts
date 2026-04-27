@@ -1,4 +1,4 @@
-import type { DangerLevel, ToolImpl } from "@aria/agent-aria";
+import type { DangerLevel, ToolImpl } from "@aria/agent";
 import type { ToolApprovalMode } from "@aria/protocol";
 import { getPrimaryToolset } from "@aria/tools/toolsets";
 

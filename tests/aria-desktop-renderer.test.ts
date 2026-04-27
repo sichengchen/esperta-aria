@@ -14,6 +14,7 @@ import {
   resolveComposerPromptQuery,
 } from "../apps/aria-desktop/src/renderer/src/components/AriaChatComposer.js";
 import { AriaMessageItem } from "../apps/aria-desktop/src/renderer/src/components/AriaMessageItem.js";
+import { DesktopSpaceTabs } from "../apps/aria-desktop/src/renderer/src/components/DesktopSpaceTabs.js";
 
 const SAMPLE_ARIA_STATE: AriaDesktopAriaShellState = {
   automations: {
@@ -91,26 +92,26 @@ const SAMPLE_PROJECT = {
   rootPath: "/tmp/desktop-shell",
   threads: [
     {
-      agentId: "opencode",
+      agentId: "aria-agent",
       environmentId: "env-1",
       status: "dirty" as const,
       statusLabel: "Dirty",
       threadId: "thread-1",
       threadType: "local_project" as const,
       threadTypeLabel: "Local Project",
-      title: "Desktop Projects OpenCode",
+      title: "Desktop Projects Aria",
       updatedAt: 100,
     },
   ],
 };
 
 const SAMPLE_PROJECT_THREAD_STATE = {
-  agentId: "opencode",
-  agentLabel: "OpenCode",
+  agentId: "aria-agent",
+  agentLabel: "Aria Agent",
   backendSessionId: "ses_1",
   changedFiles: ["src/desktop.tsx"],
   chat: {
-    agentName: "OpenCode",
+    agentName: "Aria Agent",
     approvalMode: "never" as const,
     connected: true,
     isStreaming: false,
@@ -158,18 +159,11 @@ const SAMPLE_PROJECT_THREAD_STATE = {
       modelId: null,
       modelLabel: "Default",
       providerLabel: null,
-      selected: false,
-    },
-    {
-      label: "OpenAI / GPT-5",
-      modelId: "openai/gpt-5",
-      modelLabel: "GPT-5",
-      providerLabel: "OpenAI",
       selected: true,
     },
   ],
-  modelId: "openai/gpt-5",
-  modelLabel: "GPT-5",
+  modelId: null,
+  modelLabel: "Default",
   promptSuggestions: {
     files: [
       {
@@ -198,10 +192,24 @@ const SAMPLE_PROJECT_THREAD_STATE = {
   threadId: "thread-1",
   threadType: "local_project" as const,
   threadTypeLabel: "Local Project",
-  title: "Desktop Projects OpenCode",
+  title: "Desktop Projects Aria",
 };
 
 describe("desktop aria renderer", () => {
+  test("renders desktop space tabs with operator-facing labels", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DesktopSpaceTabs, {
+        activeSpace: "projects",
+        onSelectSpace: () => {},
+      }),
+    );
+
+    expect(html).toContain("Chat");
+    expect(html).toContain("Projects");
+    expect(html).not.toContain("Everyday");
+    expect(html).not.toContain("Aria");
+  });
+
   test("renders the aria sidebar in the required order", () => {
     const html = renderToStaticMarkup(
       React.createElement(AriaSidebar, {
@@ -257,8 +265,8 @@ describe("desktop aria renderer", () => {
       }),
     );
 
-    expect(html).toContain("Unpin Desktop Projects OpenCode");
-    expect(html).toContain("Archive Desktop Projects OpenCode");
+    expect(html).toContain("Unpin Desktop Projects Aria");
+    expect(html).toContain("Archive Desktop Projects Aria");
   });
 
   test("renders the empty chat state as a centered composer with send button", () => {
@@ -421,7 +429,7 @@ describe("desktop aria renderer", () => {
     expect(html).toContain("main");
     expect(html).not.toContain("This Device / main");
     expect(html).not.toContain("Select coding agent:");
-    expect(html).toContain("Model: GPT-5");
+    expect(html).toContain("Model: Default");
     expect(html).toContain("aria-chat-view");
     expect(html).toContain("aria-message-user-bubble");
     expect(html).toContain("Implemented the local agent view.");

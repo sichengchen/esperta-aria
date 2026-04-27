@@ -1,4 +1,4 @@
-import type { ToolImpl } from "@aria/agent-aria";
+import type { ToolImpl } from "@aria/agent";
 
 export interface ToolsetDefinition {
   name: string;
@@ -103,11 +103,11 @@ const BUILTIN_TOOLSET_DEFINITIONS: ToolsetDefinition[] = [
   },
   {
     name: "coding",
-    description: "Use external coding agents for implementation assistance.",
-    tools: ["claude_code", "codex"],
-    capabilityScope: "external",
+    description: "Use Aria-native file, terminal, git, and project tools for implementation work.",
+    tools: ["read", "write", "edit", "exec", "exec_status", "exec_kill"],
+    capabilityScope: "workspace",
     executionEnvironment: "local",
-    isolationBoundary: "runtime",
+    isolationBoundary: "workspace",
     approvalPolicy: "operator_gated",
     auditDomain: "coding",
     frontendVisibilityDefault: "summary",

@@ -3,8 +3,8 @@ import type {
   ProjectRecord,
   RepoRecord,
   ThreadRecord,
-} from "../../../../packages/projects/src/types.js";
-import { createProjectThreadListItem } from "../../../../packages/projects/src/view-models.js";
+} from "../../../../packages/work/src/types.js";
+import { createProjectThreadListItem } from "../../../../packages/work/src/view-models.js";
 import type {
   AriaDesktopProjectGroup,
   AriaDesktopProjectShellState,

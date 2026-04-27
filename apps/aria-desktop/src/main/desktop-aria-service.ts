@@ -1,4 +1,4 @@
-import type { AutomationRunRecord, AutomationTaskRecord } from "@aria/store";
+import type { AutomationRunRecord, AutomationTaskRecord } from "@aria/persistence";
 import {
   createAccessClient,
   createTargetAriaChatController,

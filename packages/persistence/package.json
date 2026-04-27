@@ -1,5 +1,5 @@
 {
-  "name": "@aria/store",
+  "name": "@aria/persistence",
   "version": "0.0.0",
   "private": true,
   "description": "Aria durable operational store and persistence services",

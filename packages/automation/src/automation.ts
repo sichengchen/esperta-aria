@@ -1,13 +1,13 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Agent } from "@aria/agent-aria";
+import { Agent } from "@aria/agent";
 import type { EngineRuntime } from "@aria/server/runtime";
 import { createSessionToolEnvironment, mergeAllowedTools } from "@aria/tools";
 import type {
   AutomationDeliveryStatus,
   AutomationTaskType,
   AutomationRunStatus,
-} from "@aria/store/operational-store";
+} from "@aria/persistence/operational-store";
 import type { CronTask, DeliveryTarget, RetryPolicy, WebhookTask } from "./config.js";
 import { CRON_DEFAULT_TOOLS, WEBHOOK_DEFAULT_TOOLS } from "./config.js";
 import { computeNextRunAt } from "./automation-schedule.js";

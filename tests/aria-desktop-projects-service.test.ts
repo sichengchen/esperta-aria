@@ -5,8 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { RuntimeBackendAdapter, RuntimeBackendExecutionRequest } from "@aria/agents-coding";
-import type { OpenCodeModelOption } from "../packages/agents-coding/src/opencode.js";
+import type {
+  RuntimeBackendAdapter,
+  RuntimeBackendExecutionRequest,
+} from "@aria/jobs/runtime-backend";
 
 let testDir = "";
 
@@ -60,28 +62,11 @@ async function waitFor<T>(callback: () => T | null | undefined, timeoutMs = 2000
   throw new Error("Timed out waiting for condition");
 }
 
-function createFakeOpenCodeBackend() {
+function createFakeAriaBackend() {
   const requests: RuntimeBackendExecutionRequest[] = [];
-  const models: OpenCodeModelOption[] = [
-    { label: "OpenAI / GPT-5", modelId: "openai/gpt-5" },
-    { label: "Anthropic / Sonnet 4.5", modelId: "anthropic/claude-sonnet-4-5" },
-  ];
 
-  const adapter: RuntimeBackendAdapter & {
-    listModels: (input: {
-      env?: Record<string, string>;
-      timeoutMs?: number;
-      workingDirectory: string;
-    }) => Promise<OpenCodeModelOption[]>;
-    syncSessionTitle: (input: {
-      env?: Record<string, string>;
-      modelId?: string | null;
-      sessionId: string;
-      timeoutMs?: number;
-      workingDirectory: string;
-    }) => Promise<string | null>;
-  } = {
-    backend: "opencode",
+  const adapter: RuntimeBackendAdapter = {
+    backend: "aria",
     capabilities: {
       supportsAuthProbe: false,
       supportsBackgroundExecution: false,
@@ -90,14 +75,14 @@ function createFakeOpenCodeBackend() {
       supportsStreamingEvents: false,
       supportsStructuredOutput: true,
     },
-    displayName: "OpenCode",
+    displayName: "Aria Agent",
     async cancel() {},
     async execute(request) {
       requests.push(request);
       const sessionId = request.sessionId ?? `ses_${requests.length}`;
 
       return {
-        backend: "opencode",
+        backend: "aria",
         executionId: request.executionId,
         exitCode: 0,
         filesChanged: ["src/desktop-projects.ts"],
@@ -118,15 +103,9 @@ function createFakeOpenCodeBackend() {
         reason: null,
       };
     },
-    async listModels() {
-      return models;
-    },
-    async syncSessionTitle() {
-      return "Handled by OpenCode";
-    },
   };
 
-  return { adapter, models, requests };
+  return { adapter, requests };
 }
 
 beforeEach(async () => {
@@ -354,7 +333,7 @@ describe("DesktopProjectsService", () => {
       .get(threadId) as { binding_id: string; is_active: number } | undefined;
 
     expect(thread).toMatchObject({
-      agent_id: "opencode",
+      agent_id: "aria-agent",
       thread_id: threadId,
       thread_type: "local_project",
     });
@@ -369,17 +348,16 @@ describe("DesktopProjectsService", () => {
     service.close();
   });
 
-  test("persists project-thread chat history and reuses the opencode session across turns", async () => {
+  test("persists project-thread chat history and reuses the Aria session across turns", async () => {
     const { DesktopProjectsService } =
       await import("../apps/aria-desktop/src/main/desktop-projects-service.js");
     const dbPath = join(testDir, "desktop", "aria-desktop.db");
     const projectPath = await createProjectDirectory("projects/local-agent-project");
-    const backend = createFakeOpenCodeBackend();
+    const backend = createFakeAriaBackend();
     let now = 5_000;
     const service = new DesktopProjectsService({
-      backendRegistry: new Map([["opencode", backend.adapter]]),
+      backendRegistry: new Map([["aria-agent", backend.adapter]]),
       dbPath,
-      localAgentRuntimeRoot: join(testDir, "opencode-runtime"),
       now: () => {
         now += 1;
         return now;
@@ -391,33 +369,27 @@ describe("DesktopProjectsService", () => {
     const imported = await service.importLocalProjectFromPath(projectPath);
     const threadId = imported.selectedThreadId;
     expect(threadId).toBeTruthy();
-    await waitFor(() =>
-      service
-        .getProjectShellState()
-        .selectedThreadState?.availableModels.find((option) => option.modelId === "openai/gpt-5"),
-    );
 
-    const modelSelected = service.setProjectThreadModel(threadId!, "openai/gpt-5");
+    const modelSelected = service.setProjectThreadModel(threadId!, null);
     const first = await service.sendProjectThreadMessage(threadId!, "Implement the project pane");
     const second = await service.sendProjectThreadMessage(threadId!, "Keep going");
 
     expect(backend.requests).toHaveLength(2);
     expect(modelSelected.selectedThreadState).toMatchObject({
-      modelId: "openai/gpt-5",
-      modelLabel: "GPT-5",
+      modelId: null,
+      modelLabel: "Default",
     });
-    expect(backend.requests[0]?.modelId).toBe("openai/gpt-5");
+    expect(backend.requests[0]?.modelId).toBeNull();
     expect(backend.requests[0]?.sessionId).toBeNull();
     expect(backend.requests[0]?.env?.XDG_DATA_HOME).toBeUndefined();
     expect(backend.requests[1]?.sessionId).toBe("ses_1");
 
     expect(first.selectedThreadState).toMatchObject({
-      agentId: "opencode",
-      agentLabel: "OpenCode",
+      agentId: "aria-agent",
+      agentLabel: "Aria Agent",
       backendSessionId: "ses_1",
       changedFiles: ["src/desktop-projects.ts"],
       status: "dirty",
-      title: "Handled by OpenCode",
     });
     expect(second.selectedThreadState?.chat.messages.map((message) => message.content)).toEqual([
       "Implement the project pane",
@@ -429,9 +401,8 @@ describe("DesktopProjectsService", () => {
     service.close();
 
     const reopened = new DesktopProjectsService({
-      backendRegistry: new Map([["opencode", backend.adapter]]),
+      backendRegistry: new Map([["aria-agent", backend.adapter]]),
       dbPath,
-      localAgentRuntimeRoot: join(testDir, "opencode-runtime"),
       readGitMetadata: async () => null,
     });
     reopened.init();
@@ -452,12 +423,12 @@ describe("DesktopProjectsService", () => {
     reopened.close();
   });
 
-  test("expands OpenCode $skills and @files before dispatching a project-thread prompt", async () => {
+  test("expands project $skills and @files before dispatching a project-thread prompt", async () => {
     const { DesktopProjectsService } =
       await import("../apps/aria-desktop/src/main/desktop-projects-service.js");
     const dbPath = join(testDir, "desktop", "aria-desktop.db");
     const projectPath = await createProjectDirectory("projects/prompt-context-project");
-    const backend = createFakeOpenCodeBackend();
+    const backend = createFakeAriaBackend();
 
     await writeFile(
       join(projectPath, "README.md"),
@@ -484,9 +455,8 @@ describe("DesktopProjectsService", () => {
     );
 
     const service = new DesktopProjectsService({
-      backendRegistry: new Map([["opencode", backend.adapter]]),
+      backendRegistry: new Map([["aria-agent", backend.adapter]]),
       dbPath,
-      localAgentRuntimeRoot: join(testDir, "opencode-runtime"),
       readGitMetadata: async () => null,
     });
 
@@ -526,16 +496,15 @@ describe("DesktopProjectsService", () => {
     service.close();
   });
 
-  test("switches the active project thread branch and model through desktop transitions", async () => {
+  test("switches the active project thread branch through desktop transitions", async () => {
     const { DesktopProjectsService } =
       await import("../apps/aria-desktop/src/main/desktop-projects-service.js");
     const dbPath = join(testDir, "desktop", "aria-desktop.db");
     const projectPath = await createProjectDirectory("projects/branch-switch-project");
-    const backendRegistry = new Map([["opencode", createFakeOpenCodeBackend().adapter]]);
+    const backendRegistry = new Map([["aria-agent", createFakeAriaBackend().adapter]]);
     const service = new DesktopProjectsService({
       backendRegistry,
       dbPath,
-      localAgentRuntimeRoot: join(testDir, "opencode-runtime"),
       readGitMetadata: async () => null,
     });
 
@@ -543,11 +512,6 @@ describe("DesktopProjectsService", () => {
     const imported = await service.importLocalProjectFromPath(projectPath);
     const threadId = imported.selectedThreadId!;
     const projectId = imported.selectedProjectId!;
-    await waitFor(() =>
-      service
-        .getProjectShellState()
-        .selectedThreadState?.availableModels.find((option) => option.modelId === "openai/gpt-5"),
-    );
 
     const db = new Database(dbPath);
     db.prepare(
@@ -570,12 +534,7 @@ describe("DesktopProjectsService", () => {
     db.close();
 
     const switchedEnvironment = service.switchProjectThreadEnvironment(threadId, "env-worktree");
-    await waitFor(() =>
-      service
-        .getProjectShellState()
-        .selectedThreadState?.availableModels.find((option) => option.modelId === "openai/gpt-5"),
-    );
-    const switchedModel = service.setProjectThreadModel(threadId, "openai/gpt-5");
+    const switchedModel = service.setProjectThreadModel(threadId, null);
 
     expect(switchedEnvironment.selectedThreadState).toMatchObject({
       backendSessionId: null,
@@ -592,19 +551,14 @@ describe("DesktopProjectsService", () => {
       ]),
     );
     expect(switchedModel.selectedThreadState).toMatchObject({
-      agentId: "opencode",
-      agentLabel: "OpenCode",
-      modelId: "openai/gpt-5",
-      modelLabel: "GPT-5",
+      agentId: "aria-agent",
+      agentLabel: "Aria Agent",
+      modelId: null,
+      modelLabel: "Default",
     });
     expect(switchedModel.selectedThreadState?.availableModels).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          label: "OpenAI / GPT-5",
-          modelId: "openai/gpt-5",
-          selected: true,
-        }),
-        expect.objectContaining({ label: "Default", modelId: null, selected: false }),
+        expect.objectContaining({ label: "Default", modelId: null, selected: true }),
       ]),
     );
 

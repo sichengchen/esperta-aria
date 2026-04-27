@@ -14,7 +14,7 @@ import {
   createProjectServerRoster,
   createProjectThreadListItem,
   createStatusBadgeLabel,
-} from "@aria/projects/client";
+} from "@aria/work/client";
 
 describe("client surfaces", () => {
   test("normalizes multi-server access and project thread summaries", () => {

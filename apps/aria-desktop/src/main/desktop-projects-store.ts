@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { PROJECTS_ENGINE_SCHEMA_SQL } from "../../../../packages/projects/src/schema.js";
+import { PROJECTS_ENGINE_SCHEMA_SQL } from "../../../../packages/work/src/schema.js";
 import type { AriaDesktopChatMessage } from "../shared/api.js";
 import type {
   EnvironmentRecord,
@@ -9,7 +9,7 @@ import type {
   ThreadEnvironmentBindingRecord,
   ThreadRecord,
   WorkspaceRecord,
-} from "../../../../packages/projects/src/types.js";
+} from "../../../../packages/work/src/types.js";
 import type { DesktopShellStateRow } from "./desktop-projects-shell.js";
 import { createDesktopSqliteDatabase, type SqliteDatabaseLike } from "./desktop-sqlite.js";
 

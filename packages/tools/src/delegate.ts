@@ -3,10 +3,10 @@
  */
 
 import { Type } from "@sinclair/typebox";
-import type { ToolImpl } from "@aria/agent-aria";
+import type { ToolImpl } from "@aria/agent";
 import type { ModelRouter } from "@aria/gateway/router";
-import { Orchestrator } from "@aria/agent-aria/orchestrator";
-import { SubAgent } from "@aria/agent-aria/sub-agent";
+import { Orchestrator } from "@aria/agent/orchestrator";
+import { SubAgent } from "@aria/agent/sub-agent";
 
 export interface DelegateToolDeps {
   router: ModelRouter;

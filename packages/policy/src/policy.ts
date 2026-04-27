@@ -1,4 +1,4 @@
-import type { DangerLevel } from "@aria/agent-aria";
+import type { DangerLevel } from "@aria/agent";
 import type { ConnectorType, ToolApprovalMode } from "@aria/protocol";
 import type { ToolPolicyConfig, ToolVerbosity } from "@aria/server/config";
 

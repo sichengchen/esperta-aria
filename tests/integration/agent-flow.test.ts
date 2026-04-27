@@ -1,5 +1,5 @@
 import { describe, test, expect, afterEach } from "bun:test";
-import { ToolRegistry } from "@aria/agent-aria";
+import { ToolRegistry } from "@aria/agent";
 import { createWebFetchTool, getBuiltinTools } from "@aria/tools";
 import { rm, mkdir } from "node:fs/promises";
 import { join } from "node:path";

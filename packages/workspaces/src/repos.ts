@@ -1,5 +1,5 @@
 import type { RepoRecord } from "./types.js";
-import type { ProjectsEngineRepository } from "@aria/projects/repository";
+import type { ProjectsEngineRepository } from "@aria/work/repository";
 
 export class ProjectsRepoService {
   constructor(private readonly repository: ProjectsEngineRepository) {}

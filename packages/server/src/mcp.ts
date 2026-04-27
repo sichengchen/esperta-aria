@@ -2,8 +2,8 @@ import { Client } from "@modelcontextprotocol/sdk/client";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CompatibilityCallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { DangerLevel, ToolImpl, ToolResult } from "@aria/agent-aria";
-import type { OperationalStore } from "@aria/store";
+import type { DangerLevel, ToolImpl, ToolResult } from "@aria/agent";
+import type { OperationalStore } from "@aria/persistence";
 import type { MCPServerConfig, MCPServerToolFilterConfig } from "./config/types.js";
 
 export type MCPServerTrust = NonNullable<MCPServerConfig["trust"]>;
