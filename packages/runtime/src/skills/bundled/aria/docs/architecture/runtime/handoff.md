@@ -19,11 +19,11 @@ Handoff accepts idempotent submissions and can materialize them into:
 
 ## Boundary
 
-Handoff exists so Aria-managed intent and project-worker execution stay explicit.
+Handoff exists so Aria-managed intent and project execution ownership stay explicit.
 
 - `Aria Agent` can decide to create work
 - `Projects Control` owns the tracked project thread and environment attachment
-- coding-agent execution still happens through local or remote project execution paths
+- execution happens through `Aria Agent` on the selected local or remote node
 
 ## Current Repo Note
 

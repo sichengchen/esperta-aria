@@ -14,7 +14,7 @@ It is a workbench for active operator work.
 
 The desktop shell must optimize for:
 
-- fast context switching between `Aria` and `Projects`
+- fast context switching between `Projects` and `Chat`
 - stable thread identity
 - explicit environment switching
 - durable visibility into runs, approvals, and review state
@@ -34,9 +34,9 @@ The desktop redesign should follow these workbench principles:
 
 These principles still sit under Aria's own architecture:
 
-- `Aria Agent` is server-only
+- `Aria Agent` runs on Aria nodes
 - `Projects` remain unified across local and remote environments
-- `Aria` and `Projects` are separate product spaces
+- `Projects` and `Chat` are separate desktop spaces
 - the environment switch belongs in the active thread view, not the sidebar tree
 
 ## Product Model
@@ -51,19 +51,10 @@ The desktop shell has four persistent regions:
 
 The desktop shell has two top-level spaces:
 
-- `Aria`
 - `Projects`
+- `Chat`
 
 These spaces are not cosmetic. Every screen in the desktop must belong to one of them.
-
-### `Aria` space
-
-The `Aria` space contains server-owned assistant work:
-
-- `Chat`
-- `Inbox`
-- `Automations`
-- `Connectors`
 
 ### `Projects` space
 
@@ -73,6 +64,16 @@ The `Projects` space contains unified project work:
 - `Active Thread`
 
 `Projects` must not split local and remote work into separate top-level trees. A thread stays one thread while its active environment changes.
+
+### `Chat` space
+
+The `Chat` space contains Aria conversations that do not have an attached
+working directory:
+
+- `Chat`
+- `Inbox`
+- `Automations`
+- `Connectors`
 
 ## Design Principles
 
@@ -95,7 +96,7 @@ No static inspector chips pretending to be navigation.
 The center pane is always the primary working surface.
 
 For `Projects`, that means an active thread or thread list.
-For `Aria`, that means the selected Aria screen.
+For `Chat`, that means the selected assistant screen.
 
 ### 4. Inspector, not second app
 
@@ -172,9 +173,9 @@ The left sidebar has two layers:
 1. space and screen navigation
 2. project and thread selection where applicable
 
-### `Aria` sidebar behavior
+### `Chat` sidebar behavior
 
-When `Aria` is active, the sidebar should show:
+When `Chat` is active, the sidebar should show:
 
 - `Chat`
 - `Inbox`
@@ -238,11 +239,11 @@ Shows:
 - active agent when known
 - live stream of messages and runs
 
-The `Projects > Active Thread` conversation surface reuses the same centered transcript lane and composer treatment as `Aria > Chat`.
+The `Projects > Active Thread` conversation surface reuses the same centered transcript lane and composer treatment as `Chat`.
 Thread-specific project metadata stays in the compact thread header and inspector rather than introducing a second chat layout.
 The environment switcher may also open a dedicated create-branch popover and immediately select the resulting local branch when the operator needs a fresh local worktree.
 
-### `Aria > Chat`
+### `Chat`
 
 Shows:
 
@@ -250,7 +251,7 @@ Shows:
 - composer
 - session-level interaction state
 
-### `Aria > Inbox`
+### `Chat > Inbox`
 
 Shows:
 
@@ -258,7 +259,7 @@ Shows:
 - pending questions
 - action items
 
-### `Aria > Automations`
+### `Chat > Automations`
 
 Shows:
 
@@ -266,7 +267,7 @@ Shows:
 - automation status
 - selected automation detail
 
-### `Aria > Connectors`
+### `Chat > Connectors`
 
 Shows:
 
@@ -400,9 +401,9 @@ The following paths must work before the desktop shell is considered usable.
 6. inspect changes, environment, approvals, and artifacts
 7. compose and send a message in the active thread
 
-### `Aria`
+### `Chat`
 
-1. open `Aria`
+1. open `Chat`
 2. switch between `Chat`, `Inbox`, `Automations`, and `Connectors`
 3. search sessions
 4. open a past session
@@ -444,9 +445,9 @@ The desktop should avoid these failures:
 
 The implementation must respect these architecture constraints:
 
-- `Aria Agent` remains server-only
-- `Aria` space screens always represent server-hosted Aria work
-- local project work remains separate from Aria-managed memory
+- `Aria Agent` runs on the selected Aria node
+- `Chat` screens represent Aria work without an attached working directory
+- `Projects` screens represent work with an attached project environment
 - environment switching stays in the active thread view
 - project threads remain unified across local and remote targets
 
@@ -491,10 +492,10 @@ At minimum:
 
 1. `Projects -> Thread List -> Active Thread -> Environment switch -> Compose`
 2. `Projects -> Active Thread -> Review / Changes / Environment`
-3. `Aria -> Chat -> Search session -> Open session -> Stop`
-4. `Aria -> Inbox`
-5. `Aria -> Automations`
-6. `Aria -> Connectors`
+3. `Chat -> Search session -> Open session -> Stop`
+4. `Chat -> Inbox`
+5. `Chat -> Automations`
+6. `Chat -> Connectors`
 7. disconnected shell remains navigable
 
 ## Acceptance Criteria
@@ -502,7 +503,7 @@ At minimum:
 The desktop shell is acceptable only when all of the following are true:
 
 - every visible navigation control changes real shell state
-- `Aria` and `Projects` are both fully navigable spaces
+- `Projects` and `Chat` are both fully navigable spaces
 - every space screen can render in empty, ready, and offline conditions
 - the inspector switches panels without losing the center work surface
 - thread selection and environment switching are real transitions

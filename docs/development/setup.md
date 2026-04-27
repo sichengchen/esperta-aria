@@ -44,7 +44,7 @@ The repo is package-first:
 - `packages/runtime`
 - `packages/handoff`
 - `packages/gateway`
-- `packages/connectors-im`
+- `packages/connectors`
 - `packages/cli`
 
 Import through the package aliases rather than deep relative paths.

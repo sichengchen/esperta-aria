@@ -46,7 +46,7 @@ For `Aria Server`, these buckets are only the starting point. The canonical serv
 
 ```ts
 import { describe, test, expect } from "bun:test";
-import { Agent } from "@aria/agent-aria";
+import { Agent } from "@aria/agent";
 import { makeLiveRouter, describeLive } from "../helpers/live-model.js";
 
 describeLive("Agent chat", () => {

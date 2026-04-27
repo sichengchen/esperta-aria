@@ -4,10 +4,13 @@ This page defines the client-side architecture.
 
 ## Aria Desktop
 
-`Aria Desktop` is the primary operator client. It has two fundamentally different execution modes:
+`Aria Desktop` is the primary operator client. It owns the desktop UI and can
+supervise a local Aria node on the current Mac.
 
-- server-connected mode for `Aria` and project management
-- local execution mode for local project environments
+It has two node attachment modes:
+
+- `This Mac`, the local Desktop node
+- remote headless Aria nodes
 
 ## Recommended Client Toolchain
 
@@ -36,41 +39,41 @@ For the concrete shell decisions, see [../core/tech-decisions.md](../core/tech-d
 ```mermaid
 flowchart LR
     User["User"]
-    Server["Aria Server"]
+    RemoteNode["Remote Aria Node"]
 
     subgraph Desktop["Aria Desktop"]
         direction TB
         Shell["Desktop UI Shell"]
         Access["Access Client"]
+        LocalNode["Local Aria Node"]
         LocalBridge["Local Workspace Bridge"]
-        LocalCoding["Local Coding Agent Adapters"]
         LocalStore["Local Thread Store + UI Cache"]
 
         Shell --> Access
+        Shell --> LocalNode
         Shell --> LocalBridge
         Shell --> LocalStore
 
-        LocalBridge --> LocalCoding
-        LocalCoding --> LocalStore
+        LocalNode --> LocalBridge
         LocalBridge --> LocalStore
     end
 
     LocalFS["Local Folders / Repos / Worktrees"]
 
     User --> Shell
-    Access --> Server
+    Access --> RemoteNode
     LocalBridge --> LocalFS
 ```
 
 ## Desktop Responsibilities
 
-| Component                       | Responsibility                                                                                                                      |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `Desktop UI Shell`              | Sidebar, thread views, project pickers, environment selection, approvals UI                                                         |
-| `Access Client`                 | Connects to one or more `Aria Server` deployments through the built-in gateway over loopback, LAN, VPN, or a published tunnel/proxy |
-| `Local Workspace Bridge`        | Local filesystem, git, worktree, shell, and environment integration                                                                 |
-| `Local Coding Agent Adapters`   | Codex, Claude Code, OpenCode on the current machine                                                                                 |
-| `Local Thread Store + UI Cache` | Local project thread state, local agent transcripts/session cache, local run history, and server metadata cache                     |
+| Component                       | Responsibility                                                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `Desktop UI Shell`              | Sidebar, thread views, project pickers, environment selection, approvals UI                                              |
+| `Access Client`                 | Connects to local or remote Aria nodes through the built-in gateway over loopback, LAN, VPN, or a published tunnel/proxy |
+| `Local Aria Node`               | Runs local Aria Runtime, Aria Agent, tools, store, gateway, and optional connector hosting on `This Mac`                 |
+| `Local Workspace Bridge`        | Local filesystem, git, worktree, shell, and environment integration for the local node                                   |
+| `Local Thread Store + UI Cache` | Local UI state and cache for node-hosted threads, runs, environments, and metadata                                       |
 
 ## Desktop Shell Recommendation
 
@@ -98,7 +101,7 @@ Recommended Aria layout:
 +---------------------------------------------------------------+
 | Sidebar           | Active Thread                | Context    |
 |                   |                              | Panel      |
-| Aria              | header                       |            |
+| Chat              | header                       |            |
 | Projects          |   thread title               | Review     |
 |   Project A       |   environment switch         | Changes    |
 |   Project B       |                              | Job State  |
@@ -108,7 +111,7 @@ Recommended Aria layout:
 +---------------------------------------------------------------+
 ```
 
-This layout fits both Aria comments you raised:
+This layout fits both Desktop comments you raised:
 
 - the sidebar does not split local and remote projects
 - the environment switch lives in the active thread area, not in the tree
@@ -119,13 +122,13 @@ For the detailed desktop workbench design contract, interaction paths, and accep
 
 ```mermaid
 flowchart TB
-    Desktop["Aria Desktop"] --> Aria["Aria"]
-    Desktop --> Projects["Projects"]
+    Desktop["Aria Desktop"] --> Projects["Projects"]
+    Desktop --> Chat["Chat"]
 
-    Aria --> AriaChat["Chat with Aria Agent"]
-    Aria --> AriaInbox["Inbox / Approvals"]
-    Aria --> AriaAuto["Automations"]
-    Aria --> AriaIM["IM Connector Threads"]
+    Chat --> ChatThreads["Chat with Aria Agent"]
+    Chat --> ChatInbox["Inbox / Approvals"]
+    Chat --> ChatAuto["Automations"]
+    Chat --> ChatIM["IM Connector Threads"]
 
     Projects --> ProjectThreads["Unified project threads"]
     ProjectThreads --> EnvSwitch["Environment switch in thread view"]
@@ -139,8 +142,8 @@ The left sidebar should not force a local-vs-remote split for project threads.
 
 Instead:
 
-- keep `Aria` as its own top-level space
 - keep `Projects` as one unified top-level space
+- keep `Chat` as its own top-level space for threads without an attached working directory
 - let each project thread choose its execution environment in the right-side thread view
 
 The execution target is an environment property, not the primary sidebar grouping.
@@ -148,12 +151,6 @@ The execution target is an environment property, not the primary sidebar groupin
 Recommended hierarchy:
 
 ```text
-Aria
-  Chat
-  Inbox
-  Automations
-  Connectors
-
 Projects
   <Project A>
     <Thread 1>
@@ -161,6 +158,12 @@ Projects
   <Project B>
     <Thread 1>
     <Thread 2>
+
+Chat
+  Chat
+  Inbox
+  Automations
+  Connectors
 ```
 
 In the thread header or right-side chat area, the user should see an environment selector such as:
@@ -177,30 +180,31 @@ Environment:
 The context pane should also surface:
 
 - current environment metadata
-- active agent
+- active node
 - job status
 - review findings or diffs
 - approvals or actions related to the current thread
 
 ## Desktop Thread Rules
 
-### Aria threads
+### Chat threads
 
-- always live on an `Aria Server`
+- always live on an Aria node
 - always talk to `Aria Agent`
 - can access Aria-managed memory and automation
+- do not carry an attached project working directory
 
 ### Remote project threads
 
-- are project threads currently attached to a remote environment
-- execute through remote coding agent adapters
+- are project threads currently attached to a remote node environment
+- execute through `Aria Agent` and native runtime tools on that node
 - can continue running when the desktop disconnects
 
 ### Local project threads
 
 - are project threads currently attached to a local environment
-- use local coding agents
-- do not automatically share Aria-managed memory
+- execute through `Aria Agent` and native runtime tools on the Desktop node
+- use the Desktop node's Aria memory and policy
 
 ### Unified project threads
 
@@ -220,16 +224,16 @@ Recommended UX rule:
 
 ## Aria Mobile
 
-`Aria Mobile` is a thin server client.
+`Aria Mobile` is a thin node client.
 
-It should not host local project execution or local coding-agent subprocesses.
+It should not host project execution, connector runtimes, or local agent state.
 
 ## Mobile Component Diagram
 
 ```mermaid
 flowchart LR
     User["User"]
-    Server["Aria Server"]
+    Node["Aria Node"]
 
     subgraph Mobile["Aria Mobile"]
         direction TB
@@ -242,7 +246,7 @@ flowchart LR
     end
 
     User --> MobileShell
-    MobileAccess --> Server
+    MobileAccess --> Node
 ```
 
 ## Mobile Responsibilities
@@ -262,7 +266,7 @@ Mobile should preserve the same conceptual structure as desktop, but collapse pa
 
 Recommended model:
 
-1. top-level tabs or navigation for `Aria` and `Projects`
+1. top-level tabs or navigation for `Projects` and `Chat`
 2. thread list screen
 3. active thread screen with:
    - thread header
@@ -279,7 +283,7 @@ That keeps the thread model consistent across devices.
 
 ## Mobile Non-responsibilities
 
-- no local coding agent execution
+- no project execution
 - no local repo or worktree management
 - no Aria memory ownership
 - no connector hosting
@@ -298,25 +302,24 @@ Mobile may need a native-oriented shell, but the monorepo should still use the s
 
 Both desktop and mobile should share the same access model:
 
-- direct connection to `Aria Server`
-- optional operator-managed VPN/tunnel/reverse-proxy path to the same `Aria Server Gateway`
-- support for multiple servers in one client
-- a stable `serverId` as the root identity boundary
+- direct connection to an Aria node
+- optional operator-managed VPN/tunnel/reverse-proxy path to the same Aria Gateway
+- support for multiple nodes in one client
+- a stable `nodeId` as the root identity boundary
 
 ## Recommended Internal Packages
 
-| Responsibility              | Package                                                   |
-| --------------------------- | --------------------------------------------------------- |
-| Desktop shell               | `@aria/desktop`                                           |
-| Shared access client        | `@aria/access-client`                                     |
-| Shared project client state | `@aria/projects` or a dedicated client-facing slice of it |
-| Desktop local bridge        | `@aria/desktop-bridge`                                    |
-| Local git integration       | `@aria/desktop-git`                                       |
-| Local coding agent adapters | `@aria/agents-coding` or `@aria/desktop-agents`           |
+| Responsibility              | Package or app                                        |
+| --------------------------- | ----------------------------------------------------- |
+| Desktop shell               | `apps/aria-desktop`                                   |
+| Shared access client        | `@aria/access-client`                                 |
+| Shared project client state | `@aria/work` or a dedicated client-facing slice of it |
+| Local node supervision      | `@aria/server` plus the Desktop main process          |
+| Local workspace integration | Desktop main process plus `@aria/workspaces`          |
 
 ## Current Repo Note
 
-The desktop and mobile package/app surfaces on this page are live. The main remaining legacy pieces are compatibility wrappers behind `@aria/runtime`, `@aria/gateway`, and older operator-facing console/CLI flows.
+The desktop package/app surfaces on this page are live. Mobile remains a future client app and should not keep an empty app/package shell in the repo before implementation starts.
 
 ## Toolchain References
 
@@ -329,15 +332,16 @@ The VoidZero site describes Vite+ as the entry point that manages runtime, packa
 
 ## Boundary Reminder
 
-The desktop client can be powerful without becoming a second server.
+The desktop client can be powerful because it can supervise a local Aria node
+without inventing a second execution model.
 
 That means:
 
-- desktop can run local project workers
-- desktop can render server-hosted Aria
-- desktop must not become the host of `Aria Agent`
+- desktop can run a local Aria node on `This Mac`
+- desktop can render local and remote node-hosted Aria
+- desktop must not route project work to external coding agents
 
-It can still let `Aria Agent` manage projects, but only through:
+It lets `Aria Agent` manage projects through:
 
 - explicit project attachment
 - explicit environment selection

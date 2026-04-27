@@ -5,6 +5,7 @@ This section covers the current repo workflows that still matter day to day.
 - [setup.md](./setup.md)
 - [testing/README.md](./testing/README.md)
 - [testing/plan/README.md](./testing/plan/README.md)
+- [aria-node-transition-plan.md](./aria-node-transition-plan.md)
 - [release.md](./release.md)
 - [migration.md](./migration.md)
 

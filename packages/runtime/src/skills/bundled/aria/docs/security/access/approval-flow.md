@@ -35,8 +35,6 @@ Every tool declares a `dangerLevel` property that drives the approval flow.
 | `write`            | moderate     | Creates or overwrites files       |
 | `edit`             | moderate     | Edits files in place              |
 | `delegate`         | moderate     | Delegates work to a sub-agent     |
-| `claude_code`      | moderate     | Delegates task to Claude Code CLI |
-| `codex`            | moderate     | Delegates task to Codex CLI       |
 | `exec`             | dangerous    | Arbitrary shell command execution |
 | `exec_kill`        | dangerous    | Kills background processes        |
 

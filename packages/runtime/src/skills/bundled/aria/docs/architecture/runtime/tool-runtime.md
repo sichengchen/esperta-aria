@@ -63,9 +63,14 @@ The tool runtime separates policy from execution. A capability may run through d
 - restricted local execution
 - sandboxed execution
 - remote MCP execution
-- desktop-local bridge execution for local project work
+- Aria-native project execution on a desktop or headless node
 
 The approval flow must not hard-code one backend.
+
+External coding-agent CLIs are not runtime execution backends. Coding work is
+handled by `Aria Agent` through the native file, terminal, git, workspace, and
+MCP toolsets governed by the same policy and audit model as every other tool
+call.
 
 ## Audit Requirements
 

@@ -16,7 +16,7 @@ All three create durable work, carry runtime identity, and participate in approv
 
 ## Ownership Rules
 
-`Aria Agent` and `Aria Server` own:
+`Aria Agent` and the hosting Aria node own:
 
 - automation definitions
 - scheduling and trigger handling
@@ -61,7 +61,7 @@ On restart the server should:
 ## Boundary Rules
 
 - no mobile-hosted automation runtime
-- no desktop-local automation truth for Aria-managed tasks
+- no client-only automation truth for Aria-managed tasks
 - connectors may deliver results, but connector adapters do not become the automation owner
 
 ## Current Repo Note

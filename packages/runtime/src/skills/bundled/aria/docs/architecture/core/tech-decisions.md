@@ -51,7 +51,7 @@ For Aria, `bun` remains:
 - shell: `Electron`
 - renderer UI: `React`
 - renderer/shared-package toolchain: `Vite+`, `Vite`, `Rolldown`, `Oxc`, `Vitest`
-- desktop-local integration layer: `@aria/desktop-bridge`
+- desktop-local integration layer: Desktop main process plus `@aria/workspaces`
 
 ## 2. Mobile App Decision
 
@@ -136,9 +136,9 @@ while explicitly selecting `bun` as the package manager and runtime for Aria.
 
 This decision applies most strongly to:
 
-- `@aria/desktop`
+- `apps/aria-desktop`
 - `@aria/access-client`
-- client-facing slices of `@aria/projects`
+- client-facing slices of `@aria/work`
 
 It does not require every package in the repo to be a Vite+ surface, but it does make Vite+ the monorepo-management entry point.
 

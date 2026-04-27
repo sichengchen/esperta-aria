@@ -1,10 +1,12 @@
-# Aria Server
+# Aria Node And Server
 
-This page defines the internal component model of `Aria Server`.
+This page defines the internal component model of an `Aria Node`.
 
-`Aria Server` is the canonical home of `Aria Agent` and every server-hosted capability.
+`Aria Server` is the headless deployment form of an Aria node. `Aria Desktop`
+can also host a local Aria node on the current Mac. Both use the same runtime
+and agent model.
 
-## Server Component Diagram
+## Node Component Diagram
 
 ```mermaid
 flowchart LR
@@ -12,7 +14,7 @@ flowchart LR
     Clients["Desktop / Mobile Clients"]
     IM["IM Platforms"]
 
-    subgraph Server["Aria Server"]
+    subgraph Node["Aria Node"]
         direction TB
         Gateway["Gateway API + Realtime"]
         Runtime["Aria Runtime"]
@@ -27,11 +29,11 @@ flowchart LR
             Inbox["Inbox + Approvals"]
         end
 
-        subgraph RemoteSpace["Remote Project Space"]
+        subgraph ProjectSpace["Project Space"]
             direction LR
-            Jobs["Remote Job Orchestrator"]
+            Jobs["Project Job Orchestrator"]
             Workspaces["Workspace Manager"]
-            Coding["Remote Coding Agent Adapters"]
+            Tools["Aria Tool Runtime"]
         end
 
         Store["Operational Store"]
@@ -44,6 +46,7 @@ flowchart LR
     Runtime --> AriaAgent
     Runtime --> Projects
     Runtime --> Jobs
+    Runtime --> Tools
     Runtime --> Store
 
     AriaAgent --> Memory
@@ -51,13 +54,14 @@ flowchart LR
     AriaAgent --> Connectors
     AriaAgent --> Inbox
     AriaAgent --> Projects
+    AriaAgent --> Tools
     AriaAgent --> Store
 
     Projects --> Workspaces
     Projects --> Jobs
     Projects --> Store
     Jobs --> Workspaces
-    Jobs --> Coding
+    Jobs --> Tools
     Jobs --> Store
 
     Connectors --> IM
@@ -65,24 +69,25 @@ flowchart LR
 
 ## Component Responsibilities
 
-| Component                      | Responsibility                                                                                                               |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `Gateway API + Realtime`       | Authenticates clients, issues pairing codes for local/admin enrollment, exposes request APIs, streams live thread/run events |
-| `Aria Runtime`                 | Shared runtime kernel for routing, persistence, policy, execution, and orchestration                                         |
-| `Aria Agent`                   | Personal assistant agent and sole owner of Aria-managed memory, connectors, and automation                                   |
-| `Projects Control`             | Project registry, project-thread coordination, environment switching, and Aria-to-coding-agent orchestration                 |
-| `Aria Memory`                  | Memory layers, context assembly inputs, skills, and durable assistant knowledge                                              |
-| `Aria Automation`              | Heartbeat, cron, and webhook automation owned by Aria                                                                        |
-| `IM Connector Runtime`         | Slack/Telegram/Discord/Teams style connector processes and adapter logic                                                     |
-| `Inbox + Approvals`            | Pending approvals, notifications, operator action items, and result surfacing                                                |
-| `Remote Job Orchestrator`      | Launches, tracks, and resumes remote project jobs                                                                            |
-| `Workspace Manager`            | Remote repos, worktrees, sandbox lifecycle, and environment selection                                                        |
-| `Remote Coding Agent Adapters` | Codex, Claude Code, OpenCode adapters for remote project execution                                                           |
-| `Operational Store`            | Durable threads, runs, approvals, automation state, audit, checkpoints, summaries                                            |
+| Component                  | Responsibility                                                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `Gateway API + Realtime`   | Authenticates clients, issues pairing codes for local/admin enrollment, exposes request APIs, streams live thread/run events |
+| `Aria Runtime`             | Shared runtime kernel for routing, persistence, policy, execution, and orchestration                                         |
+| `Aria Agent`               | Personal assistant and coding agent; sole user-facing agent for Aria-managed work                                            |
+| `Projects Control`         | Project registry, project-thread coordination, environment switching, and Aria-native execution routing                      |
+| `Aria Memory`              | Memory layers, context assembly inputs, skills, and durable assistant knowledge                                              |
+| `Aria Automation`          | Heartbeat, cron, and webhook automation owned by the node                                                                    |
+| `IM Connector Runtime`     | Slack/Telegram/Discord/Teams style connector processes and adapter logic                                                     |
+| `Inbox + Approvals`        | Pending approvals, notifications, operator action items, and result surfacing                                                |
+| `Project Job Orchestrator` | Launches, tracks, cancels, and resumes project jobs executed by Aria                                                         |
+| `Workspace Manager`        | Repos, worktrees, sandbox lifecycle, and environment selection                                                               |
+| `Aria Tool Runtime`        | Native file, terminal, git, web, MCP, and coding tool execution under policy                                                 |
+| `Operational Store`        | Durable threads, runs, approvals, automation state, audit, checkpoints, summaries                                            |
 
 ## Ownership Rules
 
-Prompt assembly for `Aria Agent` and runtime-managed execution is defined in [../runtime/prompt-engine.md](../runtime/prompt-engine.md).
+Prompt assembly for `Aria Agent` and runtime-managed execution is defined in
+[../runtime/prompt-engine.md](../runtime/prompt-engine.md).
 
 ### `Aria Agent` owns
 
@@ -92,7 +97,8 @@ Prompt assembly for `Aria Agent` and runtime-managed execution is defined in [..
 - skill loading for Aria
 - heartbeat / cron / webhook definitions
 - inbox items caused by Aria and automation
-- project-management decisions and orchestration through `Projects Control`
+- project-management decisions and project execution through `Projects Control`
+- coding task execution through native runtime tools
 
 ### `Projects Control` owns
 
@@ -100,16 +106,16 @@ Prompt assembly for `Aria Agent` and runtime-managed execution is defined in [..
 - project-thread registration
 - active environment selection for project threads
 - thread-to-environment reassignment history
-- dispatch to local or remote execution targets
+- dispatch to local or remote Aria node execution targets
 - Aria-managed project orchestration APIs
 
-### `Remote Job Orchestrator` owns
+### `Project Job Orchestrator` owns
 
-- remote coding-agent thread execution
-- remote job lifecycle
+- project job lifecycle
 - job resumability
 - job cancellation
-- remote environment allocation
+- environment allocation
+- durable job status and event replay
 
 ### `Aria Runtime` owns
 
@@ -121,22 +127,18 @@ Prompt assembly for `Aria Agent` and runtime-managed execution is defined in [..
 
 ## Critical Constraint
 
-`Aria Agent` is the only assistant allowed to use `Aria Memory`, `Aria Automation`, and `IM Connector Runtime`.
+`Aria Agent` is the only user-facing agent allowed to use Aria memory,
+automation, connectors, and coding tools.
 
-Remote coding agents do not talk to those subsystems directly.
-
-That keeps the assistant boundary clean:
-
-- Aria is the personal assistant
-- coding agents are project workers
-
-`Aria Agent` can still manage projects. It does so through `Projects Control`, not by collapsing coding-agent workers into the assistant itself.
+External coding-agent delegation is not part of the runtime-managed project
+execution model. Aria performs coding work through the same tool, policy,
+approval, and audit surfaces used for normal assistant work.
 
 ## Primary Flows
 
 ### 1. Aria chat from desktop, mobile, or console
 
-1. Client or `Aria Console` sends a message to the server
+1. Client or `Aria Console` sends a message to the node
 2. `Gateway API + Realtime` authenticates and routes the request
 3. `Aria Runtime` resolves the target Aria thread
 4. `Aria Runtime` invokes `Aria Agent`
@@ -160,42 +162,42 @@ That keeps the assistant boundary clean:
 4. results are written to inbox and store
 5. optional connector delivery is performed by the connector layer
 
-### 4. Remote project thread
+### 4. Project thread
 
-1. desktop or mobile opens a remote project thread
+1. desktop or mobile opens a project thread
 2. `Gateway API + Realtime` routes it to `Aria Runtime`
 3. `Aria Runtime` resolves project state through `Projects Control`
-4. `Projects Control` resolves the active environment
-5. `Projects Control` invokes `Remote Job Orchestrator`
-6. selected coding agent adapter executes in the remote environment
+4. `Projects Control` resolves the active node environment
+5. `Projects Control` invokes `Project Job Orchestrator` when long-running work is needed
+6. `Aria Agent` executes through native runtime tools in the selected environment
 7. run state, tool state, and results are persisted to the store
 
-### 5. Aria-managed project workflow
+### 5. Handoff between nodes
 
-1. operator asks `Aria Agent` to manage a project
-2. `Aria Agent` calls `Projects Control`
-3. `Projects Control` resolves the project and available environments
-4. Aria selects a local or remote target
-5. if the target is remote, work is dispatched through `Remote Job Orchestrator`
-6. if the target is local, work is dispatched through an explicitly attached desktop bridge session
-7. Aria monitors status, summarizes results, and drives follow-up actions
+1. operator asks Aria to continue work on another node
+2. `Projects Control` validates the target node and environment
+3. handoff transfers state through Git branch, patch bundle, or an approved future mechanism
+4. a durable thread/environment binding event is recorded
+5. the target node continues the same thread identity
 
 ## Server-local Console
 
-`Aria Console` is a server-local terminal surface.
+`Aria Console` is a node-local terminal surface.
 
-It is not a second assistant runtime. It is not a project shell. It is just a local UI for talking to `Aria Agent` on the server.
+It is not a second assistant runtime. It is not a project shell. It is a local
+UI for talking to `Aria Agent` on the node.
 
 Recommended behavior:
 
-- it authenticates locally against the server
-- it opens or resumes Aria threads only
+- it authenticates locally against the node
+- it opens or resumes Aria threads
 - it exposes inbox and automation inspection appropriate for Aria use
-- it does not become a separate local-project environment
+- it uses normal runtime and project-control APIs for project work
 
 ## Gateway Access Rule
 
-`Aria Server` must be safe to reach through its built-in gateway without depending on an Aria-operated network broker.
+An Aria node must be safe to reach through its built-in gateway without
+depending on an Aria-operated network broker.
 
 That implies:
 
@@ -206,33 +208,33 @@ That implies:
 
 ## Current Repo Note
 
-The server-oriented package names on this page are the live ownership boundaries. The main remaining server-side compatibility surface is the `@aria/runtime` shell.
+The package names on this page are the live ownership boundaries. The main
+remaining compatibility surface is the `@aria/runtime` shell.
 
 ## Recommended Internal Packages
 
-| Responsibility           | Package               |
-| ------------------------ | --------------------- |
-| Server app entrypoint    | `@aria/server`        |
-| Runtime kernel           | `@aria/runtime`       |
-| Gateway API and realtime | `@aria/gateway`       |
-| Aria assistant agent     | `@aria/agent-aria`    |
-| Project control          | `@aria/projects`      |
-| Memory and skills        | `@aria/memory`        |
-| Automation               | `@aria/automation`    |
-| IM connectors            | `@aria/connectors-im` |
-| Remote jobs              | `@aria/jobs`          |
-| Workspace manager        | `@aria/workspaces`    |
-| Coding agent adapters    | `@aria/agents-coding` |
-| Durable persistence      | `@aria/store`         |
-| Audit services           | `@aria/audit`         |
-| Prompt assembly          | `@aria/prompt`        |
-| Tool runtime             | `@aria/tools`         |
-| Policy and approvals     | `@aria/policy`        |
-| Server-local console     | `@aria/console`       |
+| Responsibility                  | Package             |
+| ------------------------------- | ------------------- |
+| Node composition root           | `@aria/server`      |
+| Runtime kernel                  | `@aria/runtime`     |
+| Gateway API and realtime        | `@aria/gateway`     |
+| Aria assistant and coding agent | `@aria/agent`       |
+| Project control                 | `@aria/work`        |
+| Memory and skills               | `@aria/memory`      |
+| Automation                      | `@aria/automation`  |
+| IM connectors                   | `@aria/connectors`  |
+| Project jobs                    | `@aria/jobs`        |
+| Workspace manager               | `@aria/workspaces`  |
+| Durable persistence             | `@aria/persistence` |
+| Audit services                  | `@aria/audit`       |
+| Prompt assembly                 | `@aria/prompt`      |
+| Tool runtime                    | `@aria/tools`       |
+| Policy and approvals            | `@aria/policy`      |
+| Node-local console              | `@aria/console`     |
 
 ## What Must Not Happen
 
-- `Aria Agent` must not run inside `Aria Desktop`
-- IM connectors must not attach directly to local desktop coding threads
-- remote coding agents must not own Aria memory or automation
+- external coding agents must not be exposed as runtime project workers
+- IM connectors must not attach directly to client-only thread state
 - the gateway layer must not contain assistant business logic
+- mobile must not host `Aria Agent` or project execution

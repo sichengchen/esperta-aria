@@ -76,13 +76,13 @@ On startup the runtime should:
 ## Boundary Rules
 
 - frontends attach to runtime state; they do not redefine execution semantics
-- gateway auth and session attachment live with the server-owned runtime model, not in an external broker layer
-- desktop-local execution may use the same domain model, but it does not become `Aria Agent`
+- gateway auth and session attachment live with the node-owned runtime model, not in an external broker layer
+- desktop-local execution runs through the Desktop node's `Aria Agent` and native tool runtime
 - runtime should coordinate target packages rather than absorbing their ownership back behind compatibility wrappers
 
 ## Current Repo Note
 
-The repo is still reducing `@aria/runtime` toward a thinner compatibility-facing shell while target ownership continues moving into `@aria/prompt`, `@aria/tools`, `@aria/policy`, `@aria/memory`, `@aria/projects`, `@aria/gateway`, and related packages. This page remains the source of truth for the runtime contract while that cleanup finishes.
+The repo is still reducing `@aria/runtime` toward a thinner compatibility-facing shell while target ownership continues moving into `@aria/prompt`, `@aria/tools`, `@aria/policy`, `@aria/memory`, `@aria/work`, `@aria/gateway`, and related packages. This page remains the source of truth for the runtime contract while that cleanup finishes.
 
 ## Related Reading
 

@@ -19,7 +19,7 @@ Public CLI identity: `aria`.
 
 ## Projects Commands
 
-`aria projects` is the tracked-work operator surface over `packages/projects`, `packages/workspaces`, `packages/jobs`, and `packages/handoff`.
+`aria projects` is the tracked-work operator surface over `packages/work`, `packages/workspaces`, `packages/jobs`, and `packages/handoff`.
 
 Current commands include:
 

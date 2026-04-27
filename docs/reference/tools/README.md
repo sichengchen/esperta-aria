@@ -1,6 +1,6 @@
 # Tools Overview and Classification
 
-Esperta Aria provides 23 built-in tools organized by danger level, plus dynamic `mcp_*`
+Esperta Aria provides 21 built-in tools organized by danger level, plus dynamic `mcp_*`
 tools discovered from configured MCP servers. The runtime owns all tool
 definitions; connectors never invoke tools directly.
 
@@ -29,8 +29,6 @@ definitions; connectors never invoke tools directly.
 | 19  | delegate         | moderate    | Delegate to sub-agent                 |
 | 20  | delegate_status  | safe        | Check sub-agent status                |
 | 21  | ask_user         | safe        | Ask the user a clarifying question    |
-| 22  | claude_code      | moderate    | Delegate task to Claude Code CLI      |
-| 23  | codex            | moderate    | Delegate task to Codex CLI            |
 
 \*exec uses hybrid classification — see [exec.md](exec.md).
 

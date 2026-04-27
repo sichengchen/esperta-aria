@@ -6,7 +6,7 @@ This page defines the persistent and protocol-facing object model for the canoni
 
 ```mermaid
 flowchart TD
-    Server["Server"]
+    Node["Aria Node"]
     Workspace["Workspace"]
     Project["Project"]
     Thread["Thread"]
@@ -16,7 +16,7 @@ flowchart TD
     Run["Run"]
     Job["Job"]
 
-    Server --> Workspace
+    Node --> Workspace
     Workspace --> Project
     Project --> Thread
     Project --> Environment
@@ -31,8 +31,8 @@ flowchart TD
 
 | Entity                       | Meaning                                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------------------------ |
-| `server`                     | An `Aria Server` deployment boundary                                                       |
-| `workspace`                  | An execution boundary inside a server or desktop-local project plane                       |
+| `node`                       | An `Aria Node` deployment boundary such as `This Mac` or a headless server                 |
+| `workspace`                  | An execution boundary inside a node                                                        |
 | `project`                    | A repo, folder, or logical work unit inside a workspace                                    |
 | `environment`                | A concrete execution target such as `main`, worktree, or sandbox                           |
 | `thread`                     | A user-visible conversation or job surface                                                 |
@@ -40,8 +40,7 @@ flowchart TD
 | `session`                    | Runtime continuity object backing a thread                                                 |
 | `run`                        | One model/tool execution inside a session                                                  |
 | `job`                        | A durable long-running execution owned by a thread                                         |
-| `agent_adapter`              | The agent implementation assigned to a thread                                              |
-| `automation`                 | A server-owned recurring or event-triggered job spec                                       |
+| `automation`                 | A node-owned recurring or event-triggered job spec                                         |
 | `memory_record`              | Durable assistant memory owned by `Aria Agent`                                             |
 | `connector_account`          | A bound IM integration account                                                             |
 | `approval`                   | Pending operator approval item                                                             |
@@ -55,70 +54,72 @@ flowchart TD
 | Active environment  | `thread_environment_binding`   | The UI can show an environment switch without making environments the primary sidebar object |
 | Remote job          | `job` + `run`                  | Jobs may span many runs                                                                      |
 | Project environment | `environment`                  | Includes main branch, worktree, or sandbox                                                   |
-| Aria chat           | `thread` bound to `Aria Agent` | Server-hosted only                                                                           |
+| Aria chat           | `thread` bound to `Aria Agent` | Node-hosted                                                                                  |
 
 The UI should prefer `thread` over `session`.
 
 ## Ownership Matrix
 
-| Entity                       | Desktop local    | Aria Server | Notes                                                                     |
-| ---------------------------- | ---------------- | ----------- | ------------------------------------------------------------------------- |
-| `server`                     | no               | yes         | Server boundary exists only for actual server deployments                 |
-| `workspace`                  | yes              | yes         | Local project workspaces and server workspaces both exist                 |
-| `project`                    | yes              | yes         | Project may be local or remote                                            |
-| `environment`                | yes              | yes         | Local worktree or remote worktree                                         |
-| `thread`                     | yes              | yes         | Local project threads on desktop, Aria/remote threads on server           |
-| `thread_environment_binding` | yes              | yes         | Needed to support explicit environment switching                          |
-| `session`                    | yes              | yes         | Runtime-internal continuity object                                        |
-| `run`                        | yes              | yes         | Execution record                                                          |
-| `job`                        | local optional   | yes         | Remote jobs must live on server                                           |
-| `automation`                 | no               | yes         | Server-only                                                               |
-| `memory_record`              | no               | yes         | Aria-managed memory is server-only                                        |
-| `connector_account`          | no               | yes         | Server-only                                                               |
-| `approval`                   | yes, as cache    | yes         | Canonical state for server-hosted work lives on server                    |
-| `audit_event`                | local local-only | yes         | Local project mode may keep local audit; server owns canonical Aria audit |
+| Entity                       | Desktop node | Headless node | Mobile | Notes                                                 |
+| ---------------------------- | ------------ | ------------- | ------ | ----------------------------------------------------- |
+| `node`                       | yes          | yes           | no     | Mobile attaches to nodes but does not host one        |
+| `workspace`                  | yes          | yes           | no     | Workspaces belong to the node that can execute them   |
+| `project`                    | yes          | yes           | cache  | Project records are canonical on the hosting node     |
+| `environment`                | yes          | yes           | cache  | Local worktree, remote worktree, or sandbox on a node |
+| `thread`                     | yes          | yes           | cache  | Thread identity can move by explicit handoff          |
+| `thread_environment_binding` | yes          | yes           | cache  | Needed to support explicit environment switching      |
+| `session`                    | yes          | yes           | no     | Runtime-internal continuity object                    |
+| `run`                        | yes          | yes           | cache  | Execution record                                      |
+| `job`                        | yes          | yes           | cache  | Long-running work is most durable on headless nodes   |
+| `automation`                 | optional     | yes           | no     | Node-owned                                            |
+| `memory_record`              | yes          | yes           | no     | Aria-managed memory is node-owned                     |
+| `connector_account`          | optional     | yes           | no     | Node-owned                                            |
+| `approval`                   | yes          | yes           | cache  | Canonical state lives on the hosting node             |
+| `audit_event`                | yes          | yes           | cache  | Canonical state lives on the hosting node             |
 
 ## Thread Types
 
 The system should model thread type explicitly.
 
-| Thread type      | Agent                | Host           |
-| ---------------- | -------------------- | -------------- |
-| `aria`           | `Aria Agent`         | `Aria Server`  |
-| `connector`      | `Aria Agent`         | `Aria Server`  |
-| `automation`     | `Aria Agent`         | `Aria Server`  |
-| `remote_project` | coding agent adapter | `Aria Server`  |
-| `local_project`  | coding agent adapter | `Aria Desktop` |
+| Thread type      | Agent        | Host         |
+| ---------------- | ------------ | ------------ |
+| `aria`           | `Aria Agent` | Aria node    |
+| `connector`      | `Aria Agent` | Aria node    |
+| `automation`     | `Aria Agent` | Aria node    |
+| `remote_project` | `Aria Agent` | remote node  |
+| `local_project`  | `Aria Agent` | desktop node |
 
 ## Agent Assignment
 
-Every thread has exactly one primary agent adapter.
+Every runtime-managed thread is handled by `Aria Agent`.
 
 Examples:
 
 - `aria` -> `aria-agent`
-- `remote_project` -> `codex`, `claude-code`, or `opencode`
-- `local_project` -> `codex`, `claude-code`, or `opencode`
+- `remote_project` -> `aria-agent` on the selected remote node
+- `local_project` -> `aria-agent` on the desktop node
 
-This should be modeled directly rather than inferred from connector type.
+The selected node and environment determine where the run executes. The system
+does not expose external coding agents as primary project workers.
 
 ## Project Management By Aria
 
-`Aria Agent` can manage projects, but it should not own every project run directly.
+`Aria Agent` manages and executes project work through Aria Runtime tools.
 
 Recommended split:
 
-- `Aria Agent` owns project-management intent, planning, coordination, and summaries
-- coding agent adapters own concrete local or remote implementation runs
+- `Aria Agent` owns project-management intent, planning, coordination, execution, and summaries
+- Aria Runtime owns concrete runs, tool execution, policy, approvals, and audit
 - `Projects Control` owns thread/environment dispatch rules
 
-This allows Aria to manage a project without collapsing the worker model.
+This keeps project work inside one Aria-native execution model.
 
 ## Recommended Identity Fields
 
 Every persisted record and every streamed event should carry as much of this identity as is available:
 
 - `serverId`
+- `nodeId`
 - `workspaceId`
 - `projectId`
 - `environmentId`
@@ -134,9 +135,9 @@ Every persisted record and every streamed event should carry as much of this ide
 
 ### Minimum event identity
 
-For server-hosted work:
+For node-hosted work:
 
-- `serverId`
+- `nodeId`
 - `threadId`
 - `sessionId`
 - `runId`
@@ -144,7 +145,7 @@ For server-hosted work:
 
 For remote project jobs:
 
-- `serverId`
+- `nodeId`
 - `workspaceId`
 - `projectId`
 - `environmentId`
@@ -169,7 +170,7 @@ The new store shape should separate assistant state from project execution state
 
 Recommended top-level logical groups:
 
-- `servers`
+- `nodes`
 - `workspaces`
 - `projects`
 - `environments`
@@ -178,7 +179,6 @@ Recommended top-level logical groups:
 - `sessions`
 - `runs`
 - `jobs`
-- `agent_adapters`
 - `automations`
 - `automation_runs`
 - `memory_records`
@@ -203,7 +203,7 @@ Recommended top-level logical groups:
 Project threads can use:
 
 - project-scoped files
-- coding agent adapters
+- Aria Runtime coding tools
 - local or remote environment execution
 
 Project threads must not silently inherit Aria-managed memory. If Aria is involved, the handoff must be explicit.
@@ -220,4 +220,6 @@ To support a unified project sidebar with environment switching in the thread vi
 
 ## Explicit Handoff
 
-When local or remote project work needs Aria involvement, the client or runtime should create a deliberate handoff event or linked thread reference rather than blurring the boundaries between thread types.
+When project work moves between nodes, the client or runtime should create a
+deliberate handoff event or linked thread reference rather than blurring the
+ownership of the active execution environment.

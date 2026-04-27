@@ -47,6 +47,7 @@
 ### Development
 
 - [development/README.md](./development/README.md)
+- [development/aria-node-transition-plan.md](./development/aria-node-transition-plan.md)
 - [development/setup.md](./development/setup.md)
 - [development/testing/README.md](./development/testing/README.md)
 - [development/testing/plan/README.md](./development/testing/plan/README.md)

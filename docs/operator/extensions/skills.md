@@ -55,7 +55,7 @@ Each skill directory contains a `SKILL.md` with frontmatter plus optional suppor
 Bundled skills cover:
 
 - Aria product and repo knowledge
-- coding-agent delegation
+- Aria product and coding execution guidance
 - marketplace / skill-install workflows
 - OS and application integrations
 - browser and automation integrations

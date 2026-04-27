@@ -7,6 +7,7 @@ This page defines the package names, top-level repo layout, and naming rules for
 ### Public product names
 
 - `Aria Server`
+- `Aria Node`
 - `Aria Agent`
 - `Aria Desktop`
 - `Aria Mobile`
@@ -18,15 +19,15 @@ Use `@aria/*`.
 
 ### Reserved terms
 
-| Term        | Use it for                                         | Do not use it for                   |
-| ----------- | -------------------------------------------------- | ----------------------------------- |
-| `agent`     | LLM-based assistants or coding-agent adapters      | generic services or daemons         |
-| `runtime`   | the shared runtime kernel                          | the deployed server product         |
-| `server`    | the deployable server app                          | the runtime kernel                  |
-| `gateway`   | built-in authenticated API and realtime entrypoint | generic reverse proxies or tunnels  |
-| `connector` | IM/chat integrations                               | generic client integrations         |
-| `bridge`    | desktop-local execution integration                | server-side services                |
-| `workspace` | execution boundary                                 | a casual synonym for repo or folder |
+| Term        | Use it for                                         | Do not use it for                              |
+| ----------- | -------------------------------------------------- | ---------------------------------------------- |
+| `agent`     | LLM-based assistants such as `Aria Agent`          | generic services, daemons, or backend adapters |
+| `runtime`   | the shared runtime kernel                          | the deployed server product                    |
+| `server`    | the deployable server app                          | the runtime kernel                             |
+| `gateway`   | built-in authenticated API and realtime entrypoint | generic reverse proxies or tunnels             |
+| `connector` | IM/chat integrations                               | generic client integrations                    |
+| `bridge`    | desktop-local execution integration                | server-side services                           |
+| `workspace` | execution boundary                                 | a casual synonym for repo or folder            |
 
 ### Renames from older language
 
@@ -45,27 +46,26 @@ apps/
   aria-desktop/
 
 packages/
-  runtime/
-  protocol/
-  gateway/
-  projects/
-  prompt/
-  tools/
-  policy/
-  memory/
-  automation/
-  store/
-  audit/
-  workspaces/
-  jobs/
-  agent-aria/
-  agents-coding/
-  connectors-im/
-  console/
   access-client/
-  desktop-bridge/
-  desktop-git/
-  ui/
+  agent/
+  audit/
+  automation/
+  cli/
+  connectors/
+  console/
+  gateway/
+  handoff/
+  jobs/
+  memory/
+  persistence/
+  policy/
+  prompt/
+  protocol/
+  runtime/
+  server/
+  tools/
+  work/
+  workspaces/
 ```
 
 ## System Model
@@ -75,7 +75,7 @@ Surface or Connector
   -> Interaction Protocol
   -> Runtime
 
-Projects / Workspaces / Jobs
+Work / Workspaces / Jobs
   -> durable tracked work
   -> repo/worktree behavior
   -> dispatch records and execution routing
@@ -85,7 +85,7 @@ Gateway access
   -> operator-managed LAN/VPN/tunnel publication
 
 Handoff
-  -> local/runtime work submission into Projects
+  -> local/runtime work submission into Work
 ```
 
 ## Core Rule
@@ -109,34 +109,30 @@ For the concrete app-shell decisions and Bun-runtime clarification, see [tech-de
 
 ## Package Ownership
 
-| Package                | Responsibility                                                                                                 |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `@aria/server`         | Server app bootstrap, composition root, deployment runtime for `Aria Server`                                   |
-| `@aria/desktop`        | Desktop app shell, navigation, thread views, project surfaces                                                  |
-| `@aria/runtime`        | Shared runtime kernel for threads, runs, policy, and orchestration                                             |
-| `@aria/protocol`       | Shared request, event, identity, and streaming contracts                                                       |
-| `@aria/gateway`        | Authenticated API surface and realtime transport handling                                                      |
-| `@aria/projects`       | Project registry, project-thread coordination, environment switching, and Aria-to-worker orchestration control |
-| `@aria/prompt`         | Prompt assembly pipeline and context overlays                                                                  |
-| `@aria/tools`          | Tool runtime, built-in tool definitions, execution adapters                                                    |
-| `@aria/policy`         | Capability policy, approvals, execution restrictions, trust rules                                              |
-| `@aria/memory`         | Aria memory layers, skills, context retrieval, assistant knowledge                                             |
-| `@aria/automation`     | Heartbeat, cron, webhook, automation scheduling and execution                                                  |
-| `@aria/store`          | Durable database access, repositories, migrations, persistence services                                        |
-| `@aria/audit`          | Audit event models, sinks, queries, policy logging hooks                                                       |
-| `@aria/workspaces`     | Workspace, project, environment, repo, worktree, sandbox models                                                |
-| `@aria/jobs`           | Remote job orchestration and lifecycle management                                                              |
-| `@aria/agent-aria`     | The server-hosted Aria assistant agent implementation                                                          |
-| `@aria/agents-coding`  | Codex, Claude Code, OpenCode adapters and shared coding-agent contracts                                        |
-| `@aria/connectors-im`  | Slack/Telegram/Discord/Teams style connector integrations                                                      |
-| `@aria/console`        | Server-local terminal UI for chatting with `Aria Agent`                                                        |
-| `@aria/access-client`  | Shared client transport for desktop and mobile                                                                 |
-| `@aria/desktop-bridge` | Local desktop execution bridge for local project mode                                                          |
-| `@aria/desktop-git`    | Local git and worktree integration helpers                                                                     |
+| Package               | Responsibility                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| `@aria/server`        | Aria node bootstrap, composition root, and headless server entrypoint                                   |
+| `@aria/runtime`       | Compatibility-facing runtime shell over target-owned runtime surfaces                                   |
+| `@aria/protocol`      | Shared request, event, identity, and streaming contracts                                                |
+| `@aria/gateway`       | Authenticated API surface and realtime transport handling                                               |
+| `@aria/work`          | Project registry, project-thread coordination, environment switching, and Aria-native execution routing |
+| `@aria/prompt`        | Prompt assembly pipeline and context overlays                                                           |
+| `@aria/tools`         | Tool runtime, built-in tool definitions, execution adapters                                             |
+| `@aria/policy`        | Capability policy, approvals, execution restrictions, trust rules                                       |
+| `@aria/memory`        | Aria memory layers, skills, context retrieval, assistant knowledge                                      |
+| `@aria/automation`    | Heartbeat, cron, webhook, automation scheduling and execution                                           |
+| `@aria/persistence`   | Durable database access, repositories, migrations, persistence services                                 |
+| `@aria/audit`         | Audit event models, sinks, queries, policy logging hooks                                                |
+| `@aria/workspaces`    | Workspace, project, environment, repo, worktree, sandbox models                                         |
+| `@aria/jobs`          | Aria-native project job orchestration and lifecycle management                                          |
+| `@aria/agent`         | The Aria assistant and coding agent implementation                                                      |
+| `@aria/connectors`    | Slack/Telegram/Discord/Teams style connector integrations                                               |
+| `@aria/console`       | Server-local terminal UI for chatting with `Aria Agent`                                                 |
+| `@aria/access-client` | Shared client transport for desktop and mobile                                                          |
 
 ## Current Repo State
 
-The repo is package-first. The package names on this page are the live ownership boundaries, while a smaller set of legacy compatibility surfaces still remain around them.
+The repo is package-first. The package names on this page are the live ownership boundaries. Product apps live under `apps/` and depend on these packages rather than introducing parallel package ownership.
 
 ## Tooling Ownership Notes
 
@@ -144,9 +140,9 @@ The repo is package-first. The package names on this page are the live ownership
 
 These packages should align with the VoidZero stack first:
 
-- `@aria/desktop`
+- `apps/aria-desktop`
 - `@aria/access-client`
-- client-facing slices of `@aria/projects`
+- client-facing slices of `@aria/work`
 
 ### Runtime and server packages
 
@@ -168,7 +164,7 @@ The package graph should stay layered.
 ### Lowest-level shared foundations
 
 - `@aria/protocol`
-- `@aria/store`
+- `@aria/persistence`
 - `@aria/audit`
 
 ### Core execution layers
@@ -177,30 +173,25 @@ The package graph should stay layered.
 - `@aria/prompt`
 - `@aria/tools`
 - `@aria/policy`
-- `@aria/projects`
+- `@aria/work`
 - `@aria/workspaces`
 - `@aria/jobs`
 
 ### Assistant and integration layers
 
-- `@aria/agent-aria`
+- `@aria/agent`
 - `@aria/automation`
-- `@aria/connectors-im`
+- `@aria/connectors`
 
 ### Product shells
 
 - `@aria/server`
-- `@aria/desktop`
+- `apps/aria-desktop`
 - `@aria/console`
-
-### Desktop-only local layers
-
-- `@aria/desktop-bridge`
-- `@aria/desktop-git`
 
 ## Package Boundaries That Matter
 
-### `@aria/agent-aria`
+### `@aria/agent`
 
 This package should contain only the Aria assistant implementation and Aria-specific assistant logic. It should not become a general server runtime package.
 
@@ -208,32 +199,28 @@ This package should contain only the Aria assistant implementation and Aria-spec
 
 This package should not absorb Aria memory, automation, or connector ownership. It is for remote project execution.
 
-### `@aria/projects`
+### `@aria/work`
 
 This package is where Aria-managed project coordination should live. It should own:
 
 - project registry models
 - project-thread metadata
 - environment-switch coordination
-- dispatch to local or remote execution targets
+- dispatch to local or remote Aria node execution targets
 
 It should not absorb low-level repo/worktree mechanics from `@aria/workspaces`, and it should not absorb worker execution from `@aria/jobs`.
 
-### `@aria/connectors-im`
+### `@aria/connectors`
 
 This package should be server-only. Do not make it a generic desktop plugin host.
 
-### `@aria/desktop-bridge`
-
-This package should be desktop-only. It should not be reused for server-hosted remote jobs.
-
 ## Recommended App Packaging
 
-| App / service  | Depends on                                                                                                                       |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `aria-server`  | runtime, gateway, projects, agent-aria, memory, automation, connectors-im, jobs, workspaces, store, audit, prompt, tools, policy |
-| `aria-desktop` | access-client, projects, desktop-bridge, agents-coding, protocol                                                                 |
-| `aria` console | console, access-client or a server-local transport shim, protocol                                                                |
+| App / service  | Depends on                                                                                                                 |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `aria-server`  | runtime, gateway, work, agent, memory, automation, connectors, jobs, workspaces, persistence, audit, prompt, tools, policy |
+| `aria-desktop` | access-client, work, protocol, and local Aria node supervision                                                             |
+| `aria` console | console, access-client or a server-local transport shim, protocol                                                          |
 
 ## Official References
 
@@ -244,17 +231,16 @@ This package should be desktop-only. It should not be reused for server-hosted r
 
 Prefer short, stable names:
 
-- `agent-aria`, not `personal-assistant-agent`
-- `agents-coding`, not `coding-agent-runtime-service`
-- `connectors-im`, not `chat-adapters-runtime`
-- `desktop-bridge`, not `local-environment-integration-layer`
+- `agent`, not `personal-assistant-agent`
+- `agent`, not `assistant-worker`
+- `connectors`, not `chat-adapters-runtime`
 
 ## Package Model Summary
 
 The key design rule is this:
 
-- `Aria Server` packages own the assistant platform
-- `Aria Desktop` packages own local developer tooling and client UX
-- `Aria Server Gateway` owns secure transport and access semantics
+- Aria node packages own the assistant platform and execution runtime
+- `Aria Desktop` owns client UX and local node supervision
+- Aria Gateway owns secure transport and access semantics
 
 That separation should stay visible in the repo layout.

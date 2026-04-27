@@ -12,11 +12,11 @@ Esperta Aria is a local-first agent platform built around one durable runtime, o
 ## Core Architecture
 
 - `packages/runtime` is the compatibility-facing runtime shell over target-owned memory, automation, prompt, tools, policy, audit, store, and gateway surfaces
-- `packages/projects`, `packages/workspaces`, and `packages/jobs` own tracked-work coordination, repo/worktree behavior, and remote-job orchestration
-- `packages/agents-coding` owns shared coding-agent adapter contracts and concrete backend adapters
+- `packages/work`, `packages/workspaces`, and `packages/jobs` own tracked-work coordination, repo/worktree behavior, and remote-job orchestration
+- `packages/agent` owns the user-facing Aria agent, including Aria-native coding execution
 - `packages/server` owns the server composition root and daemon/discovery lifecycle helpers
 - `packages/handoff` turns local or runtime-originated work into tracked project work through idempotent submissions
-- `packages/console` and `packages/connectors-im` own the console and IM connector surfaces
+- `packages/console` and `packages/connectors` own the console and IM connector surfaces
 
 Legacy compatibility surfaces such as `@aria/runtime` still remain, but the old tracked-work, shared-types, provider, and connector wrapper packages have been removed.
 
@@ -79,25 +79,24 @@ The connector commands remain available for standalone/debug runs.
 docs/                canonical documentation tree
 packages/
   access-client/
-  agent-aria/
-  agents-coding/
+  agent/
   audit/
   automation/
   cli/
-  connectors-im/
+  connectors/
   console/
   gateway/
   handoff/
   jobs/
   memory/
   policy/
-  projects/
+  persistence/
   prompt/
+  protocol/
   runtime/
   server/
-  store/
   tools/
-  ui/
+  work/
   workspaces/
 apps/
   aria-server/

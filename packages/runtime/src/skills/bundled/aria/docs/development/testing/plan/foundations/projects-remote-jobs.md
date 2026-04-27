@@ -15,7 +15,7 @@ Spec sources:
 | `PRJ-005` | `projects.remote-cancel-resume`  | Cancel remote job and later reconnect to thread                            | Cancellation is durable and reconnect preserves thread identity                        | `server-e2e`  | `missing` | `tests/server/project-workflow-e2e.test.ts` |
 | `PRJ-006` | `projects.handoff.idempotent`    | Aria-managed handoff materialization runs twice                            | Thread, job, and queued dispatch records remain idempotent                             | `integration` | `covered` | `tests/projects-workflows.test.ts`          |
 | `PRJ-007` | `projects.local-bridge-explicit` | Aria chooses local execution only when explicit desktop bridge is attached | Local bridge use is explicit and never implicit                                        | `workflow`    | `missing` | `tests/server/project-workflow-e2e.test.ts` |
-| `PRJ-008` | `projects.boundary-rule`         | Remote coding agent attempts direct Aria memory or automation access       | Access is blocked by architecture boundary                                             | `workflow`    | `missing` | `tests/server/project-workflow-e2e.test.ts` |
+| `PRJ-008` | `projects.boundary-rule`         | Project run attempts memory or automation access outside node policy       | Access is blocked by architecture boundary                                             | `workflow`    | `missing` | `tests/server/project-workflow-e2e.test.ts` |
 
 ## Notes
 

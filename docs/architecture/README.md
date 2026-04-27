@@ -4,14 +4,14 @@ This folder defines the canonical architecture for Esperta Aria.
 
 It is the architecture the repo should keep aligned to:
 
-- `Aria Server` hosts `Aria Agent`
-- `Aria Agent` is the only component that owns Aria-managed memory, context, IM connectors, and automation
-- `Aria Agent` can manage projects through a dedicated project control layer
+- `Aria Node` hosts `Aria Agent`
+- `Aria Agent` is the only user-facing agent and owns Aria-managed memory, context, IM connectors, automation, and coding execution on its node
+- `Aria Agent` can manage and execute projects through a dedicated project control layer
 - `Aria Desktop` is a multi-surface client for:
-  - server-hosted `Aria`
-  - unified `Projects` with local and remote environments
-- `Aria Mobile` is a thin client for server-hosted Aria and remote project work
-- `Aria Server Gateway` is the built-in secure entrypoint, while LAN/VPN/tunnel reachability stays outside Aria's product boundary
+  - `Projects` with attached local and remote environments
+  - `Chat` without an attached working directory
+- `Aria Mobile` is a thin client for node-hosted chat and remote project work
+- `Aria Gateway` is the built-in secure entrypoint, while LAN/VPN/tunnel reachability stays outside Aria's product boundary
 
 ## Document Groups
 
@@ -21,28 +21,30 @@ It is the architecture the repo should keep aligned to:
 
 ## Canonical Names
 
-| Surface                  | Canonical Name        |
-| ------------------------ | --------------------- |
-| Product                  | `Esperta Aria`        |
-| Server product           | `Aria Server`         |
-| Personal assistant       | `Aria Agent`          |
-| Desktop client           | `Aria Desktop`        |
-| Mobile client            | `Aria Mobile`         |
-| Secure access layer      | `Aria Server Gateway` |
-| Server-local terminal UI | `Aria Console`        |
-| CLI binary               | `aria`                |
+| Surface                  | Canonical Name |
+| ------------------------ | -------------- |
+| Product                  | `Esperta Aria` |
+| Node host                | `Aria Node`    |
+| Server product           | `Aria Server`  |
+| Personal assistant       | `Aria Agent`   |
+| Desktop client           | `Aria Desktop` |
+| Mobile client            | `Aria Mobile`  |
+| Secure access layer      | `Aria Gateway` |
+| Server-local terminal UI | `Aria Console` |
+| CLI binary               | `aria`         |
 
 ## Core Boundary
 
-`Aria Agent` is server-only.
+`Aria Agent` runs on Aria nodes.
 
 That implies:
 
-- IM connectors are server-only
-- Aria-managed memory and context are server-only
-- heartbeat, cron, and webhook automation are server-only
-- the server-local terminal UI chats only with `Aria Agent`
-- local desktop coding threads are not Aria-managed memory threads
+- IM connectors are node-hosted
+- Aria-managed memory and context are node-owned
+- heartbeat, cron, and webhook automation are node-hosted
+- the node-local terminal UI chats only with `Aria Agent`
+- `Chat` threads do not carry an attached working directory
+- `Projects` threads carry explicit workspace and environment identity
 
 ## Reader Guide
 

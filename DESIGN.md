@@ -204,15 +204,15 @@ For the `Projects` center pane with no imported project, that action is project 
 
 Scope: Desktop
 
-The primary switch between `Projects` and `Aria` belongs in the left sidebar topbar and must render as a compact tab control.
+The primary switch between `Projects` and `Chat` belongs in the left sidebar topbar and must render as a compact tab control.
 
 Those tabs must drive a real workspace change rather than acting as decorative labels.
 
-### 023. Desktop Aria Sidebar Mixes Static Tools With Chat Threads
+### 023. Desktop Chat Sidebar Mixes Static Tools With Chat Threads
 
 Scope: Desktop
 
-In the `Aria` space, the left sidebar may combine fixed destination buttons and a thread list in one navigation stack.
+In the `Chat` space, the left sidebar may combine fixed destination buttons and a thread list in one navigation stack.
 
 The order is fixed:
 
@@ -221,43 +221,53 @@ The order is fixed:
 - the `Chat` thread section
 - the footer settings action last
 
-### 024. Desktop Aria Chat Uses A Centered Assistant Lane And Right-Aligned User Bubbles
+### 024. Desktop Chat Uses A Centered Assistant Lane And Right-Aligned User Bubbles
 
 Scope: Desktop
 
-In desktop `Aria > Chat`, assistant messages render in a wide centered lane without bubbles.
+In desktop `Chat`, assistant messages render in a wide centered lane without bubbles.
 
 User messages render in compact right-aligned bubbles.
 
 When a selected chat thread has no messages yet, the center pane shows only the centered composer with the send action.
 
-### 025. Desktop Aria Chat Shares One Conversation Lane And Shows Streaming Thinking State
+### 025. Desktop Chat Shares One Conversation Lane And Shows Streaming Thinking State
 
 Scope: Desktop
 
-In active desktop `Aria > Chat`, the transcript and the composer must align to the same centered conversation lane so left and right workspace gutters stay visually consistent.
+In active desktop `Chat`, the transcript and the composer must align to the same centered conversation lane so left and right workspace gutters stay visually consistent.
 
 While a response is streaming and assistant text has not fully settled, the assistant lane must show a neutral `Thinking` status with motion instead of leaving the stream visually blank.
 
-### 026. Desktop Aria Session Row Actions Reveal On Hover At The Right Edge
+### 026. Desktop Chat Session Row Actions Reveal On Hover At The Right Edge
 
 Scope: Desktop
 
-In the desktop `Aria` session list, secondary row actions must stay icon-only and reveal on hover or focus instead of adding persistent text controls.
+In the desktop `Chat` session list, secondary row actions must stay icon-only and reveal on hover or focus instead of adding persistent text controls.
 
 When present, both actions live on the right edge of the row. `Pin` appears to the left of `Archive`, and pinning reorders that session to the top of the list.
 
-### 027. Untitled Desktop Aria Sessions Use New Session
+### 027. Untitled Desktop Chat Sessions Use New Session
 
 Scope: Desktop
 
-When a desktop `Aria` session has no explicit title and no usable summary-derived label yet, its fallback title is `New Session`.
+When a desktop `Chat` session has no explicit title and no usable summary-derived label yet, its fallback title is `New Session`.
 
 ### 028. Desktop Ask User Prompts Sit Above The Composer And Reuse Composer Chrome
 
 Scope: Desktop
 
-In desktop `Aria > Chat`, pending `ask_user` prompts must render immediately above the composer instead of inside the transcript stream.
+In desktop `Chat`, pending `ask_user` prompts must render immediately above the composer instead of inside the transcript stream.
+
+### 034. Desktop Projects And Chat Tabs Distinguish Workspace Attachment
+
+Scope: Desktop
+
+Desktop has exactly two primary work tabs: `Projects` and `Chat`.
+
+`Chat` is for Aria conversations without an attached working directory.
+
+`Projects` is for project threads with an attached workspace, repository, worktree, or execution environment.
 
 ### 033. Desktop Prompt Reference Suggestions Stay Inline And Compact
 
@@ -273,11 +283,11 @@ Do not introduce nested boxes, repeated metadata, or decorative sub-panels just 
 
 Scope: Desktop
 
-In desktop `Projects > Active Thread`, the transcript and composer must reuse the same centered conversation lane, message spacing, and composer chrome as desktop `Aria > Chat`.
+In desktop `Projects > Active Thread`, the transcript and composer must reuse the same centered conversation lane, message spacing, and composer chrome as desktop `Chat`.
 
 Do not duplicate the project and thread identity inside the center pane when that identity is already present in desktop chrome.
 
-Project-specific quick controls such as the current branch and active coding agent live in a compact row directly beneath the composer, while richer status stays in the inspector.
+Project-specific quick controls such as the current branch and active runtime target live in a compact row directly beneath the composer, while richer status stays in the inspector.
 
 When present in desktop `Projects > Active Thread`, the composer-adjacent quick controls are ordered as follows:
 
@@ -292,7 +302,7 @@ Free-text answers reuse the same rounded neutral shell language as the composer,
 
 Scope: Desktop
 
-In desktop `Aria > Chat`, pending approvals render in the same composer-adjacent action layer as pending questions instead of inside the transcript stream.
+In desktop `Chat`, pending approvals render in the same composer-adjacent action layer as pending questions instead of inside the transcript stream.
 
 Approval controls use compact pill buttons with the primary action emphasized, while tool-call details stay in a restrained neutral shell.
 
@@ -300,7 +310,7 @@ Approval controls use compact pill buttons with the primary action emphasized, w
 
 Scope: Desktop
 
-In desktop `Aria > Chat`, tool and system activity inside the transcript render as compact inline process rows with a small leading icon and subdued copy.
+In desktop `Chat`, tool and system activity inside the transcript render as compact inline process rows with a small leading icon and subdued copy.
 
 Routine tool activity must not use boxed card containers unless the interaction requires direct user action.
 

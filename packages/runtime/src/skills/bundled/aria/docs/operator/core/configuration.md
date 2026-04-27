@@ -68,7 +68,9 @@ Resolution order remains:
 
 The Anthropic-compatible MiniMax presets surface the official MiniMax text models directly in CLI setup flows instead of requiring manual model ID entry.
 
-Runtime and jobs resolve execution backends through the shared coding-agent registry in `@aria/agents-coding` rather than hard-coding provider-specific execution paths.
+Runtime and jobs execute through the Aria-native backend. Project work is routed
+to `Aria Agent` on the selected Aria node rather than to external coding-agent
+adapters.
 
 ## Approval Configuration
 
