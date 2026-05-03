@@ -15,6 +15,7 @@ vp run repo:check
 vp run repo:test
 vp run repo:build
 vp run repo:verify
+bun run test:live
 ```
 
 Convenience wrappers are also available through `bun run`.
@@ -22,6 +23,11 @@ Convenience wrappers are also available through `bun run`.
 `vp run repo:check` uses `Vite+` with `Oxc` for format and lint checks, then runs `tsc --noEmit` for TypeScript validation.
 
 `vp run repo:test` uses `Vitest` with the shared `vite.config.ts` configuration under the Bun runtime.
+
+`bun run test:live` runs only the `tests/live/` suites and fails before test
+startup if no live provider key is configured. Set at least one of
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_AI_API_KEY`, or
+`MINIMAX_API_KEY`.
 
 ## Detailed Plans
 

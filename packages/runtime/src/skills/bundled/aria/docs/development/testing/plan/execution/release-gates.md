@@ -22,6 +22,7 @@ PRs are blocked if:
 Required:
 
 - everything in the PR gate
+- `bun run test:live` in an environment with a configured live provider key
 - all `live-ai` cases
 - slow matrix cases for provider and connector variants
 

@@ -72,6 +72,11 @@ handled by `Aria Agent` through the native file, terminal, git, workspace, and
 MCP toolsets governed by the same policy and audit model as every other tool
 call.
 
+Server-owned project orchestration is exposed to Aria through
+`projects_control`. That tool creates durable project jobs and dispatches in
+the Projects repository, then optionally runs the dispatch through the native
+`aria` backend while preserving the Aria thread as the orchestrator.
+
 ## Audit Requirements
 
 Every tool execution records:

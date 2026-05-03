@@ -35,7 +35,13 @@ Use `ARIA_HOME=/tmp/aria-dev` when you want an isolated runtime home.
 vp run repo:check
 vp run repo:test
 vp run repo:build
+bun run test:live
 ```
+
+`bun run test:live` requires one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+`GOOGLE_AI_API_KEY`, or `MINIMAX_API_KEY`. Use `ARIA_LIVE_PROVIDER` and
+`ARIA_LIVE_MODEL` to select a specific provider or model when multiple keys are
+available.
 
 ## Repo Shape
 

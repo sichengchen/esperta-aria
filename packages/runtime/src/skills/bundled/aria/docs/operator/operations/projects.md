@@ -32,6 +32,12 @@ Use:
 - `handoff-submit` to create an idempotent submission
 - `handoff-process` to materialize it into thread/job/dispatch records
 
+Server clients can use the same flow through:
+
+- `projects.handoff.submit`
+- `projects.handoff.list`
+- `projects.handoff.materialize`
+
 ## Ownership Reminder
 
 Projects state is durable. Runtime execution is live. The CLI spans both, but the ownership remains split between Projects Engine and Runtime.
