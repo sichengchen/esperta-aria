@@ -19,6 +19,7 @@ import type { EngineRuntime } from "@aria/server/runtime";
 import { OperationalStore } from "@aria/persistence/operational-store";
 import { MCPManager } from "@aria/server/mcp";
 import { AuthManager } from "@aria/gateway/auth";
+import { ProjectsEngineRepository, ProjectsEngineStore } from "@aria/work";
 import type { KnownProvider } from "@mariozechner/pi-ai";
 
 let testDir: string;
@@ -734,6 +735,107 @@ describe("tRPC procedures (non-live)", () => {
       expect(events[0].runId).toBe(events[1].runId);
     });
 
+    test("allows master chat.stream calls to bind a project working directory", async () => {
+      const caller = createCaller();
+      const { session } = await caller.session.create({
+        connectorType: "engine",
+        prefix: "project:thread-1",
+      });
+      const workdir = join(testDir, "project-workdir");
+      await mkdir(workdir, { recursive: true });
+
+      const coordinator = getRuntimeSessionCoordinator(runtime);
+      coordinator.sessionAgents.set(session.id, {
+        async *chat() {
+          yield { type: "text_delta", delta: "ok" };
+          yield { type: "done", stopReason: "end_turn" };
+        },
+        getMessages() {
+          return [];
+        },
+      } as unknown as Agent);
+
+      const gen = await caller.chat.stream({
+        sessionId: session.id,
+        message: "hello",
+        workingDirectory: workdir,
+      });
+      for await (const _event of gen) {
+        // Drain the stream so the procedure completes.
+      }
+
+      expect(coordinator.sessionToolEnvironments.get(session.id)?.workingDir).toBe(workdir);
+    });
+
+    test("allows project chat.stream calls to suppress Aria memory context", async () => {
+      const caller = createCaller();
+      const { session } = await caller.session.create({
+        connectorType: "engine",
+        prefix: "project:thread-1",
+      });
+      const workdir = join(testDir, "project-memory-boundary");
+      await mkdir(workdir, { recursive: true });
+
+      const memoryQueries: string[] = [];
+      runtime.memory.getMemoryContext = async (query: string) => {
+        memoryQueries.push(query);
+        return "private Aria memory";
+      };
+
+      const receivedPrompts: string[] = [];
+      const coordinator = getRuntimeSessionCoordinator(runtime);
+      coordinator.sessionAgents.set(session.id, {
+        async *chat(prompt: string) {
+          receivedPrompts.push(prompt);
+          yield { type: "text_delta", delta: "ok" };
+          yield { type: "done", stopReason: "end_turn" };
+        },
+        getMessages() {
+          return [];
+        },
+      } as unknown as Agent);
+
+      const gen = await caller.chat.stream({
+        sessionId: session.id,
+        message: "project-only prompt",
+        workingDirectory: workdir,
+        suppressMemoryContext: true,
+      });
+      for await (const _event of gen) {
+        // Drain the stream so the procedure completes.
+      }
+
+      expect(memoryQueries).toEqual([]);
+      expect(receivedPrompts).toEqual(["project-only prompt"]);
+    });
+
+    test("rejects session-scoped chat.stream working directory overrides", async () => {
+      const caller = createSessionCaller("telegram:123", "telegram");
+      const { session } = await caller.session.create({
+        connectorType: "telegram",
+        prefix: "telegram:123",
+      });
+      const workdir = join(testDir, "foreign-workdir");
+      await mkdir(workdir, { recursive: true });
+
+      const events: any[] = [];
+      const gen = await caller.chat.stream({
+        sessionId: session.id,
+        message: "hello",
+        workingDirectory: workdir,
+      });
+      for await (const event of gen) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        type: "error",
+        message: "workingDirectory overrides require the master token",
+        sessionId: session.id,
+      });
+    });
+
     test("includes durable event identity on streamed errors", async () => {
       const caller = createSessionCaller("telegram:123", "telegram");
       const events: any[] = [];
@@ -758,7 +860,168 @@ describe("tRPC procedures (non-live)", () => {
       });
       expect(typeof events[0].timestamp).toBe("number");
     });
+
+    test("rejects session-scoped chat.stream memory suppression overrides", async () => {
+      const caller = createSessionCaller("telegram:123", "telegram");
+      const { session } = await caller.session.create({
+        connectorType: "telegram",
+        prefix: "telegram:123",
+      });
+
+      const events: any[] = [];
+      const gen = await caller.chat.stream({
+        sessionId: session.id,
+        message: "hello",
+        suppressMemoryContext: true,
+      });
+      for await (const event of gen) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        type: "error",
+        message: "memory context overrides require the master token",
+        sessionId: session.id,
+      });
+    });
   });
+
+  describe("projects gateway workflow", () => {
+    test("opens, queues, cancels, and reconnects a remote project thread", async () => {
+      const store = new ProjectsEngineStore(join(testDir, "aria.db"));
+      await store.init();
+      const repository = new ProjectsEngineRepository(store);
+      const now = Date.now();
+
+      repository.upsertProject({
+        projectId: "project-gateway",
+        name: "Gateway Project",
+        slug: "gateway-project",
+        description: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      repository.upsertServer({
+        serverId: "server-home",
+        label: "Home Server",
+        primaryBaseUrl: "https://aria.example.test",
+        secondaryBaseUrl: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      repository.upsertWorkspace({
+        workspaceId: "workspace-home",
+        host: "aria_server",
+        serverId: "server-home",
+        label: "Home Workspace",
+        createdAt: now,
+        updatedAt: now,
+      });
+      repository.upsertEnvironment({
+        environmentId: "environment-home",
+        workspaceId: "workspace-home",
+        projectId: "project-gateway",
+        label: "Home / main",
+        mode: "remote",
+        kind: "main",
+        locator: "/srv/gateway-project",
+        createdAt: now,
+        updatedAt: now,
+      });
+      repository.upsertThread({
+        threadId: "thread-gateway",
+        projectId: "project-gateway",
+        taskId: null,
+        repoId: null,
+        title: "Remote gateway thread",
+        status: "queued",
+        threadType: "remote_project",
+        workspaceId: "workspace-home",
+        environmentId: "environment-home",
+        environmentBindingId: "binding-home",
+        agentId: "aria-agent",
+        createdAt: now,
+        updatedAt: now,
+      });
+      repository.upsertThreadEnvironmentBinding({
+        bindingId: "binding-home",
+        threadId: "thread-gateway",
+        projectId: "project-gateway",
+        workspaceId: "workspace-home",
+        environmentId: "environment-home",
+        attachedAt: now,
+        detachedAt: null,
+        isActive: true,
+        reason: "Gateway workflow test",
+      });
+      repository.upsertJob({
+        jobId: "job-gateway",
+        threadId: "thread-gateway",
+        author: "user",
+        body: "Run this remotely",
+        createdAt: now,
+      });
+
+      const caller = createCaller();
+      const opened = await caller.projects.thread.open({ threadId: "thread-gateway" });
+
+      expect(opened.thread).toMatchObject({
+        threadId: "thread-gateway",
+        threadType: "remote_project",
+        agentId: "aria-agent",
+      });
+      expect(opened.environment).toMatchObject({
+        environmentId: "environment-home",
+        mode: "remote",
+      });
+      expect(opened.workspace).toMatchObject({
+        workspaceId: "workspace-home",
+        serverId: "server-home",
+      });
+
+      const queued = await caller.projects.dispatch.queue({
+        dispatchId: "dispatch-gateway",
+        projectId: "project-gateway",
+        threadId: "thread-gateway",
+        jobId: "job-gateway",
+      });
+
+      expect(queued.dispatch).toMatchObject({
+        dispatchId: "dispatch-gateway",
+        requestedBackend: "aria",
+        status: "queued",
+      });
+      expect(queued.threadState.dispatches).toHaveLength(1);
+
+      const cancelled = await caller.projects.dispatch.cancel({
+        dispatchId: "dispatch-gateway",
+        reason: "Operator cancelled",
+      });
+
+      expect(cancelled.dispatch).toMatchObject({
+        dispatchId: "dispatch-gateway",
+        status: "cancelled",
+        error: "Operator cancelled",
+      });
+
+      const reconnected = await caller.projects.thread.reconnect({ threadId: "thread-gateway" });
+
+      expect(reconnected.dispatches).toEqual([
+        expect.objectContaining({
+          dispatchId: "dispatch-gateway",
+          status: "cancelled",
+        }),
+      ]);
+      expect(reconnected.activeBinding).toMatchObject({
+        bindingId: "binding-home",
+        isActive: true,
+      });
+
+      repository.close();
+    });
+  });
+
   describe("model.list", () => {
     test("returns configured models", async () => {
       const caller = createCaller();

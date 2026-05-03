@@ -108,6 +108,72 @@ function createFakeAriaBackend() {
   return { adapter, requests };
 }
 
+function createFakeLocalAriaClient() {
+  const createdSessions: Array<{ connectorType: string; prefix: string; sessionId: string }> = [];
+  const streamRequests: Array<{
+    message: string;
+    sessionId: string;
+    workingDirectory?: string;
+    suppressMemoryContext?: boolean;
+  }> = [];
+  const stoppedSessions: string[] = [];
+
+  return {
+    client: {
+      chat: {
+        stop: {
+          async mutate(input: { sessionId: string }) {
+            stoppedSessions.push(input.sessionId);
+            return { cancelled: true };
+          },
+        },
+        stream: {
+          subscribe(
+            input: {
+              message: string;
+              sessionId: string;
+              workingDirectory?: string;
+              suppressMemoryContext?: boolean;
+            },
+            handlers: {
+              onComplete(): void;
+              onData(event: any): void;
+              onError(error: unknown): void;
+            },
+          ) {
+            streamRequests.push(input);
+            queueMicrotask(() => {
+              handlers.onData({ type: "text_delta", delta: "Gateway handled" });
+              handlers.onData({ type: "done", stopReason: "end_turn" });
+              handlers.onComplete();
+            });
+            return { unsubscribe() {} };
+          },
+        },
+      },
+      health: {
+        ping: {
+          async query() {
+            return { agentName: "Aria Agent", model: "test" };
+          },
+        },
+      },
+      session: {
+        create: {
+          async mutate(input: { connectorType: string; prefix: string }) {
+            const sessionId = `${input.prefix}:session`;
+            createdSessions.push({ ...input, sessionId });
+            return { session: { id: sessionId } };
+          },
+        },
+      },
+    },
+    createdSessions,
+    stoppedSessions,
+    streamRequests,
+  };
+}
+
 beforeEach(async () => {
   testDir = await mkdtemp(join(tmpdir(), "aria-desktop-projects-service-"));
 });
@@ -421,6 +487,53 @@ describe("DesktopProjectsService", () => {
     ]);
 
     reopened.close();
+  });
+
+  test("uses the local Aria node backend by default for desktop project threads", async () => {
+    const { DesktopProjectsService } =
+      await import("../apps/aria-desktop/src/main/desktop-projects-service.js");
+    const dbPath = join(testDir, "desktop", "aria-desktop.db");
+    const projectPath = await createProjectDirectory("projects/default-local-node-project");
+    const localAria = createFakeLocalAriaClient();
+    const service = new DesktopProjectsService({
+      dbPath,
+      localAriaClient: () => localAria.client as any,
+      readGitMetadata: async () => null,
+    });
+    const normalizedProjectPath = await realpath(projectPath);
+
+    service.init();
+    const imported = await service.importLocalProjectFromPath(projectPath);
+    const threadId = imported.selectedThreadId!;
+
+    const result = await service.sendProjectThreadMessage(threadId, "Run through the local node");
+
+    expect(localAria.createdSessions).toEqual([
+      {
+        connectorType: "engine",
+        prefix: `project:${threadId}`,
+        sessionId: `project:${threadId}:session`,
+      },
+    ]);
+    expect(localAria.streamRequests).toHaveLength(1);
+    expect(localAria.streamRequests[0]).toMatchObject({
+      message: "Run through the local node",
+      sessionId: `project:${threadId}:session`,
+      workingDirectory: normalizedProjectPath,
+      suppressMemoryContext: true,
+    });
+    expect(result.selectedThreadState).toMatchObject({
+      agentId: "aria-agent",
+      agentLabel: "Aria Agent",
+      backendSessionId: `project:${threadId}:session`,
+      status: "idle",
+    });
+    expect(result.selectedThreadState?.chat.messages.map((message) => message.content)).toEqual([
+      "Run through the local node",
+      "Gateway handled",
+    ]);
+
+    service.close();
   });
 
   test("expands project $skills and @files before dispatching a project-thread prompt", async () => {

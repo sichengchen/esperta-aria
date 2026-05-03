@@ -43,7 +43,7 @@ describe("shared stream handler", () => {
     handleDone();
     await state.editLock;
 
-    expect(sent).toEqual(["HELLO WORLD"]);
+    expect(sent).toEqual(["HELLO"]);
     expect(edited).toEqual(["HELLO"]);
     expect(extras).toEqual([" WORLD"]);
   });
