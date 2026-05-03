@@ -20,6 +20,7 @@
     "build": "vp run repo:build",
     "check": "vp run repo:check",
     "test": "vp run repo:test",
+    "test:live": "bun run scripts/require-live-provider.ts && bun test tests/live/*.test.ts",
     "test:watch": "vp run repo:test:watch",
     "verify": "vp run repo:verify",
     "lint": "vp lint",

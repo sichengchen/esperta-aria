@@ -5,6 +5,7 @@ import {
   listAvailableLiveProviders,
   resolveLiveProviderSelection,
 } from "./helpers/live-model.js";
+import { validateLiveProviderEnv } from "../scripts/require-live-provider.js";
 
 describe("live provider selection", () => {
   test("prefers the first configured provider when no override is set", () => {
@@ -44,5 +45,36 @@ describe("live provider selection", () => {
         MINIMAX_API_KEY: "minimax-key",
       }).map((provider) => provider.providerId),
     ).toEqual(["openai", "google", "minimax"]);
+  });
+
+  test("live test preflight rejects missing provider keys", () => {
+    expect(validateLiveProviderEnv({})).toMatchObject({
+      ok: false,
+      available: [],
+      message: expect.stringContaining("Live test provider is not configured"),
+    });
+  });
+
+  test("live test preflight validates provider overrides", () => {
+    expect(
+      validateLiveProviderEnv({
+        OPENAI_API_KEY: "openai-key",
+        ARIA_LIVE_PROVIDER: "anthropic",
+      }),
+    ).toMatchObject({
+      ok: false,
+      available: ["OPENAI_API_KEY"],
+      message: "ARIA_LIVE_PROVIDER=anthropic requires ANTHROPIC_API_KEY to be set.",
+    });
+
+    expect(
+      validateLiveProviderEnv({
+        OPENAI_API_KEY: "openai-key",
+        ARIA_LIVE_PROVIDER: "openai",
+      }),
+    ).toMatchObject({
+      ok: true,
+      available: ["OPENAI_API_KEY"],
+    });
   });
 });
